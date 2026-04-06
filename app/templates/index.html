@@ -1,0 +1,1604 @@
+{% extends 'base.html' %}
+{% block title %}QUALIHOME | Annregar Realty{% endblock %}
+
+{% block content %}
+<!-- ══════════════ HERO / HOME ══════════════ -->
+<section class="lp-hero" id="home">
+  <div class="lp-hero-grid"></div>
+  <div class="container position-relative" style="z-index:2;">
+    <div class="row align-items-center min-vh-hero py-5">
+
+      <!-- Left copy -->
+      <div class="col-lg-6 col-xl-5 mb-5 mb-lg-0">
+        <div class="lp-eyebrow mb-3">
+          <i class="fas fa-shield-alt me-2"></i>AI-C5.0 Classifier | Annregar Realty
+        </div>
+        <h1 class="lp-hero-h1 mb-3">
+          Know Your<br>
+          <em>Mortgage Eligibility</em><br>
+          in Minutes
+        </h1>
+        <p class="lp-hero-sub mb-4">
+QUALIHOME is Annregar Realty’s official pre-qualification platform. Powered by the <strong>Similarity-Augmented C5.0 Classifier</strong>, it evaluates your DTI and financial profile to deliver an instant eligibility result — no credit pull, no commitment.        </p>
+        <div class="d-flex flex-wrap gap-3 mb-5">
+          <a href="{{ url_for('auth.register') }}" class="btn btn-lime btn-lg px-4">
+            <i class="fas fa-rocket me-2"></i>Start Free Assessment
+          </a>
+          <a href="#process" class="btn lp-btn-ghost btn-lg px-4">
+            How It Works
+          </a>
+        </div>
+        <!-- Trust row -->
+        <div class="lp-trust-row">
+          <div class="lp-trust-item">
+            <span class="lp-trust-val">10K+</span>
+            <span class="lp-trust-lbl">Assessments</span>
+          </div>
+          <div class="lp-trust-divider"></div>
+          <div class="lp-trust-item">
+            <span class="lp-trust-val">94%</span>
+            <span class="lp-trust-lbl">Accuracy Rate</span>
+          </div>
+          <div class="lp-trust-divider"></div>
+          <div class="lp-trust-item">
+            <span class="lp-trust-val">4 min</span>
+            <span class="lp-trust-lbl">Avg. Completion</span>
+          </div>
+          <div class="lp-trust-divider"></div>
+          <div class="lp-trust-item">
+            <span class="lp-trust-val">Free</span>
+            <span class="lp-trust-lbl">No Hidden Fees</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right mock cards (dual) -->
+      <div class="col-lg-6 col-xl-7 d-none d-lg-flex justify-content-center align-items-center gap-4">
+        <!-- Card 1: Qualification Result -->
+        <div class="lp-mock-stack">
+          <!-- Lime rotated back card -->
+          <div class="lp-mock-card-back"></div>
+          <!-- Main white card -->
+          <div class="lp-mock-card">
+            <!-- Header label -->
+            <div class="lp-mc-eyebrow">Qualification Result</div>
+            <!-- Qualified pill -->
+            <div>
+              <span class="lp-mc-status-pill">
+                <span class="lp-mc-dot"></span>
+                &#10003; Qualified
+              </span>
+            </div>
+            <!-- Metric rows with progress bars -->
+            <div class="lp-mc-metrics">
+              <div class="lp-mc-metric">
+                <span class="lp-mc-metric-lbl">Gross Income</span>
+                <div class="lp-mc-track">
+                  <div class="lp-mc-fill lp-mc-fill-green" style="width:82%"></div>
+                </div>
+              </div>
+              <div class="lp-mc-metric">
+                <span class="lp-mc-metric-lbl">DTI Ratio</span>
+                <div class="lp-mc-track">
+                  <div class="lp-mc-fill lp-mc-fill-green" style="width:68%"></div>
+                </div>
+              </div>
+              <div class="lp-mc-metric">
+                <span class="lp-mc-metric-lbl">Employment</span>
+                <div class="lp-mc-track">
+                  <div class="lp-mc-fill lp-mc-fill-amber" style="width:55%"></div>
+                </div>
+              </div>
+            </div>
+            <!-- Max loanable amount -->
+            <div class="lp-mc-amount">
+              <div class="lp-mc-amount-icon"><i class="fas fa-house"></i></div>
+              <div>
+                <div class="lp-mc-amount-label">Max Loanable Amount</div>
+                <div class="lp-mc-amount-val">&#8369; 2,400,000</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Assessment Overview (same styling as Card 1) -->
+        <div class="lp-mock-stack">
+          <div class="lp-mock-card-back lp-mock-card-back--alt"></div>
+          <div class="lp-mock-card">
+            <div class="lp-mc-eyebrow">Assessment Overview</div>
+            <div>
+              <span class="lp-mc-status-pill lp-mc-status-pill--amber">
+                <span class="lp-mc-dot lp-mc-dot--amber"></span>
+                &#126; Conditional
+              </span>
+            </div>
+            <div class="lp-mc-metrics">
+              <div class="lp-mc-metric">
+                <span class="lp-mc-metric-lbl">DTI Ratio</span>
+                <div class="lp-mc-track">
+                  <div class="lp-mc-fill lp-mc-fill-amber" style="width:37%"></div>
+                </div>
+              </div>
+              <div class="lp-mc-metric">
+                <span class="lp-mc-metric-lbl">Employment</span>
+                <div class="lp-mc-track">
+                  <div class="lp-mc-fill lp-mc-fill-green" style="width:90%"></div>
+                </div>
+              </div>
+              <div class="lp-mc-metric">
+                <span class="lp-mc-metric-lbl">Approvals</span>
+                <div class="lp-mc-track">
+                  <div class="lp-mc-fill lp-mc-fill-amber" style="width:48%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="lp-mc-amount">
+              <div class="lp-mc-amount-icon"><i class="fas fa-chart-line"></i></div>
+              <div>
+                <div class="lp-mc-amount-label">Similarity Score</div>
+                <div class="lp-mc-amount-val">0.74 <span style="font-size:.72rem;color:var(--clr-muted);font-weight:500">/ 1.00</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ LISTINGS ══════════════ -->
+<section class="lp-listings-section" id="listings">
+  <div class="container">
+    <div class="text-center mb-4">
+      <span class="lp-section-pill lp-pill-lime mb-3"><i class="fas fa-home me-2"></i>Available Models</span>
+      <h2 class="lp-section-h2 mt-3">Browse Our <em>Listings</em></h2>
+      <p class="lp-section-sub mt-2">
+        Find the perfect home from our nationwide portfolio. Use the filters to narrow your search.
+      </p>
+    </div>
+
+    <!-- Compact filter bar -->
+    <form method="GET" action="{{ url_for('main.index') }}" class="listings-filter-bar mb-4" id="filterForm">
+      <div class="listings-fb-group">
+        <label class="listings-fb-label"><i class="fas fa-map-marker-alt me-1"></i>Location</label>
+        <select name="location" id="listingsLocationFilter" class="form-select listings-fb-select">
+          <option value="">All Locations</option>
+          {% for loc in all_locations %}
+          <option value="{{ loc }}" {% if filters.location == loc %}selected{% endif %}>{{ loc }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="listings-fb-group">
+        <label class="listings-fb-label"><i class="fas fa-peso-sign me-1"></i>Max Budget</label>
+        <input type="number" name="max_budget" class="form-control listings-fb-input"
+               placeholder="&#8369; Any" min="0" step="50000" value="{{ filters.max_budget }}">
+      </div>
+      <div class="listings-fb-group">
+        <label class="listings-fb-label"><i class="fas fa-bed me-1"></i>Bedrooms</label>
+        <select name="bedrooms" class="form-select listings-fb-select">
+          <option value="">Any</option>
+          {% for v in ['1','2','3','4','5'] %}
+          <option value="{{ v }}" {% if filters.bedrooms == v %}selected{% endif %}>{{ v }}{% if v == '5' %}+{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="listings-fb-group">
+        <label class="listings-fb-label"><i class="fas fa-layer-group me-1"></i>Stories</label>
+        <select name="storeys" class="form-select listings-fb-select">
+          <option value="">Any</option>
+          {% for v in ['1','2','3'] %}
+          <option value="{{ v }}" {% if filters.storeys == v %}selected{% endif %}>{{ v }}{% if v == '3' %}+{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="listings-fb-group">
+        <label class="listings-fb-label"><i class="fas fa-bath me-1"></i>Bathrooms</label>
+        <select name="bathrooms" class="form-select listings-fb-select">
+          <option value="">Any</option>
+          {% for v in ['1','2','3','4'] %}
+          <option value="{{ v }}" {% if filters.bathrooms == v %}selected{% endif %}>{{ v }}{% if v == '4' %}+{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+
+    <!-- Model grid -->
+    {% if properties %}
+    <div class="row g-4">
+      {% for p in properties %}
+      <div class="col-sm-6 col-lg-4">
+           {% set first_img = p.images.split(',')[0].strip() if p.images else '' %}
+           {% set img_count = (p.images.split(',')|length) if p.images else 0 %}
+           {% set s_badge = 'badge-qualified' if p.status == 'available' else ('badge-conditional' if p.status == 'reserved' else 'badge-sold') %}
+           <div class="prop-card prop-card-clickable listings-card--lime"
+             data-prop-name="{{ p.name|e }}"
+             data-prop-loc="{{ p.location|e }}"
+             data-prop-city="{{ (p.citymun_name or '')|e }}"
+             data-prop-status="{{ p.status|e }}"
+             data-prop-unit-type="{{ (p.unit_type or '')|e }}"
+             data-prop-prop-type="{{ (p.prop_type or '')|e }}"
+             data-prop-type="{{ (p.prop_type or '')|replace('-', ' ')|title|e }}"
+             data-prop-price="{{ p.price or 0 }}"
+             data-prop-beds="{{ p.bedrooms or '' }}"
+             data-prop-baths="{{ p.bathrooms or '' }}"
+             data-prop-storeys="{{ p.storeys or '' }}"
+             data-prop-floor="{{ p.floor_area or '' }}"
+             data-prop-lot="{{ p.lot_area or '' }}"
+             data-prop-subdivision="{{ (p.subdivision.name if p.subdivision else '')|e }}"
+             data-prop-created-at="{{ p.created_at.strftime('%b %d, %Y %I:%M %p') if p.created_at else '' }}"
+             data-prop-desc="{{ (p.description or '')|e }}"
+             data-prop-images="{{ p.images or '' }}"
+             role="button"
+             tabindex="0"
+             aria-label="View model details for {{ p.name|e }}">
+          <div class="prop-card-img-wrap">
+            {% if p.images %}
+              <img src="/uploads/{{ first_img }}" alt="{{ p.name }}" class="prop-card-img">
+            {% else %}
+              <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
+            {% endif %}
+            <span class="prop-card-img-count"><i class="fas fa-images me-1"></i>{{ img_count }}</span>
+            <div class="prop-card-actions">
+              <button type="button" class="sub-card-action-btn listings-preview-btn" title="View"><i class="fas fa-eye"></i></button>
+            </div>
+          </div>
+          <div class="prop-card-body">
+            <div class="prop-card-header">
+              <div class="prop-card-name">{{ p.name }}</div>
+              <span class="sqh-badge {{ s_badge }}">{{ p.status|title }}</span>
+            </div>
+            <div class="prop-card-header">
+              <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ p.location }}</div>
+              <div class="prop-card-icons">
+                {% if p.bedrooms %}<span class="prop-card-icon-chip"><i class="fas fa-bed chip-icon-accent"></i>{{ p.bedrooms }}</span>{% endif %}
+                {% if p.bathrooms %}<span class="prop-card-icon-chip"><i class="fas fa-bath chip-icon-blue"></i>{{ p.bathrooms }}</span>{% endif %}
+                {% if p.storeys %}<span class="prop-card-icon-chip"><i class="fas fa-layer-group chip-icon-crimson"></i>{{ p.storeys }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="prop-card-footer">
+              <span class="prop-card-type {% if p.unit_type == 'pre-selling' %}prop-type-badge-pre-selling{% elif p.unit_type == 'ready-for-occupancy' %}prop-type-badge-ready-for-occupancy{% elif p.unit_type == 'resale' %}prop-type-badge-resale{% endif %}">{{ (p.unit_type or p.prop_type or 'Model')|replace('-',' ')|title }}</span>
+              <span class="prop-card-price">&#8369;{{ "{:,.0f}".format(p.price|float) }}</span>
+            </div>
+            <div class="prop-card-meta">
+              <span><i class="fas fa-map-marker-alt me-1"></i>{{ p.subdivision.name if p.subdivision else (p.location.split(',')[0].strip() if p.location else 'Subdivision not set') }}</span>
+              <span><i class="far fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y %I:%M %p') if p.created_at else '—' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div id="filterEmptyState" class="listings-empty-compact d-none mt-4" aria-live="polite">
+      <i class="fas fa-filter fa-2x mb-3" style="color:var(--clr-accent);"></i>
+      <h5 class="fw-bold mb-1">No models match your filters</h5>
+      <p class="text-muted small mb-0">Try widening your budget or changing bedrooms, stories, or bathrooms.</p>
+    </div>
+    {% else %}
+    <div class="listings-empty-compact">
+      <i class="fas fa-search fa-2x mb-3" style="color:var(--clr-accent);"></i>
+      <h5 class="fw-bold">No models found</h5>
+      <p class="text-muted small">Try adjusting your filters or check back soon for new listings.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ══════════════ STATUS CARDS ══════════════ -->
+<section class="lp-status-section" id="qualifications">
+  <div class="container">
+    <div class="text-center mb-4">
+      <span class="lp-section-pill mb-3"><i class="fas fa-chart-pie me-2"></i>Qualification Outcomes</span>
+      <h2 class="lp-section-h2 mt-3">What <em>Your Result</em> Means</h2>
+      <p class="lp-section-sub mt-2">Our DTI-based engine classifies your application into one of three outcomes.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- Fully Qualified -->
+      <div class="col-lg-4">
+        <div class="sqc-card sqc-green">
+          <div class="sqc-top">
+            <div class="sqc-icon-wrap sqc-icon-green"><i class="fas fa-check-circle"></i></div>
+            <span class="sqc-badge sqc-badge-green">DTI &lt; 35%</span>
+          </div>
+          <h3 class="sqc-title">Fully Qualified</h3>
+          <p class="sqc-desc">Your debt-to-income ratio is ideal. Lenders are highly likely to approve.</p>
+          <ul class="sqc-checks">
+            <li><i class="fas fa-check sqc-check-icon"></i> Strong income-to-debt position</li>
+            <li><i class="fas fa-check sqc-check-icon"></i> Meets standard lender thresholds</li>
+            <li><i class="fas fa-check sqc-check-icon"></i> Proceed to formal application</li>
+          </ul>
+        </div>
+      </div>
+      <!-- Conditionally Qualified -->
+      <div class="col-lg-4">
+        <div class="sqc-card sqc-blue sqc-featured">
+          <span class="sqc-featured-label">Most Common</span>
+          <div class="sqc-top">
+            <div class="sqc-icon-wrap sqc-icon-blue"><i class="fas fa-exclamation-triangle"></i></div>
+            <span class="sqc-badge sqc-badge-blue">DTI 35–42%</span>
+          </div>
+          <h3 class="sqc-title">Conditionally Qualified</h3>
+          <p class="sqc-desc">Your ratio is elevated but manageable with compensating factors.</p>
+          <ul class="sqc-checks">
+            <li><i class="fas fa-circle sqc-check-icon sqc-check-blue" style="font-size:.45rem;"></i> Borderline DTI range</li>
+            <li><i class="fas fa-circle sqc-check-icon sqc-check-blue" style="font-size:.45rem;"></i> Debt reduction recommended</li>
+            <li><i class="fas fa-circle sqc-check-icon sqc-check-blue" style="font-size:.45rem;"></i> Agent review suggested</li>
+          </ul>
+        </div>
+      </div>
+      <!-- Not Qualified -->
+      <div class="col-lg-4">
+        <div class="sqc-card sqc-red">
+          <div class="sqc-top">
+            <div class="sqc-icon-wrap sqc-icon-red"><i class="fas fa-times-circle"></i></div>
+            <span class="sqc-badge sqc-badge-red">DTI &gt; 42%</span>
+          </div>
+          <h3 class="sqc-title">Not Qualified</h3>
+          <p class="sqc-desc">Your debt load exceeds safe lending limits. Improvement plan needed.</p>
+          <ul class="sqc-checks">
+            <li><i class="fas fa-times sqc-check-icon sqc-check-red"></i> DTI exceeds lender limits</li>
+            <li><i class="fas fa-times sqc-check-icon sqc-check-red"></i> Income increase may help</li>
+            <li><i class="fas fa-times sqc-check-icon sqc-check-red"></i> Reassess in 6–12 months</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ PROCESS ══════════════ -->
+<section class="lp-process-section" id="process">
+  <div class="container">
+    <div class="text-center mb-4">
+      <span class="lp-section-pill lp-pill-blue mb-3"><i class="fas fa-list-ol me-2"></i>Simple Process</span>
+      <h2 class="lp-section-h2 mt-3">How <em>Qualihome Works</em></h2>
+      <p class="lp-section-sub mt-2">Four quick steps, instant result — no credit check, no commitment.</p>
+    </div>
+    <div class="lp-steps-row">
+      <div class="lp-step">
+        <div class="lp-step-connector"></div>
+        <div class="lp-step-num lp-step-num-red">1</div>
+        <div class="lp-step-body">
+          <div class="lp-step-icon lp-step-icon-red"><i class="fas fa-user-plus"></i></div>
+          <div class="lp-step-title">Create Account</div>
+          <p class="lp-step-desc">Register in seconds — no credit card required.</p>
+        </div>
+      </div>
+      <div class="lp-step">
+        <div class="lp-step-connector"></div>
+        <div class="lp-step-num lp-step-num-lime">2</div>
+        <div class="lp-step-body">
+          <div class="lp-step-icon lp-step-icon-lime"><i class="fas fa-file-alt"></i></div>
+          <div class="lp-step-title">Enter Details</div>
+          <p class="lp-step-desc">4 short steps: income, debts, and goals.</p>
+        </div>
+      </div>
+      <div class="lp-step">
+        <div class="lp-step-connector"></div>
+        <div class="lp-step-num lp-step-num-blue">3</div>
+        <div class="lp-step-body">
+          <div class="lp-step-icon lp-step-icon-blue"><i class="fas fa-calculator"></i></div>
+          <div class="lp-step-title">DTI Calculated</div>
+          <p class="lp-step-desc">Real-time debt-to-income computation.</p>
+        </div>
+      </div>
+      <div class="lp-step lp-step-last">
+        <div class="lp-step-num lp-step-num-red">4</div>
+        <div class="lp-step-body">
+          <div class="lp-step-icon lp-step-icon-red"><i class="fas fa-clipboard-check"></i></div>
+          <div class="lp-step-title">Get Result</div>
+          <p class="lp-step-desc">Instant qualification report with next steps.</p>
+        </div>
+      </div>
+    </div>
+    <!-- Feature highlights row -->
+    <div class="row g-3 mt-4">
+      <div class="col-6 col-lg-3">
+        <div class="lp-process-feat"><i class="fas fa-bolt me-2" style="color:var(--clr-primary);"></i>Under 60 Seconds</div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="lp-process-feat"><i class="fas fa-lock me-2" style="color:var(--clr-accent-dk);"></i>No Credit Pull</div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="lp-process-feat"><i class="fas fa-chart-line me-2" style="color:var(--clr-blue);"></i>Live DTI Meter</div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="lp-process-feat"><i class="fas fa-user-tie me-2" style="color:var(--clr-primary);"></i>Agent Review</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ ABOUT US — COMPANY + VALUES ══════════════ -->
+<section class="about-full-section about-full-combined" id="about">
+  <div class="container d-flex flex-column justify-content-center h-100">
+
+    <!-- Split: heading + description LEFT | team photo RIGHT -->
+    <div class="row align-items-center g-4 mb-4">
+      <div class="col-lg-6">
+        <span class="lp-section-pill mb-2 d-inline-block"><i class="fas fa-building me-2"></i>Annregar Realty &amp; Development Corp.</span>
+        <h2 class="lp-section-h2 about-h2-split mt-2">About <em>Annregar Realty</em></h2>
+        <p class="about-hero-sub mt-2 mb-0">
+          Delivering excellence in every aspect of real estate transactions through
+          integrity, expertise, passion, and hard work — making homeownership
+          a reality for every client we serve.
+        </p>
+      </div>
+      <div class="col-lg-6">
+        <div class="about-team-img-wrap">
+          <img src="{{ url_for('static', filename='img/photos/photo_3.jpg') }}" alt="Annregar Realty Team">
+        </div>
+      </div>
+    </div>
+
+    <!-- Mission & Vision (blue tint background) -->
+    <div class="row g-3 mb-2">
+      <div class="col-md-6">
+        <div class="about-mv-card about-mv-card--primary about-mv-card--compact h-100">
+          <div class="about-mv-icon"><i class="fas fa-bullseye"></i></div>
+          <h3 class="about-mv-title">Our Mission</h3>
+          <p class="about-mv-text mb-0">
+            To deliver excellence in every aspect of real estate transactions.
+            We aim to achieve excellence, integrity, expertise, and hard work
+            for our clients — delivering the best and quality service in
+            everything we do.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="about-mv-card about-mv-card--primary about-mv-card--lime about-mv-card--compact h-100">
+          <div class="about-mv-icon about-mv-icon--lime"><i class="fas fa-eye"></i></div>
+          <h3 class="about-mv-title">Our Vision</h3>
+          <p class="about-mv-text mb-0">
+            To adapt and evolve to continue offering beyond-expectation service
+            and results through initiative, respect, transparency, integrity,
+            and passion to our Sellers, Business Partners, and Buyers.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core Values divider -->
+    <div class="about-values-divider mb-2">
+      <span>Our Core Values</span>
+    </div>
+
+    <!-- Core Values cards -->
+    <div class="row g-3 justify-content-center">
+      <div class="col-sm-6 col-lg-4">
+        <div class="about-feature-card about-feature-card--compact">
+          <div class="about-feature-icon"><i class="fas fa-handshake"></i></div>
+          <h5 class="about-feature-title">Integrity</h5>
+          <p class="about-feature-text">
+            We promise a relationship characterized by honesty, transparency,
+            and sincerity in all our transactions.
+          </p>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-4">
+        <div class="about-feature-card about-feature-card--compact">
+          <div class="about-feature-icon"><i class="fas fa-award"></i></div>
+          <h5 class="about-feature-title">Professionalism</h5>
+          <p class="about-feature-text">
+            We are responsive, dedicated, and always maintain the highest
+            quality standard in all areas of our service.
+          </p>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-4">
+        <div class="about-feature-card about-feature-card--compact">
+          <div class="about-feature-icon"><i class="fas fa-fire"></i></div>
+          <h5 class="about-feature-title">Passion</h5>
+          <p class="about-feature-text">
+            A fully committed, customer-oriented team with a passion for
+            maintaining our reputation in every transaction.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════ TEAM / CEO — 100vh ══════════════ -->
+<section class="about-full-section about-full-team about-full-team--dark">
+  <div class="about-team-overlay"></div>
+    <div class="container d-flex align-items-center h-100 position-relative" style="z-index:3;">
+    <div class="row g-5 align-items-center w-100">
+
+      <!-- People Carousel -->
+      <div class="col-lg-5 text-center">
+        <div class="people-carousel" id="peopleCarousel">
+          <div class="people-track">
+            <!-- Person 1 -->
+            <div class="people-slide" data-person="0">
+              <img src="{{ url_for('static', filename='img/people/president.png') }}"
+                   alt="Angeline R. Gardiola — President/CEO"
+                   class="about-ceo-photo">
+            </div>
+            <!-- Add more people slides here -->
+            <!-- <div class="people-slide" data-person="1">
+              <img src="{{ url_for('static', filename='img/people/person2.png') }}"
+                   alt="Name — Title"
+                   class="about-ceo-photo">
+            </div> -->
+          </div>
+          <div class="people-nav">
+            <button class="people-nav-btn people-nav--prev" id="peoplePrev" aria-label="Previous person">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="people-dots" id="peopleDots"></div>
+            <button class="people-nav-btn people-nav--next" id="peopleNext" aria-label="Next person">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Person Info -->
+      <div class="col-lg-7">
+        <span class="lp-section-pill mb-3"><i class="fas fa-users me-2"></i>The People Behind It</span>
+        <div class="people-info-track">
+          <!-- Person 1 info -->
+          <div class="people-info active" data-person="0">
+            <h2 class="about-ceo-role mt-3">President</h2>
+            <p class="about-ceo-subtitle">ANNREGAR REALTY PRESIDENT / CEO</p>
+            <p class="about-ceo-bio">
+              Annregar Realty is founded by <strong>Angeline R. Gardiola</strong>,
+              President/CEO and Licensed Real Estate Broker of Annregar Realty &amp; Development Corp.
+              With a deep commitment to excellence and years of industry experience,
+              she leads the company's mission to deliver beyond-expectation service
+              and results in every real estate transaction.
+            </p>
+          </div>
+          <!-- Add more people info here -->
+          <!-- <div class="people-info" data-person="1">
+            <h2 class="about-ceo-role mt-3">Vice President</h2>
+            <p class="about-ceo-subtitle">ANNREGAR REALTY VP</p>
+            <p class="about-ceo-bio">
+              Description here.
+            </p>
+          </div> -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ GALLERY ══════════════ -->
+<section class="gallery-section">
+  <div class="container">
+    <div class="text-center mb-4">
+      <span class="lp-section-pill mb-3"><i class="fas fa-images me-2"></i>Our Story in Photos</span>
+      <h2 class="lp-section-h2 mt-3">Milestones &amp; <em>Moments</em></h2>
+      <p class="lp-section-sub mt-2">Photos, awards, and events from our journey and milestones.</p>
+    </div>
+
+    <!-- Category tabs -->
+    <div class="gallery-tabs mb-4" id="galleryTabs">
+      <button class="gallery-tab active" data-filter="all">All</button>
+      <button class="gallery-tab" data-filter="photos">Photos</button>
+      <button class="gallery-tab" data-filter="awards">Awards</button>
+      <button class="gallery-tab" data-filter="events">Events</button>
+    </div>
+
+    <!-- Gallery carousel -->
+    <div class="gallery-carousel" id="galleryCarousel">
+
+      <!-- Prev / Next buttons -->
+      <button class="gallery-nav gallery-nav--prev" id="galleryPrev" aria-label="Previous">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <button class="gallery-nav gallery-nav--next" id="galleryNext" aria-label="Next">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+
+      <!-- Track -->
+      <div class="gallery-track" id="galleryTrack">
+
+        <!-- AWARDS -->
+        <div class="gallery-slide" data-cat="awards">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/awards/award_1.jpg') }}" alt="Top Broker Sales Team - Carmona Estates">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-awards">Award</span>
+              <p class="gallery-caption-text">Top Broker Sales Team - Carmona Estates</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="gallery-slide" data-cat="awards">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/awards/award_2.jpg') }}" alt="Special Awards 2024 Quality Sales">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-awards">Award</span>
+              <p class="gallery-caption-text">Special Awards 2024 Quality Sales</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="gallery-slide" data-cat="awards">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/awards/award_3.jpg') }}" alt="Top Broker Sales Team - Overall">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-awards">Award</span>
+              <p class="gallery-caption-text">Top Broker Sales Team - Overall</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PHOTOS -->
+        <div class="gallery-slide" data-cat="photos">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/photos/photo_1.jpg') }}" alt="Great Memories in Photos">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-community">Photo</span>
+              <p class="gallery-caption-text">Great Memories in Photos</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="gallery-slide" data-cat="photos">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/photos/photo_2.jpg') }}" alt="Great Memories in Photos">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-community">Photo</span>
+              <p class="gallery-caption-text">Great Memories in Photos</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="gallery-slide" data-cat="photos">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/photos/photo_3.jpg') }}" alt="Great Memories in Photos">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-community">Photo</span>
+              <p class="gallery-caption-text">Great Memories in Photos</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="gallery-slide" data-cat="photos">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/photos/photo_4.jpg') }}" alt="Great Memories in Photos">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-community">Photo</span>
+              <p class="gallery-caption-text">Great Memories in Photos</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="gallery-slide" data-cat="photos">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/photos/photo_5.jpg') }}" alt="Great Memories in Photos">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-community">Photo</span>
+              <p class="gallery-caption-text">Great Memories in Photos</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- EVENTS -->
+        <div class="gallery-slide" data-cat="events">
+          <div class="gallery-card">
+            <div class="gallery-img-wrap">
+              <img src="{{ url_for('static', filename='img/events/event_1.jpg') }}" alt="Breighton's 2021 &amp; 2022 Sales Annual Awards">
+            </div>
+            <div class="gallery-caption">
+              <span class="gallery-cat-badge gallery-cat-events">Event</span>
+              <p class="gallery-caption-text">Breighton's 2021 &amp; 2022 Sales Annual Awards</p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /gallery-track -->
+    </div><!-- /gallery-carousel -->
+
+    <!-- Dots -->
+    <div class="gallery-dots" id="galleryDots"></div>
+
+  </div>
+</section>
+
+<!-- Gallery Modal -->
+<div id="galleryModal" class="gallery-modal" role="dialog" aria-modal="true">
+  <div class="gallery-modal-inner">
+    <button class="img-preview-close-btn" id="galleryModalClose" aria-label="Close">
+      <i class="fas fa-times"></i>
+    </button>
+    <div class="gallery-modal-img-frame" id="galleryModalImgFrame">
+      <img id="galleryModalImg" src="" alt="" class="gallery-modal-img">
+      <div class="gallery-modal-zoom-controls" id="galleryZoomControls" aria-label="Image zoom controls">
+        <button type="button" class="gallery-zoom-btn" id="galleryZoomOut" aria-label="Zoom out"><i class="fas fa-search-minus"></i></button>
+        <button type="button" class="gallery-zoom-btn gallery-zoom-reset" id="galleryZoomReset" aria-label="Reset zoom">100%</button>
+        <button type="button" class="gallery-zoom-btn" id="galleryZoomIn" aria-label="Zoom in"><i class="fas fa-search-plus"></i></button>
+      </div>
+    </div>
+    <p id="galleryModalCaption" class="gallery-modal-caption"></p>
+  </div>
+</div>
+
+<!-- Landing Property Detail Modal -->
+<div class="modal fade" id="lpPropDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content sqh-modal" style="overflow:hidden;">
+      <div id="lpPvmImgWrap" class="pvm-img-wrap" style="display:none;position:relative;background:#111;">
+        <img id="lpPvmImg" src="" alt="" class="pvm-img">
+        <button type="button" id="lpPvmPrev" class="sub-preview-nav sub-preview-nav-prev d-none" aria-label="Previous"><i class="fas fa-chevron-left"></i></button>
+        <button type="button" id="lpPvmNext" class="sub-preview-nav sub-preview-nav-next d-none" aria-label="Next"><i class="fas fa-chevron-right"></i></button>
+        <div id="lpPvmDots" class="sub-preview-dots"></div>
+      </div>
+      <div id="lpPvmImgPlaceholder" class="pvm-img-placeholder">
+        <i class="fas fa-home" style="font-size:4rem;color:rgba(255,255,255,.2);"></i>
+      </div>
+
+      <button type="button" class="sqh-modal-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close" style="z-index:10;">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <div class="modal-body p-4">
+        <div class="d-flex align-items-start justify-content-between gap-3 mb-3 lp-pvm-header-row">
+          <div class="min-w-0">
+            <h5 class="fw-bold mb-1" id="lpPvmName">-</h5>
+            <p class="text-muted small mb-0" id="lpPvmLocation"></p>
+          </div>
+          <div id="lpPvmTypeBadge" class="flex-shrink-0"></div>
+        </div>
+
+        <div id="lpPvmIconChips" class="pvm-icon-chips mb-3"></div>
+
+        <hr class="my-3">
+
+        <div class="row g-3 mb-3" id="lpPvmDetails"></div>
+
+        <div id="lpPvmDescWrap" class="mb-3 d-none">
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.4rem;">
+            Description
+          </div>
+          <p class="fw-semibold small" id="lpPvmDesc" style="color:var(--clr-text);white-space:pre-wrap;"></p>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end pt-3 border-top lp-pvm-actions">
+          <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Close</button>
+          <a href="{{ url_for('auth.register') }}" class="btn btn-lime px-4" id="lpPropCheckEligibilityBtn">
+            <i class="fas fa-clipboard-check me-1"></i> Check Eligibility
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Landing Property Image Preview Modal (gallery-style) -->
+<div id="lpPvmPreviewModal" class="gallery-modal" role="dialog" aria-modal="true">
+  <div class="gallery-modal-inner">
+    <button class="img-preview-close-btn" id="lpPvmPreviewClose" aria-label="Close">
+      <i class="fas fa-times"></i>
+    </button>
+    <div class="gallery-modal-img-frame" id="lpPvmPreviewImgFrame">
+      <img id="lpPvmPreviewImg" src="" alt="" class="gallery-modal-img">
+      <div class="gallery-modal-zoom-controls" id="lpPvmPreviewZoomControls" aria-label="Image zoom controls">
+        <button type="button" class="gallery-zoom-btn" id="lpPvmPreviewZoomOut" aria-label="Zoom out"><i class="fas fa-search-minus"></i></button>
+        <button type="button" class="gallery-zoom-btn gallery-zoom-reset" id="lpPvmPreviewZoomReset" aria-label="Reset zoom">100%</button>
+        <button type="button" class="gallery-zoom-btn" id="lpPvmPreviewZoomIn" aria-label="Zoom in"><i class="fas fa-search-plus"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CTA + FOOTER ══════════════ -->
+<section class="lp-cta-section">
+  <div class="lp-cta-bg"></div>
+
+  <!-- CTA content -->
+  <div class="container text-center position-relative d-flex flex-column justify-content-center" style="z-index:2; flex: 1;">
+    <div>
+      <span class="lp-cta-pill mb-3 d-inline-block"><i class="fas fa-home me-2"></i>Your Journey Starts Here</span>
+      <h2 class="lp-cta-h2">Ready to Find Out If<br>You <em style="font-family:'Lora',Georgia,serif;font-style:italic;color:var(--clr-accent);">Qualify?</em></h2>
+      <p class="lp-cta-sub mt-3 mb-4 mx-auto">
+        Join over 10,000 home buyers who used QualiHome to understand their mortgage eligibility before applying.
+      </p>
+      <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-lime btn-lg px-5">
+          <i class="fas fa-rocket me-2"></i>Start Free Today
+        </a>
+        <a href="{{ url_for('auth.login') }}" class="btn lp-btn-ghost btn-lg px-5">
+          Sign In
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline footer -->
+  <footer class="lp-cta-footer position-relative" style="z-index:2;">
+    <div class="container-xl">
+      <hr style="border-color: rgba(255,255,255,.12); margin-bottom: 1.2rem;" />
+      <div class="row gy-3">
+        <div class="col-lg-4">
+          <div class="footer-brand" style="display:flex;align-items:center;gap:.7rem;font-weight:800;font-size:1rem;color:#fff;margin-bottom:.4rem;">
+            <img src="{{ url_for('static', filename='img/essentials/logo.png') }}" alt="QUALIHOME logo" style="height:50px;width:auto;object-fit:contain;flex-shrink:0;background-color:#fff;padding:0;border-radius:4px;" />
+            <div>
+              <span style="display:block;font-size:.95rem;">QUALIHOME</span>
+              <span style="display:block;font-size:.65rem;font-weight:400;opacity:.5;">Annregar Realty</span>
+            </div>
+          </div>
+          <p class="small mb-0" style="color:rgba(255,255,255,.5);font-size:.75rem;">
+            A web-based pre-qualification assessment system for Annregar Realty. Powered by the
+            Similarity-Augmented C5.0 Classifier Algorithm.
+          </p>
+        </div>
+        <div class="col-lg-2 col-6">
+          <h6 class="text-white fw-bold mb-1" style="font-size:.8rem;">Quick Links</h6>
+          <ul class="list-unstyled mb-0" style="font-size:.75rem;">
+            <li class="mb-1"><a href="{{ url_for('main.index') }}" style="color:var(--clr-accent);">Home</a></li>
+            <li class="mb-1"><a href="#listings" style="color:var(--clr-accent);">Browse Models</a></li>
+            <li class="mb-1"><a href="{{ url_for('auth.login') }}" style="color:var(--clr-accent);">Sign In</a></li>
+            <li class="mb-1"><a href="{{ url_for('auth.register') }}" style="color:var(--clr-accent);">Register</a></li>
+          </ul>
+        </div>
+        <div class="col-lg-3 col-6">
+          <h6 class="text-white fw-bold mb-1" style="font-size:.8rem;">Contact</h6>
+          <ul class="list-unstyled mb-0" style="font-size:.75rem;">
+            <li class="mb-1" style="color:rgba(255,255,255,.6);"><i class="fas fa-map-marker-alt me-2"></i>Carmona, Cavite</li>
+            <li class="mb-1" style="color:rgba(255,255,255,.6);"><i class="fas fa-envelope me-2"></i>info@annregarrealty.com</li>
+          </ul>
+        </div>
+        <div class="col-lg-3">
+          <h6 class="text-white fw-bold mb-1" style="font-size:.8rem;">Developed By</h6>
+          <p class="mb-0" style="font-size:.75rem;color:rgba(255,255,255,.6);">
+            Ponce · Samson · Serote · Villela<br>
+            <span style="color:rgba(255,255,255,.4);">BSCS · CvSU Carmona Campus · 2025–2026</span>
+          </p>
+        </div>
+      </div>
+      <p class="text-center mb-0 mt-2" style="color:rgba(255,255,255,.35);font-size:.7rem;">
+        © 2026 QUALIHOME — Annregar Realty. All rights reserved.
+      </p>
+    </div>
+  </footer>
+</section>
+{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block scripts %}
+<script>
+  function setChip(inputId, value, btn) {
+    document.getElementById(inputId).value = value;
+    const row = btn.closest('.listings-chip-row');
+    row.querySelectorAll('.listings-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  // Live listings filter (client-side, no page reload)
+  (function() {
+    const filterForm = document.getElementById('filterForm');
+    if (!filterForm) return;
+
+    filterForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+    });
+
+    const locationSel = filterForm.querySelector('select[name="location"]');
+    const budgetInput = filterForm.querySelector('input[name="max_budget"]');
+    const bedsSel = filterForm.querySelector('select[name="bedrooms"]');
+    const storeysSel = filterForm.querySelector('select[name="storeys"]');
+    const bathsSel = filterForm.querySelector('select[name="bathrooms"]');
+
+    const cardCols = Array.from(document.querySelectorAll('#listings .row.g-4 > [class*="col-"]'));
+    const cardsRow = document.querySelector('#listings .row.g-4');
+    const filterEmptyState = document.getElementById('filterEmptyState');
+
+    function cityFromLocation(loc) {
+      if (!loc) return '';
+      const parts = String(loc).split(/,|·/).map(function(s) { return s.trim(); }).filter(Boolean);
+      return parts.length ? parts[0].toLowerCase() : '';
+    }
+
+    function cityFromCard(card) {
+      const city = String(card?.dataset?.propCity || '').trim().toLowerCase();
+      return city || cityFromLocation(card?.dataset?.propLoc || '');
+    }
+
+    function num(v) {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function applyFilters() {
+      const loc = (locationSel?.value || '').trim().toLowerCase();
+      const maxBudget = num(budgetInput?.value || '');
+      const beds = (bedsSel?.value || '').trim();
+      const storeys = (storeysSel?.value || '').trim();
+      const baths = (bathsSel?.value || '').trim();
+
+      let visibleCount = 0;
+      cardCols.forEach(function(col) {
+        const card = col.querySelector('.listings-card--lime');
+        if (!card) return;
+
+        const cardLoc = cityFromCard(card);
+        const cardPrice = num(card.dataset.propPrice || '0');
+        const cardBeds = String(card.dataset.propBeds || '').trim();
+        const cardStoreys = String(card.dataset.propStoreys || '').trim();
+        const cardBaths = String(card.dataset.propBaths || '').trim();
+
+        const matchLoc = !loc || cardLoc === loc;
+        const matchBudget = !maxBudget || cardPrice <= maxBudget;
+        const matchBeds = !beds || cardBeds === beds || (beds === '5' && num(cardBeds) >= 5);
+        const matchStoreys = !storeys || cardStoreys === storeys || (storeys === '3' && num(cardStoreys) >= 3);
+        const matchBaths = !baths || cardBaths === baths || (baths === '4' && num(cardBaths) >= 4);
+
+        const visible = matchLoc && matchBudget && matchBeds && matchStoreys && matchBaths;
+        col.classList.toggle('d-none', !visible);
+        if (visible) visibleCount += 1;
+      });
+
+      if (filterEmptyState && cardsRow) {
+        const hasResults = visibleCount > 0;
+        filterEmptyState.classList.toggle('d-none', hasResults);
+        cardsRow.classList.toggle('d-none', !hasResults);
+      }
+    }
+
+    let inputTimer = null;
+    [locationSel, bedsSel, storeysSel, bathsSel].forEach(function(ctrl) {
+      if (!ctrl) return;
+      ctrl.addEventListener('change', applyFilters);
+    });
+
+    if (budgetInput) {
+      budgetInput.addEventListener('input', function() {
+        if (inputTimer) clearTimeout(inputTimer);
+        inputTimer = setTimeout(applyFilters, 220);
+      });
+      budgetInput.addEventListener('change', applyFilters);
+    }
+
+    applyFilters();
+  })();
+
+  // ── Scroll to #home on every page load / refresh ──
+  if (history.scrollRestoration) history.scrollRestoration = 'manual';
+  window.addEventListener('load', function() {
+    // Only auto-scroll to home if there's no filter-triggered hash
+    if (!location.hash || location.hash === '#home') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  });
+
+  // ── Smooth scroll for anchor links ──
+  document.querySelectorAll('a[href*="#"]').forEach(a => {
+    a.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      const hashIndex = href.indexOf('#');
+      if (hashIndex === -1) return;
+      const hash = href.substring(hashIndex);
+      const target = document.querySelector(hash);
+      if (target) {
+        e.preventDefault();
+        // Update URL without triggering scroll
+        history.pushState(null, '', hash);
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // ── Listings location filter + modal detail ──
+  (function() {
+    const cardSelector = '.listings-card--lime';
+
+    function unitTypeBadgeClass(type) {
+      const value = String(type || '').trim().toLowerCase();
+      if (value === 'pre-selling') return 'prop-type-badge-pre-selling';
+      if (value === 'ready-for-occupancy') return 'prop-type-badge-ready-for-occupancy';
+      if (value === 'resale') return 'prop-type-badge-resale';
+      return '';
+    }
+
+    function cityFromLocation(loc) {
+      if (!loc) return '';
+      const parts = String(loc).split(/,|·/).map(s => s.trim()).filter(Boolean);
+      return parts.length ? parts[0] : '';
+    }
+
+    function normalizeSpaces(val) {
+      return String(val || '').replace(/\s+/g, ' ').trim();
+    }
+
+    const locSelect = document.getElementById('listingsLocationFilter');
+    if (locSelect) {
+      const currentVal = normalizeSpaces(locSelect.value);
+      const cities = Array.from(document.querySelectorAll(cardSelector + '[data-prop-loc]'))
+        .map(card => normalizeSpaces(card.dataset.propCity || '') || cityFromLocation(card.dataset.propLoc))
+        .map(normalizeSpaces)
+        .filter(Boolean);
+
+      const unique = Array.from(new Set(cities)).sort((a, b) => a.localeCompare(b));
+      locSelect.innerHTML = '<option value="">All Locations</option>' + unique.map(city => {
+        const selected = currentVal && city.toLowerCase() === currentVal.toLowerCase() ? ' selected' : '';
+        return '<option value="' + city.replace(/"/g, '&quot;') + '"' + selected + '>' + city + '</option>';
+      }).join('');
+    }
+
+    let lpImages = [];
+    let lpIndex = 0;
+
+    const modalEl = document.getElementById('lpPropDetailModal');
+    if (!modalEl || typeof bootstrap === 'undefined') return;
+
+    const lpModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const imgWrap = document.getElementById('lpPvmImgWrap');
+    const imgEl = document.getElementById('lpPvmImg');
+    const imgPlaceholder = document.getElementById('lpPvmImgPlaceholder');
+    const prevBtn = document.getElementById('lpPvmPrev');
+    const nextBtn = document.getElementById('lpPvmNext');
+    const dotsEl = document.getElementById('lpPvmDots');
+    const previewModal = document.getElementById('lpPvmPreviewModal');
+    const previewFrame = document.getElementById('lpPvmPreviewImgFrame');
+    const previewImg = document.getElementById('lpPvmPreviewImg');
+    const previewCloseBtn = document.getElementById('lpPvmPreviewClose');
+    const previewZoomInBtn = document.getElementById('lpPvmPreviewZoomIn');
+    const previewZoomOutBtn = document.getElementById('lpPvmPreviewZoomOut');
+    const previewZoomResetBtn = document.getElementById('lpPvmPreviewZoomReset');
+    let lpLockedScrollY = 0;
+    let previewScale = 1;
+    let previewPanX = 0;
+    let previewPanY = 0;
+    let previewDragging = false;
+    let previewDragStartX = 0;
+    let previewDragStartY = 0;
+
+    function previewClampPan() {
+      if (!previewFrame || !previewImg) return;
+      const frameW = previewFrame.clientWidth;
+      const frameH = previewFrame.clientHeight;
+      const scaledW = previewImg.clientWidth * previewScale;
+      const scaledH = previewImg.clientHeight * previewScale;
+      const maxX = Math.max(0, (scaledW - frameW) / 2);
+      const maxY = Math.max(0, (scaledH - frameH) / 2);
+      previewPanX = Math.max(-maxX, Math.min(maxX, previewPanX));
+      previewPanY = Math.max(-maxY, Math.min(maxY, previewPanY));
+      if (previewScale <= 1.0001) {
+        previewPanX = 0;
+        previewPanY = 0;
+      }
+    }
+
+    function previewApplyTransform() {
+      if (!previewImg) return;
+      previewClampPan();
+      previewImg.style.transform = 'translate(' + previewPanX + 'px, ' + previewPanY + 'px) scale(' + previewScale + ')';
+      previewImg.style.transformOrigin = 'center center';
+      previewImg.style.cursor = previewDragging ? 'grabbing' : 'grab';
+      if (previewZoomResetBtn) previewZoomResetBtn.textContent = Math.round(previewScale * 100) + '%';
+    }
+
+    function previewSetZoom(nextZoom) {
+      previewScale = Math.max(1, Math.min(4, nextZoom));
+      previewApplyTransform();
+    }
+
+    function previewResetZoom() {
+      previewScale = 1;
+      previewPanX = 0;
+      previewPanY = 0;
+      previewDragging = false;
+      previewApplyTransform();
+    }
+
+    function previewStartDrag(clientX, clientY) {
+      previewDragging = true;
+      previewDragStartX = clientX - previewPanX;
+      previewDragStartY = clientY - previewPanY;
+      previewApplyTransform();
+    }
+
+    function previewMoveDrag(clientX, clientY) {
+      if (!previewDragging) return;
+      previewPanX = clientX - previewDragStartX;
+      previewPanY = clientY - previewDragStartY;
+      previewApplyTransform();
+    }
+
+    function previewEndDrag() {
+      if (!previewDragging) return;
+      previewDragging = false;
+      previewApplyTransform();
+    }
+
+    function openLpImagePreview() {
+      if (!previewModal || !previewImg || !imgEl || !imgEl.src) return;
+      previewImg.src = imgEl.src;
+      previewImg.alt = imgEl.alt || '';
+      previewResetZoom();
+      previewModal.classList.add('active');
+    }
+
+    function closeLpImagePreview() {
+      if (!previewModal) return;
+      previewModal.classList.remove('active');
+      previewResetZoom();
+    }
+
+    modalEl.addEventListener('show.bs.modal', function() {
+      lpLockedScrollY = window.scrollY || window.pageYOffset || 0;
+      document.body.style.position = 'fixed';
+      document.body.style.top = '-' + lpLockedScrollY + 'px';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+      document.body.style.paddingRight = '0px';
+      document.documentElement.style.overflow = 'hidden';
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', function() {
+      const top = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.paddingRight = '';
+      document.documentElement.style.overflow = '';
+      const restoreY = top ? Math.abs(parseInt(top, 10)) : lpLockedScrollY;
+      const previousBehavior = document.documentElement.style.scrollBehavior;
+      document.documentElement.style.scrollBehavior = 'auto';
+      window.scrollTo(0, restoreY || 0);
+      document.documentElement.style.scrollBehavior = previousBehavior;
+      closeLpImagePreview();
+    });
+
+    function setLpSlide(idx) {
+      if (!imgEl || !lpImages.length) return;
+      lpIndex = (idx + lpImages.length) % lpImages.length;
+      imgEl.style.opacity = '0';
+      setTimeout(function() {
+        imgEl.src = '/uploads/' + lpImages[lpIndex];
+        imgEl.style.opacity = '1';
+      }, 120);
+      dotsEl.querySelectorAll('.sub-preview-dot').forEach(function(dot, dotIdx) {
+        dot.classList.toggle('active', dotIdx === lpIndex);
+      });
+    }
+
+    function openLpPropDetail(card) {
+      function titleCase(str) {
+        return str ? str.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }) : '-';
+      }
+
+      document.getElementById('lpPvmName').textContent = card.dataset.propName || '-';
+      document.getElementById('lpPvmLocation').innerHTML = '<i class="fas fa-map-marker-alt me-2" style="color:var(--clr-primary);"></i>' + (card.dataset.propLoc || '-');
+      const unitTypeRaw = String(card.dataset.propUnitType || '').trim();
+      const propTypeRaw = String(card.dataset.propPropType || '').trim();
+      const badgeRawType = unitTypeRaw || propTypeRaw;
+      const badgeText = badgeRawType ? titleCase(badgeRawType) : '';
+      const badgeClass = unitTypeBadgeClass(unitTypeRaw);
+      document.getElementById('lpPvmTypeBadge').innerHTML = badgeText
+        ? '<span class="prop-card-type ' + badgeClass + '">' + badgeText + '</span>'
+        : '';
+
+      const beds = String(card.dataset.propBeds || '').trim();
+      const baths = String(card.dataset.propBaths || '').trim();
+      const storeys = String(card.dataset.propStoreys || '').trim();
+      const floor = String(card.dataset.propFloor || '').trim();
+      const lot = String(card.dataset.propLot || '').trim();
+
+      let chips = '';
+      if (beds) chips += '<span class="pvm-icon-chip"><i class="fas fa-bed chip-icon-accent"></i> ' + beds + ' Bed' + (parseFloat(beds) > 1 ? 's' : '') + '</span>';
+      if (baths) chips += '<span class="pvm-icon-chip"><i class="fas fa-bath chip-icon-blue"></i> ' + baths + ' Bath' + (parseFloat(baths) > 1 ? 's' : '') + '</span>';
+      if (storeys) chips += '<span class="pvm-icon-chip"><i class="fas fa-layer-group chip-icon-crimson"></i> ' + storeys + ' Stor' + (parseFloat(storeys) > 1 ? 'eys' : 'ey') + '</span>';
+      if (floor) chips += '<span class="pvm-icon-chip"><i class="fas fa-ruler-combined"></i> ' + Math.round(parseFloat(floor)) + ' sqm floor</span>';
+      if (lot) chips += '<span class="pvm-icon-chip"><i class="fas fa-vector-square"></i> ' + Math.round(parseFloat(lot)) + ' sqm lot</span>';
+      document.getElementById('lpPvmIconChips').innerHTML = chips;
+
+      const priceNum = parseFloat(card.dataset.propPrice || 0);
+      function pvmField(label, value, full) {
+        var val = (value !== undefined && value !== null && value !== '') ? value : '-';
+        var col = full ? 'col-12' : 'col-6 col-md-4';
+        return '<div class="' + col + '">'
+          + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.2rem;">' + label + '</div>'
+          + '<div class="fw-semibold small">' + val + '</div>'
+          + '</div>';
+      }
+      var detailHtml = '';
+      detailHtml += pvmField('Type', titleCase(card.dataset.propType || ''));
+      detailHtml += pvmField('Price', priceNum ? 'PHP ' + priceNum.toLocaleString('en-PH', { maximumFractionDigits: 0 }) : '-');
+      detailHtml += pvmField('Status', titleCase(card.dataset.propStatus || 'available'));
+      document.getElementById('lpPvmDetails').innerHTML = detailHtml;
+
+      const descWrap = document.getElementById('lpPvmDescWrap');
+      const descEl = document.getElementById('lpPvmDesc');
+      const desc = String(card.dataset.propDesc || '').trim();
+      if (desc) {
+        descEl.textContent = desc;
+        descWrap.classList.remove('d-none');
+      } else {
+        descWrap.classList.add('d-none');
+        descEl.textContent = '';
+      }
+
+      lpImages = String(card.dataset.propImages || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (lpImages.length) {
+        imgWrap.style.display = 'block';
+        imgPlaceholder.style.display = 'none';
+        imgEl.src = '/uploads/' + lpImages[0];
+        imgEl.style.opacity = '1';
+        lpIndex = 0;
+        if (lpImages.length > 1) {
+          prevBtn.classList.remove('d-none');
+          nextBtn.classList.remove('d-none');
+          dotsEl.innerHTML = lpImages.map(function(_, i) {
+            return '<span class="sub-preview-dot' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '"></span>';
+          }).join('');
+          dotsEl.querySelectorAll('.sub-preview-dot').forEach(function(dot) {
+            dot.addEventListener('click', function() {
+              setLpSlide(parseInt(this.dataset.idx, 10));
+            });
+          });
+        } else {
+          prevBtn.classList.add('d-none');
+          nextBtn.classList.add('d-none');
+          dotsEl.innerHTML = '';
+        }
+      } else {
+        imgWrap.style.display = 'none';
+        imgPlaceholder.style.display = 'flex';
+        prevBtn.classList.add('d-none');
+        nextBtn.classList.add('d-none');
+        dotsEl.innerHTML = '';
+      }
+
+      lpModal.show();
+    }
+
+    if (prevBtn) prevBtn.addEventListener('click', function(e) { e.stopPropagation(); setLpSlide(lpIndex - 1); });
+    if (nextBtn) nextBtn.addEventListener('click', function(e) { e.stopPropagation(); setLpSlide(lpIndex + 1); });
+
+    if (imgEl) {
+      imgEl.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (!lpImages.length) return;
+        openLpImagePreview();
+      });
+    }
+
+    if (previewZoomInBtn) previewZoomInBtn.addEventListener('click', function() { previewSetZoom(previewScale + 0.25); });
+    if (previewZoomOutBtn) previewZoomOutBtn.addEventListener('click', function() { previewSetZoom(previewScale - 0.25); });
+    if (previewZoomResetBtn) previewZoomResetBtn.addEventListener('click', previewResetZoom);
+
+    if (previewImg) {
+      previewImg.addEventListener('load', previewResetZoom);
+      previewImg.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        previewSetZoom(previewScale + (e.deltaY < 0 ? 0.2 : -0.2));
+      }, { passive: false });
+      previewImg.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        previewStartDrag(e.clientX, e.clientY);
+      });
+      previewImg.addEventListener('touchstart', function(e) {
+        if (!e.touches || !e.touches.length) return;
+        previewStartDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+    }
+
+    if (previewCloseBtn) previewCloseBtn.addEventListener('click', closeLpImagePreview);
+    if (previewModal) {
+      previewModal.addEventListener('click', function(e) {
+        if (e.target === previewModal) closeLpImagePreview();
+      });
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeLpImagePreview();
+    });
+
+    window.addEventListener('mousemove', function(e) { previewMoveDrag(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', previewEndDrag);
+    window.addEventListener('touchmove', function(e) {
+      if (!e.touches || !e.touches.length) return;
+      if (previewDragging) e.preventDefault();
+      previewMoveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+    window.addEventListener('touchend', previewEndDrag);
+    window.addEventListener('resize', previewApplyTransform);
+
+    document.addEventListener('click', function(e) {
+      const trigger = e.target.closest(cardSelector + ', .listings-preview-btn');
+      if (!trigger) return;
+      if (e.target.closest('a[href]') && !e.target.closest('.listings-preview-btn')) return;
+      const card = trigger.classList.contains('listings-card--lime') ? trigger : trigger.closest(cardSelector);
+      if (!card) return;
+      e.preventDefault();
+      openLpPropDetail(card);
+    });
+
+    document.addEventListener('keydown', function(e) {
+      const card = e.target.closest(cardSelector);
+      if (!card) return;
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      openLpPropDetail(card);
+    });
+  })();
+
+  // ── People carousel ──
+  (function() {
+    const slides  = Array.from(document.querySelectorAll('.people-slide'));
+    const infos   = Array.from(document.querySelectorAll('.people-info'));
+    const dotsBox = document.getElementById('peopleDots');
+    const prevBtn = document.getElementById('peoplePrev');
+    const nextBtn = document.getElementById('peopleNext');
+    if (!slides.length) return;
+    let cur = 0;
+
+    function buildDots() {
+      dotsBox.innerHTML = '';
+      slides.forEach((_, i) => {
+        const d = document.createElement('button');
+        d.className = 'people-dot' + (i === cur ? ' active' : '');
+        d.addEventListener('click', () => goTo(i));
+        dotsBox.appendChild(d);
+      });
+    }
+
+    function goTo(idx) {
+      cur = (idx + slides.length) % slides.length;
+      slides.forEach((s, i) => s.classList.toggle('active', i === cur));
+      infos.forEach((s, i)  => s.classList.toggle('active', i === cur));
+      dotsBox.querySelectorAll('.people-dot').forEach((d, i) => d.classList.toggle('active', i === cur));
+    }
+
+    prevBtn.addEventListener('click', () => goTo(cur - 1));
+    nextBtn.addEventListener('click', () => goTo(cur + 1));
+    buildDots();
+    goTo(0);
+  })();
+
+  // ── Gallery carousel (stacked deck) ──
+  (function() {
+    const track      = document.getElementById('galleryTrack');
+    const slides     = Array.from(document.querySelectorAll('.gallery-slide'));
+    const dotsBox    = document.getElementById('galleryDots');
+    const prevBtn    = document.getElementById('galleryPrev');
+    const nextBtn    = document.getElementById('galleryNext');
+    const tabs       = document.querySelectorAll('.gallery-tab');
+    const modal      = document.getElementById('galleryModal');
+    const modalFrame = document.getElementById('galleryModalImgFrame');
+    const modalImg   = document.getElementById('galleryModalImg');
+    const modalCap   = document.getElementById('galleryModalCaption');
+    const modalClose = document.getElementById('galleryModalClose');
+    const zoomInBtn  = document.getElementById('galleryZoomIn');
+    const zoomOutBtn = document.getElementById('galleryZoomOut');
+    const zoomResetBtn = document.getElementById('galleryZoomReset');
+    if (!track || slides.length === 0) return;
+
+    let filtered = slides.slice();
+    let current  = 0;
+    let zoomScale = 1;
+    let panX = 0;
+    let panY = 0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+
+    function clampPan() {
+      if (!modalFrame || !modalImg) return;
+      const frameW = modalFrame.clientWidth;
+      const frameH = modalFrame.clientHeight;
+      const scaledW = modalImg.clientWidth * zoomScale;
+      const scaledH = modalImg.clientHeight * zoomScale;
+      const maxX = Math.max(0, (scaledW - frameW) / 2);
+      const maxY = Math.max(0, (scaledH - frameH) / 2);
+      panX = Math.max(-maxX, Math.min(maxX, panX));
+      panY = Math.max(-maxY, Math.min(maxY, panY));
+      if (zoomScale <= 1.0001) {
+        panX = 0;
+        panY = 0;
+      }
+    }
+
+    function applyTransform() {
+      if (!modalImg) return;
+      clampPan();
+      modalImg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+      modalImg.style.transformOrigin = 'center center';
+      modalImg.style.cursor = isDragging ? 'grabbing' : 'grab';
+      if (zoomResetBtn) zoomResetBtn.textContent = Math.round(zoomScale * 100) + '%';
+    }
+
+    function setZoom(nextZoom) {
+      zoomScale = Math.max(1, Math.min(4, nextZoom));
+      applyTransform();
+    }
+
+    function resetZoom() {
+      zoomScale = 1;
+      panX = 0;
+      panY = 0;
+      isDragging = false;
+      applyTransform();
+    }
+
+    function startDrag(clientX, clientY) {
+      isDragging = true;
+      dragStartX = clientX - panX;
+      dragStartY = clientY - panY;
+      applyTransform();
+    }
+
+    function moveDrag(clientX, clientY) {
+      if (!isDragging) return;
+      panX = clientX - dragStartX;
+      panY = clientY - dragStartY;
+      applyTransform();
+    }
+
+    function endDrag() {
+      if (!isDragging) return;
+      isDragging = false;
+      applyTransform();
+    }
+
+    function buildDots() {
+      dotsBox.innerHTML = '';
+      filtered.forEach((_, i) => {
+        const d = document.createElement('button');
+        d.className = 'gallery-dot' + (i === current ? ' active' : '');
+        d.addEventListener('click', () => goTo(i));
+        dotsBox.appendChild(d);
+      });
+    }
+
+    function goTo(idx) {
+      current = Math.max(0, Math.min(idx, filtered.length - 1));
+
+      // Reset all slides
+      slides.forEach(s => {
+        s.classList.remove('gallery-slide--active',
+          'gallery-slide--peek1-left', 'gallery-slide--peek1-right',
+          'gallery-slide--peek2-left', 'gallery-slide--peek2-right');
+        s.style.visibility = filtered.includes(s) ? '' : 'hidden';
+      });
+
+      // Assign stacked position by distance from current
+      filtered.forEach((s, i) => {
+        s.style.visibility = '';
+        const d = i - current;
+        const ad = Math.abs(d);
+        if      (ad === 0) s.classList.add('gallery-slide--active');
+        else if (ad === 1) s.classList.add(d < 0 ? 'gallery-slide--peek1-left' : 'gallery-slide--peek1-right');
+        else if (ad === 2) s.classList.add(d < 0 ? 'gallery-slide--peek2-left' : 'gallery-slide--peek2-right');
+        // ad >= 3 stays at opacity:0 via CSS default
+      });
+
+      dotsBox.querySelectorAll('.gallery-dot')
+        .forEach((d, i) => d.classList.toggle('active', i === current));
+    }
+
+    prevBtn.addEventListener('click', () => goTo(current - 1));
+    nextBtn.addEventListener('click', () => goTo(current + 1));
+
+    // Modal: click active card to expand
+    track.addEventListener('click', e => {
+      const active = track.querySelector('.gallery-slide--active');
+      if (!active || !active.contains(e.target)) return;
+      const img = active.querySelector('.gallery-img-wrap img');
+      if (!img) return; // placeholder — skip modal
+      modalImg.src = img.src;
+      modalImg.alt = img.alt;
+      modalCap.textContent = active.querySelector('.gallery-caption-text')?.textContent || '';
+      resetZoom();
+      modal.classList.add('active');
+      document.body.classList.add('gallery-modal-open');
+      document.body.style.paddingRight = '0px';
+    });
+
+    function closeModal() {
+      modal.classList.remove('active');
+      document.body.classList.remove('gallery-modal-open');
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      resetZoom();
+    }
+    modalClose.addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    if (zoomInBtn) zoomInBtn.addEventListener('click', () => setZoom(zoomScale + 0.25));
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => setZoom(zoomScale - 0.25));
+    if (zoomResetBtn) zoomResetBtn.addEventListener('click', resetZoom);
+
+    modalImg.addEventListener('load', resetZoom);
+    modalImg.addEventListener('wheel', e => {
+      e.preventDefault();
+      setZoom(zoomScale + (e.deltaY < 0 ? 0.2 : -0.2));
+    }, { passive: false });
+    modalImg.addEventListener('mousedown', e => {
+      e.preventDefault();
+      startDrag(e.clientX, e.clientY);
+    });
+    modalImg.addEventListener('touchstart', e => {
+      if (!e.touches || !e.touches.length) return;
+      startDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    window.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchmove', e => {
+      if (!e.touches || !e.touches.length) return;
+      if (isDragging) e.preventDefault();
+      moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+    window.addEventListener('touchend', endDrag);
+    window.addEventListener('resize', applyTransform);
+
+    // Tab filtering
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        tabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        const f = this.dataset.filter;
+        filtered = (f === 'all') ? slides.slice() : slides.filter(s => s.dataset.cat === f);
+        current = 0;
+        buildDots();
+        goTo(0);
+      });
+    });
+
+    buildDots();
+    goTo(0);
+  })();
+
+  // ── Scroll-spy: highlight active nav link ──
+  (function() {
+    const sections = ['home','listings','qualifications','process','about'];
+    const navLinks = document.querySelectorAll('.sqh-nav-public');
+    const ACTIVE = 'nav-link-active-auth';
+    const navHeight = document.querySelector('.sqh-navbar')?.offsetHeight || 66;
+
+    function updateActive() {
+      let currentId = 'home';
+      for (const id of sections) {
+        const el = document.getElementById(id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          // Section is "active" when its top is at or above the navbar bottom + 100px buffer
+          if (rect.top <= navHeight + 100) {
+            currentId = id;
+          }
+        }
+      }
+      navLinks.forEach(link => {
+        const href = link.getAttribute('href') || '';
+        if (href.endsWith('#' + currentId)) {
+          link.classList.add(ACTIVE);
+        } else {
+          link.classList.remove(ACTIVE);
+        }
+      });
+    }
+    window.addEventListener('scroll', updateActive, { passive: true });
+    updateActive(); // initial call
+  })();
+</script>
+{% endblock %}

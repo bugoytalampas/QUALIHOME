@@ -1,0 +1,1817 @@
+﻿{% extends "base.html" %}
+{% block title %}Agent Dashboard — QUALIHOME{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block footer %}{% endblock %}
+{% block navbar %}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/agent_dashboard.css') }}">
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/agent_dashboard.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout" data-user-id="{{ current_user.id }}">
+
+  {# ── Sidebar ────────────────────────────────────────────────── #}
+  <aside class="sqh-sidebar" id="agentSidebar">
+    <div class="sidebar-logo-wrap">
+      <img src="{{ url_for('static', filename='img/essentials/logo.png') }}" alt="QUALIHOME" class="sidebar-logo-img">
+      <div class="sidebar-logo-names">
+        <span class="sidebar-logo-main">QUALIHOME</span>
+        <span class="sidebar-logo-sub">Annregar Realty</span>
+      </div>
+    </div>
+    <div class="sidebar-role-label">Agent Panel</div>
+
+    <span class="sidebar-panel-label">Overview</span>
+    <a href="#" class="sidebar-link active" data-page="dashboard">
+      <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+
+    <span class="sidebar-panel-label mt-3">My Work</span>
+    <a href="#" class="sidebar-link" data-page="trips">
+      <i class="fas fa-calendar-check"></i> Tripping Requests
+      {% set unread_sidebar_count = unread_trip_notif_count %}
+      {% if unread_sidebar_count > 0 %}
+      <span class="sidebar-badge-blue ms-auto" id="tripsSidebarBadge">{{ unread_sidebar_count }}</span>
+      {% endif %}
+    </a>
+    <a href="#" class="sidebar-link" data-page="listings">
+      <i class="fas fa-building"></i> Listings
+    </a>
+    <a href="#" class="sidebar-link" data-page="sold">
+      <i class="fas fa-handshake"></i> Sold Models
+    </a>
+    <a href="#" class="sidebar-link" data-page="availability">
+      <i class="fas fa-clock"></i> Availability
+    </a>
+
+    <span class="sidebar-panel-label mt-3">Account</span>
+    <a href="#" class="sidebar-link" data-page="profile">
+      <i class="fas fa-user-circle"></i> My Profile
+    </a>
+    <a href="#" class="sidebar-link" data-bs-toggle="modal" data-bs-target="#logoutModal">
+      <i class="fas fa-sign-out-alt"></i> Sign Out
+    </a>
+  </aside>
+  <div class="sqh-sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
+  {# ── Toast container ─────────────────────────────────────────── #}
+  <div id="sqhToastContainer" class="sqh-toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  {# ══════════════════ MODALS ══════════════════════════════════ #}
+
+  {# Logout #}
+  <div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-sign-out-alt text-white"></i>
+            <span class="sqh-modal-title" id="logoutModalLabel">Sign Out</span>
+          </div>
+          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-3" style="font-size:2.5rem;color:var(--clr-primary);"><i class="fas fa-door-open"></i></div>
+          <p class="fw-bold mb-1">Are you sure you want to sign out?</p>
+          <p class="text-muted small mb-4">Your session will end and you'll be returned to the login page.</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Cancel</button>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-crimson px-4">Sign Out</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Submit Model Modal #}
+  <div class="modal fade" id="submitPropertyModal" tabindex="-1" aria-labelledby="submitPropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-building text-white"></i>
+            <span class="sqh-modal-title" id="submitPropLabel">Submit New Model</span>
+          </div>
+          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body p-4">
+          <div id="submitPropError" class="alert alert-danger small d-none"></div>
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <label class="sqh-form-label">Model Name <span class="text-danger">*</span></label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-home"></i></span>
+                <input type="text" id="sp_name" class="form-control sqh-form-control" placeholder="e.g. Corner Lot Unit – Block 5">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Region</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-globe-asia" style="color:var(--clr-muted);"></i></span>
+                <select id="sp_region_select" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+           <div class="col-md-6">
+              <label class="sqh-form-label">Province</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-map" style="color:var(--clr-muted);"></i></span>
+                <select id="sp_province_select" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">City / Municipality</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-city" style="color:var(--clr-muted);"></i></span>
+                <select id="sp_citymun_select" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+             <div class="col-md-6">
+              <label class="sqh-form-label">Barangay</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-map-marker-alt" style="color:var(--clr-muted);"></i></span>
+                <select id="sp_barangay_select" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+              <input type="hidden" id="sp_location">
+              <input type="hidden" id="sp_region">
+              <input type="hidden" id="sp_region_code">
+              <input type="hidden" id="sp_region_name">
+              <input type="hidden" id="sp_province_code">
+              <input type="hidden" id="sp_province_name">
+              <input type="hidden" id="sp_citymun_code">
+              <input type="hidden" id="sp_citymun_name">
+              <input type="hidden" id="sp_barangay_code">
+              <input type="hidden" id="sp_barangay_name">
+            </div>
+             <div class="col-12">
+              <label class="sqh-form-label">Site Notes <span class="text-danger">*</span></label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-road"></i></span>
+                <input type="text" id="sp_site_notes" class="form-control sqh-form-control" placeholder="Landmark, block, or internal site note" autocomplete="off" autocorrect="off" spellcheck="false" data-form-type="other">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Model Type</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-home"></i></span>
+                <select id="sp_prop_type" class="form-control sqh-form-control">
+                  <option value="house-and-lot" selected>House and Lot</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Project</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-building"></i></span>
+                <select id="sp_subdivision" class="form-control sqh-form-control">
+                  <option value="">— None —</option>
+                  {% for sub in all_subdivisions %}
+                  <option value="{{ sub.id }}">{{ sub.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="sqh-form-label">TCP (&#8369;) <span class="text-danger">*</span></label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-coins"></i></span>
+                <input type="number" id="sp_price" class="form-control sqh-form-control" placeholder="e.g. 2500000" min="0" step="0.01">
+              </div>
+            </div>
+            {% if current_user.role == 'admin' %}
+            <div class="col-md-6">
+              <label class="sqh-form-label">Assigned Agent</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-user-tie" style="color:var(--clr-muted);"></i></span>
+                <select id="sp_agent_id" class="form-control sqh-form-control">
+                  <option value="">Auto-assign</option>
+                  {% for ag in all_agents if ag.is_active %}
+                  <option value="{{ ag.id }}">{{ ag.full_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            {% endif %}
+            <div class="col-md-6">
+              <label class="sqh-form-label">Bedrooms</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-bed"></i></span>
+                <select id="sp_bedrooms" class="form-control sqh-form-control">
+                  {% for n in range(0, 9) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Bathrooms</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-bath"></i></span>
+                <select id="sp_bathrooms" class="form-control sqh-form-control">
+                  {% for n in range(0, 9) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Storeys</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-building"></i></span>
+                <select id="sp_storeys" class="form-control sqh-form-control">
+                  {% for n in range(1, 6) %}<option value="{{ n }}" {% if n == 1 %}selected{% endif %}>{{ n }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Floor Area (sqm)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-th-large"></i></span>
+                <input type="number" id="sp_floor_area" class="form-control sqh-form-control" placeholder="e.g. 75" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Lot Area (sqm)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-map"></i></span>
+                <input type="number" id="sp_lot_area" class="form-control sqh-form-control" placeholder="e.g. 120" min="0" step="0.01">
+              </div>
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="sqh-form-label">Description</label>
+              <div class="input-group sqh-input-group align-items-start">
+                <span class="input-group-text sqh-ig-text" style="min-height:38px;"><i class="fas fa-align-left"></i></span>
+                <textarea id="sp_description" class="form-control sqh-form-control" rows="3" placeholder="Describe the model features, amenities, and highlights&#8230;"></textarea>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="sqh-form-label"><i class="fas fa-images me-2"></i>Current Images</label>
+              <div id="sp_images_wrap" class="sub-img-tiles-wrap mb-2" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+              <label class="sqh-form-label">Add New Images</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-images"></i></span>
+                <input type="text" id="sp_images_filenames" class="form-control sqh-form-control" placeholder="No files selected" readonly style="cursor:pointer;" onclick="document.getElementById('sp_images').click()">
+                <button type="button" class="btn btn-outline-crimson" onclick="document.getElementById('sp_images').click()"><i class="fas fa-folder-open me-1"></i>Browse</button>
+                <input type="file" id="sp_images" class="d-none" accept="image/*" multiple>
+              </div>
+              <div class="form-text text-muted small mt-1">Optional. You can select multiple images. Accepted: JPG, PNG, WEBP (max 10 MB each).</div>
+            </div>
+          </div>
+        </div>  
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-crimson" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-lime" id="submitPropBtn">
+            <i class="fas fa-paper-plane me-1"></i> Submit for Review
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Edit Model Modal — propViewModal-style with editable fields #}
+  <div class="modal fade" id="editPropertyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content sqh-modal" style="overflow-x:hidden;overflow-y:auto;">
+        {# Image carousel #}
+        <div id="lemImgWrap" class="pvm-img-wrap" style="display:none; position:relative; background:#111;">
+          <img id="lemImg" src="" alt="" class="pvm-img">
+          <button type="button" id="lemPrev" class="sub-preview-nav sub-preview-nav-prev d-none" aria-label="Previous"><i class="fas fa-chevron-left"></i></button>
+          <button type="button" id="lemNext" class="sub-preview-nav sub-preview-nav-next d-none" aria-label="Next"><i class="fas fa-chevron-right"></i></button>
+          <div id="lemDots" class="sub-preview-dots"></div>
+        </div>
+        <div id="lemImgPlaceholder" class="pvm-img-placeholder">
+          <i class="fas fa-home" style="font-size:4rem; color:rgba(255,255,255,.2);"></i>
+        </div>
+        {# Close X overlaid #}
+        <button type="button" class="sqh-modal-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close" style="z-index:10;"><i class="fas fa-times"></i></button>
+        <div class="modal-body p-4">
+          <div id="editPropError" class="alert alert-danger small d-none"></div>
+          <div class="alert alert-warning small mb-3" id="editPropPendingWarn">
+            <i class="fas fa-lock me-1"></i>Only Admins can edit models, editing is disabled.
+          </div>
+          <div class="alert alert-primary d-none mb-3" id="lemSoldBuyerInfo">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <div class="small text-muted">Buyer</div>
+                <div class="fw-semibold" id="lemBuyerName">—</div>
+                <div class="small text-muted" id="lemBuyerSoldAt"></div>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-blue" id="lemViewBuyerBtn" disabled>
+                <i class="fas fa-user me-1"></i>View Buyer Details
+              </button>
+            </div>
+          </div>
+          {# Name + status badge #}
+          <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+            <div class="min-w-0 flex-grow-1">
+              <label class="sqh-form-label">Model Name <span class="text-danger">*</span></label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-home"></i></span>
+                <input type="text" id="ep_name" class="form-control sqh-form-control">
+              </div>
+            </div>
+            <div id="lemStatusBadge" class="flex-shrink-0 mt-4"></div>
+          </div>
+          {# Icon chips #}
+          <div id="lemIconChips" class="pvm-icon-chips mb-3"></div>
+          <hr class="my-3">
+          {# Form fields #}
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="sqh-form-label">Region</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-globe-asia" style="color:var(--clr-muted);"></i></span>
+                <select id="ep_region_select" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Province</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-map" style="color:var(--clr-muted);"></i></span>
+                <select id="ep_province_select" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">City / Municipality</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-city" style="color:var(--clr-muted);"></i></span>
+                <select id="ep_citymun_select" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Barangay</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-map-marker-alt" style="color:var(--clr-muted);"></i></span>
+                <select id="ep_barangay_select" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+              <input type="hidden" id="ep_location">
+              <input type="hidden" id="ep_region">
+              <input type="hidden" id="ep_region_code">
+              <input type="hidden" id="ep_region_name">
+              <input type="hidden" id="ep_province_code">
+              <input type="hidden" id="ep_province_name">
+              <input type="hidden" id="ep_citymun_code">
+              <input type="hidden" id="ep_citymun_name">
+              <input type="hidden" id="ep_barangay_code">
+              <input type="hidden" id="ep_barangay_name">
+            </div>
+            <div class="col-12">
+              <label class="sqh-form-label">Site Notes <span class="text-danger">*</span></label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-road"></i></span>
+                <input type="text" id="ep_site_notes" class="form-control sqh-form-control" placeholder="Landmark, block, or internal site note" autocomplete="off" autocorrect="off" spellcheck="false" data-form-type="other">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="sqh-form-label">Street</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-road"></i></span>
+                <input type="text" id="ep_street" class="form-control sqh-form-control" autocomplete="off" autocorrect="off" spellcheck="false">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="sqh-form-label">Block</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-cube"></i></span>
+                <input type="text" id="ep_block" class="form-control sqh-form-control" autocomplete="off" autocorrect="off" spellcheck="false">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="sqh-form-label">Lot</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
+                <input type="text" id="ep_lot_no" class="form-control sqh-form-control" autocomplete="off" autocorrect="off" spellcheck="false">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Model Type</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-home"></i></span>
+                <select id="ep_prop_type" class="form-control sqh-form-control">
+                  <option value="house-and-lot">House and Lot</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Unit Type</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-layer-group"></i></span>
+                <select id="ep_unit_type" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                  <option value="pre-selling">Pre-selling</option>
+                  <option value="ready-for-occupancy">Ready For Occupancy</option>
+                  <option value="resale">Resale</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Project</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-building"></i></span>
+                <select id="ep_subdivision" class="form-control sqh-form-control">
+                  <option value="">— None —</option>
+                  {% for sub in all_subdivisions %}
+                  <option value="{{ sub.id }}">{{ sub.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Unit I.D.</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
+                <input type="text" id="ep_unit_id" class="form-control sqh-form-control" autocomplete="off" autocorrect="off" spellcheck="false">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">TCP (&#8369;) <span class="text-danger">*</span></label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-tag"></i></span>
+                <input type="number" id="ep_price" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Promo Discount (%)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
+                <input type="number" id="ep_promo_discount_rate" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Reservation Fee (&#8369;)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
+                <input type="number" id="ep_reservation_fee" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Downpayment Rate (%)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
+                <input type="number" id="ep_downpayment_rate" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Downpayment Terms (months)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-calendar-alt"></i></span>
+                <input type="number" id="ep_downpayment_terms_months" class="form-control sqh-form-control" min="0" step="1">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Loanable Percentage (%)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
+                <input type="number" id="ep_loanable_percentage" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">VAT Rate (%)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
+                <input type="number" id="ep_vat_rate" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">LMF Rate (%)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
+                <input type="number" id="ep_lmf_rate" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+            {% if current_user.role == 'admin' %}
+            <div class="col-md-6">
+              <label class="sqh-form-label">Assigned Agent</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-user-tie" style="color:var(--clr-muted);"></i></span>
+                <select id="ep_agent_id" class="form-control sqh-form-control">
+                  <option value="">Keep current assignment</option>
+                  {% for ag in all_agents if ag.is_active %}
+                  <option value="{{ ag.id }}">{{ ag.full_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            {% endif %}
+            <div class="col-md-6">
+              <label class="sqh-form-label">Bedrooms</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-bed"></i></span>
+                <select id="ep_bedrooms" class="form-control sqh-form-control">
+                  {% for n in range(0, 9) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Bathrooms</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-bath"></i></span>
+                <select id="ep_bathrooms" class="form-control sqh-form-control">
+                  {% for n in range(0, 9) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Storeys</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-layer-group"></i></span>
+                <select id="ep_storeys" class="form-control sqh-form-control">
+                  {% for n in range(1, 6) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Floor Area (sqm)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-ruler"></i></span>
+                <input type="number" id="ep_floor_area" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Lot Area (sqm)</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-ruler"></i></span>
+                <input type="number" id="ep_lot_area" class="form-control sqh-form-control" min="0" step="0.01">
+              </div>
+            </div>
+          </div>
+          {# Description #}
+          <div class="mb-3">
+            <label class="sqh-form-label">Description</label>
+            <div class="input-group sqh-input-group align-items-start">
+              <span class="input-group-text sqh-ig-text" style="min-height:38px;"><i class="fas fa-align-left"></i></span>
+              <textarea id="ep_description" class="form-control sqh-form-control" rows="3"></textarea>
+            </div>
+          </div>
+          {# Images #}
+          <div class="mb-3">
+            <label class="sqh-form-label"><i class="fas fa-images me-2"></i>Current Images</label>
+            <div id="ep_images_wrap" class="d-flex flex-wrap gap-2 mb-2"></div>
+            <label class="sqh-form-label">Add New Images</label>
+            <div class="input-group sqh-input-group">
+              <span class="input-group-text sqh-ig-text"><i class="fas fa-images"></i></span>
+              <input type="text" id="ep_images_filenames" class="form-control sqh-form-control" placeholder="Image upload is disabled for agents" readonly>
+              <button type="button" class="btn btn-outline-crimson" disabled><i class="fas fa-folder-open me-1"></i>Browse</button>
+              <input type="file" id="ep_images" class="d-none" accept="image/*" multiple disabled>
+            </div>
+            <div class="form-text text-muted small mt-1">Only admins can upload or replace model images.</div>
+          </div>
+          {# Action row #}
+          <div class="d-flex gap-2 justify-content-between pt-3 border-top">
+            {% if current_user.role == 'admin' %}
+            <button type="button" class="btn btn-outline-crimson prop-delete-btn" id="lemDeleteBtn">
+              <i class="fas fa-trash me-1"></i> Delete
+            </button>
+            {% else %}
+            <div></div>
+            {% endif %}
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-crimson" data-bs-dismiss="modal">Cancel</button>
+              {% if current_user.role == 'admin' %}
+              <button type="button" class="btn btn-lime" id="editPropBtn">
+                <i class="fas fa-save me-1"></i> Save Changes
+              </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Client Detail Modal #}
+  <div class="modal fade" id="clientDetailModal" tabindex="-1" aria-labelledby="cdmLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-3">
+            <div class="dash-avatar" id="cdm-avatar" style="width:50px;height:50px;font-size:1.05rem;flex-shrink:0;"></div>
+            <div>
+              <div class="sqh-modal-title" id="cdm-name">Client Details</div>
+              <div class="d-flex align-items-center gap-2 mt-1" id="cdm-meta"></div>
+            </div>
+          </div>
+          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="text-center py-4" id="cdm-loading">
+            <div class="spinner-border" style="color:var(--clr-primary);" role="status"><span class="visually-hidden">Loading&#8230;</span></div>
+          </div>
+          <div id="cdm-body" class="d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-crimson" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="tripRequestModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-calendar-check text-white"></i>
+            <span class="sqh-modal-title">Trip Request Details</span>
+          </div>
+          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="trm-carousel mb-3">
+            <div class="trm-carousel-img-wrap" id="trmImgWrap">
+              <img id="trmImg" src="" alt="Model image" class="trm-carousel-img d-none">
+              <div id="trmImgPlaceholder" class="trm-carousel-placeholder"><i class="fas fa-home"></i></div>
+              <button type="button" class="trm-carousel-nav prev d-none" id="trmPrev" aria-label="Previous image"><i class="fas fa-chevron-left"></i></button>
+              <button type="button" class="trm-carousel-nav next d-none" id="trmNext" aria-label="Next image"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="trm-carousel-dots" id="trmDots"></div>
+          </div>
+          <div class="row g-3">
+            <div class="form-section-title"><i class="fas fa-info-circle me-2"></i>Trip Information</div>
+            <div class="col-md-6"><div class="small text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.25rem;">CLIENT</div><div class="fw-semibold" id="trmClient">—</div></div>
+            <div class="col-md-6"><div class="small text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.25rem;">MODEL</div><div class="fw-semibold" id="trmProperty">—</div></div>
+            <div class="col-md-6"><div class="small text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.25rem;">PREFERRED DATE</div><div class="fw-semibold" id="trmDate">—</div></div>
+            <div class="col-md-6"><div class="small text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.25rem;">PREFERRED TIME</div><div class="fw-semibold" id="trmTime">—</div></div>
+            <div class="col-md-6"><div class="small text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.25rem;">SUBMITTED</div><div class="fw-semibold" id="trmSubmitted">—</div></div>
+            <div class="col-md-6"><div class="small text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.25rem;">STATUS</div><div class="fw-semibold"><span id="trmStatus" class="trm-status-badge status-pending">Pending</span></div></div>
+            <div class="col-12">
+              <div class="small text-muted" style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--clr-muted);margin-bottom:.25rem;">Admin Note</div>
+              <div class="fw-semibold" id="trmNote">No note provided.</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="d-flex gap-2 ms-auto">
+            <span class="small text-muted align-self-center me-2">Trip decisions are managed by admin.</span>
+            <button type="button" class="btn btn-sm btn-outline-crimson" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Generic Confirm Modal (trip approve/reject, property delete) #}
+  <div class="modal fade" id="agentConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-exclamation-circle text-white"></i>
+            <span class="sqh-modal-title">Confirm Action</span>
+          </div>
+          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-3" id="agentConfirmIcon" style="font-size:2.5rem;color:var(--clr-primary);"></div>
+          <p class="fw-bold mb-1" id="agentConfirmTitle"></p>
+          <p class="text-muted small mb-3" id="agentConfirmDesc"></p>
+          <div id="agentConfirmNoteWrap" class="d-none text-start mb-3">
+            <label class="sqh-form-label small">Note to client (optional)</label>
+            <div class="input-group sqh-input-group align-items-start">
+              <span class="input-group-text sqh-ig-text" style="min-height:38px;"><i class="fas fa-sticky-note"></i></span>
+              <textarea id="agentConfirmNote" class="form-control sqh-form-control" rows="2" placeholder="e.g. Please bring valid ID&#8230;"></textarea>
+            </div>
+          </div>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn px-4" id="agentConfirmBtn">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="availConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-calendar-check text-white"></i>
+            <span class="sqh-modal-title" id="availConfirmTitle">Confirm Availability</span>
+          </div>
+          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-3" style="font-size:2.25rem;color:var(--clr-primary);"><i class="fas fa-question-circle"></i></div>
+          <p class="fw-bold mb-1" id="availConfirmLabel">Proceed with this action?</p>
+          <p class="text-muted small mb-4" id="availConfirmDesc">This will update your availability entry.</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-lime px-4" id="availConfirmBtn">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Save Profile Confirm Modal #}
+  <!-- Image Preview Modal (Avatar & Banner) -->
+  <div class="modal fade" id="imgPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered img-preview-dialog">
+      <div class="modal-content bg-dark border-0 shadow-lg img-preview-body" style="position:relative;overflow:hidden;">
+        <button type="button" class="img-preview-close-btn" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        <img id="imgPreviewSrc" src="" alt="Preview" class="img-preview-img d-block">
+        <div class="img-preview-gradient"></div>
+        <div class="img-preview-actions">
+          <label id="imgPreviewReplaceBtn" class="btn btn-sm btn-outline-lime px-3" style="cursor:pointer;">
+            <i class="fas fa-pen me-1"></i>Replace
+            <input type="file" id="imgPreviewReplaceInput" accept="image/*" style="display:none;">
+          </label>
+          <button type="button" id="imgPreviewDeleteBtn" class="btn btn-sm btn-crimson px-3">
+            <i class="fas fa-trash me-1"></i>Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="editPropSaveConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-save text-white"></i>
+            <span class="sqh-modal-title">Save Model Changes</span>
+          </div>
+          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-3" style="font-size:2.5rem;color:var(--clr-accent-dk);"><i class="fas fa-edit"></i></div>
+          <p class="fw-bold mb-1">Save changes to this listing?</p>
+          <p class="text-muted small mb-4">This will update the listing details shown in your dashboard.</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-lime px-4" id="confirmEditPropSaveBtn"><i class="fas fa-save me-1"></i> Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unsaved Changes Guard Modal -->
+  <div class="modal fade" id="unsavedChangesModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-exclamation-triangle text-white"></i>
+            <span class="sqh-modal-title">Unsaved Changes</span>
+          </div>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-3" style="font-size:2.5rem;color:var(--clr-accent-dk);"><i class="fas fa-pen-to-square"></i></div>
+          <p class="fw-bold mb-1">You have unsaved changes.</p>
+          <p class="text-muted small mb-4">Leave this page? Your changes will be lost.</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Stay</button>
+            <button type="button" class="btn btn-lime px-4" id="unsavedLeaveBtn">
+              <i class="fas fa-arrow-right me-1"></i> Leave
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="saveProfileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content sqh-modal">
+        <div class="sqh-modal-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-save text-white"></i>
+            <span class="sqh-modal-title">Save Changes</span>
+          </div>
+          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-3" style="font-size:2.5rem;color:var(--clr-accent-dk);"><i class="fas fa-user-edit"></i></div>
+          <p class="fw-bold mb-1">Save profile changes?</p>
+          <p class="text-muted small mb-4">Your personal information and agent details will be updated.</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-lime px-4" id="confirmSaveProfileBtn">
+              <i class="fas fa-save me-1"></i> Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ═══════════════════════════════════════════════════════════
+     DASHBOARD CONTENT AREA
+     ═══════════════════════════════════════════════════════════ #}
+  <div class="dashboard-content">
+    <div class="dash-body">
+
+    {# ── Topbar ──────────────────────────────────────────────── #}
+    <div class="dash-topbar">
+      <div class="dash-topbar-main">
+        <button type="button" class="dash-mobile-menu-btn" id="sidebarToggle" aria-label="Open navigation menu" aria-expanded="false">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h3 class="fw-bold mb-0" id="topbar-title">Agent <em>Dashboard</em></h3>
+        <p class="text-muted small mb-0" id="topbar-subtitle">Your overview — logged in as {{ current_user.full_name }}</p>
+      </div>
+      <div class="dash-topbar-profile">
+        <div class="dash-notif-wrap" id="dashNotifWrap">
+          <button class="dash-notif-btn" id="dashNotifBtn" title="Notifications" aria-expanded="false">
+            <i class="fas fa-bell"></i>
+            {% if unread_notif_count > 0 %}
+            <span class="dash-notif-badge" id="dashNotifBadge">{{ unread_notif_count }}</span>
+            {% else %}
+            <span class="dash-notif-badge d-none" id="dashNotifBadge">0</span>
+            {% endif %}
+          </button>
+          <div class="dash-notif-dropdown" id="dashNotifDropdown">
+            <div class="dash-notif-header">
+              <span class="dash-notif-title"><i class="fas fa-bell me-2"></i>Notifications</span>
+              <div class="d-flex align-items-center gap-2">
+                {% if unread_notif_count > 0 %}
+                <span class="dash-notif-count-pill" id="dashNotifPill">{{ unread_notif_count }} unread</span>
+                {% else %}
+                <span class="dash-notif-count-pill" id="dashNotifPill" style="display:none;">0 unread</span>
+                {% endif %}
+                <button type="button" class="dash-notif-read-all-btn" id="dashNotifReadAll">Mark all read</button>
+              </div>
+            </div>
+            <div class="dash-notif-body" id="dashNotifBody">
+              {% set pending_trip_list = my_trips | selectattr('status', 'equalto', 'pending') | list %}
+              {% set recent_trip_updates = my_trips | rejectattr('status', 'equalto', 'pending') | list %}
+              {% if agent_prop_notifs %}
+              <div class="dash-notif-section-label">Trip Assignments</div>
+              {% for n in agent_prop_notifs %}
+              <div class="dash-notif-item{% if n.is_read %} notif-read{% endif %}" data-prop-notif-id="{{ n.id }}" data-goto-page="trips">
+                <span class="dash-notif-item-icon {% if n.event_type == 'trip_sold' %}dash-notif-item-icon-negative{% elif n.event_type == 'trip_visited' %}dash-notif-item-icon-positive{% else %}dash-notif-item-icon-positive{% endif %}">
+                  <i class="fas {% if n.event_type == 'trip_sold' %}fa-handshake{% elif n.event_type == 'trip_visited' %}fa-walking{% else %}fa-calendar-check{% endif %}"></i>
+                </span>
+                <div class="dash-notif-item-text">
+                  <span class="dash-notif-item-main">{% if n.event_type == 'trip_sold' %}Model Sold{% elif n.event_type == 'trip_visited' %}Trip Marked Visited{% else %}Trip Assigned{% endif %}</span>
+                  <span class="dash-notif-item-sub">{% if n.event_type == 'trip_sold' %}{{ n.message|replace('Sold update:', 'Model sold:') }}{% else %}{{ n.message }}{% endif %}</span>
+                </div>
+                {% if not n.is_read %}
+                <button type="button" class="dash-notif-read-btn" title="Mark as read"><i class="fas fa-check"></i></button>
+                {% else %}
+                <span class="dash-notif-read-badge"><i class="fas fa-check-double"></i></span>
+                {% endif %}
+              </div>
+              {% endfor %}
+              {% endif %}
+              {% if pending_trip_list %}
+              <div class="dash-notif-section-label">Pending Trip Requests</div>
+              {% for t in pending_trip_list[:6] %}
+              {% set notif_read = t.notification_read %}
+              <div class="dash-notif-item{% if notif_read %} notif-read{% endif %}" data-trip-id="{{ t.id }}" data-goto-page="trips">
+                <span class="dash-notif-item-icon" style="background:rgba(26,38,153,.12);color:var(--clr-blue);">
+                  <i class="fas fa-calendar-check"></i>
+                </span>
+                <div class="dash-notif-item-text">
+                  <span class="dash-notif-item-main">{{ t.client.full_name }}</span>
+                  <span class="dash-notif-item-sub">{{ t.property_item.name }} &middot; {{ t.preferred_date.strftime('%b %d, %Y') }}</span>
+                </div>
+                {% if not notif_read %}
+                <button type="button" class="dash-notif-read-btn" title="Mark as read"><i class="fas fa-times"></i></button>
+                {% else %}
+                <span class="dash-notif-read-badge"><i class="fas fa-check-double"></i></span>
+                {% endif %}
+              </div>
+              {% endfor %}
+              {% endif %}
+
+              {% if recent_trip_updates %}
+              <div class="dash-notif-section-label">Recent Trip Updates</div>
+              {% for t in recent_trip_updates[:6] %}
+              <div class="dash-notif-item notif-read" data-trip-id="{{ t.id }}" data-goto-page="trips">
+                <span class="dash-notif-item-icon {% if t.status == 'approved' %}dash-notif-item-icon-positive{% else %}dash-notif-item-icon-negative{% endif %}">
+                  <i class="fas {% if t.status == 'approved' %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                </span>
+                <div class="dash-notif-item-text">
+                  <span class="dash-notif-item-main">{{ t.client.full_name }} &middot; {{ t.status|title }}</span>
+                  <span class="dash-notif-item-sub">{{ t.property_item.name }} &middot; {{ t.preferred_date.strftime('%b %d, %Y') }}</span>
+                </div>
+                <span class="dash-notif-read-badge"><i class="fas fa-check-double"></i></span>
+              </div>
+              {% endfor %}
+              {% endif %}
+
+              {% if not agent_prop_notifs and not pending_trip_list and not pending_pricing_requests and not recent_trip_updates %}
+              <div class="dash-notif-empty">
+                <i class="fas fa-check-circle" style="color:var(--clr-accent);font-size:1.6rem;"></i>
+                <span>All caught up!</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="dash-avatar" id="topbarAvatar" title="Go to My Profile" style="cursor:pointer;">{% if avatar_url %}<img src="{{ avatar_url }}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">{% else %}{{ current_user.full_name[:2].upper() }}{% endif %}</div>
+        <div class="dash-topbar-info">
+          <span class="dash-topbar-name">{{ current_user.full_name }}</span>
+          <span class="dash-topbar-email">{{ current_user.email }}</span>
+        </div>
+      </div>
+    </div>
+
+    {# ────── PAGE 1: DASHBOARD ──────────────────────────────── #}
+    <div class="dash-page" id="page-dashboard"
+         data-title="Agent &lt;em&gt;Dashboard&lt;/em&gt;"
+         data-subtitle="Your overview — logged in as {{ current_user.full_name }}">
+
+      {% if current_user.role == 'admin' %}
+      <div class="page-header-actions">
+        <button type="button" class="btn btn-lime btn-sm" data-bs-toggle="modal" data-bs-target="#submitPropertyModal">
+          <i class="fas fa-plus me-1"></i> Submit Model
+        </button>
+      </div>
+      {% endif %}
+
+      <div class="row g-4 mb-4">
+        <div class="col-6 col-xl-3">
+          <div class="stat-card">
+            <div class="stat-icon ic-red"><i class="fas fa-clock"></i></div>
+            <div><div class="stat-val">{{ my_availability | length }}</div><div class="stat-lbl">Availability Entries</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card" style="border-left-color:var(--clr-accent);">
+            <div class="stat-icon ic-lime"><i class="fas fa-building"></i></div>
+            <div><div class="stat-val">{{ active_listings_count }}</div><div class="stat-lbl">Active Listings</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card" style="border-left-color:var(--clr-warning);">
+            <div class="stat-icon ic-amber"><i class="fas fa-calendar-check"></i></div>
+            <div><div class="stat-val">{{ pending_trips_count }}</div><div class="stat-lbl">Pending Trips</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="stat-card" style="border-left-color:var(--clr-primary);">
+            <div class="stat-icon ic-red"><i class="fas fa-check-circle"></i></div>
+            <div><div class="stat-val">{{ sold_sales|length }}</div><div class="stat-lbl">Models Sold</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-12">
+          <div class="sqh-card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="fw-bold mb-0"><i class="fas fa-building me-2 text-crimson"></i>Recent Listings</h6>
+              <a href="#" class="btn btn-sm btn-outline-crimson" style="box-shadow: var(--shadow-xs);" onclick="document.querySelector('.sidebar-link[data-page=\'listings\']') && document.querySelector('.sidebar-link[data-page=\'listings\']').click(); return false;">See All</a>
+            </div>
+            {% if my_props %}
+            <div class="table-responsive">
+              <table class="table sqh-table sqh-preview-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>Location</th>
+                    <th>Project</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in my_props[:5] %}
+                  <tr>
+                    <td class="fw-semibold" data-label="Model">{{ p.name }}</td>
+                    <td data-label="Location">{{ p.location }}</td>
+                    <td data-label="Project">{{ p.subdivision.name if p.subdivision else '&#8212;' }}</td>
+                    <td data-label="Price">₱{{ '{:,.0f}'.format(p.price | float) }}</td>
+                    <td data-label="Status">
+                      {% set listing_label = 'Sold' if p.status == 'sold' else 'Available' %}
+                      {% set listing_badge = 'badge-sold' if listing_label == 'Sold' else 'badge-qualified' %}
+                      <span class="sqh-badge {{ listing_badge }}">{{ listing_label }}</span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+              <i class="fas fa-home fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>
+              <span class="fw-semibold">No listings yet.</span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4 mt-1">
+        <div class="col-md-6">
+          <div class="sqh-card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="fw-bold mb-0"><i class="fas fa-chart-line me-2 text-crimson"></i>Sales Performance Snapshot</h6>
+              <a href="#" class="btn btn-sm btn-outline-crimson" style="box-shadow: var(--shadow-xs);" onclick="document.querySelector('.sidebar-link[data-page=\'sold\']') && document.querySelector('.sidebar-link[data-page=\'sold\']').click(); return false;">Open Sold</a>
+            </div>
+            <div class="small text-muted mb-3">{{ sales_snapshot.month_label }}</div>
+            <div class="row g-2 mb-3">
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted" style="font-size:.74rem;">Closed Deals</div>
+                  <div class="fw-bold fs-5 text-crimson">{{ sales_snapshot.closed_count }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted" style="font-size:.74rem;">Average Sale</div>
+                  <div class="fw-bold" style="font-size:1.02rem;">₱{{ '{:,.0f}'.format(sales_snapshot.avg_sale|float) }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted" style="font-size:.74rem;">Best Sale (Month)</div>
+                  <div class="fw-bold" style="font-size:1.02rem;">₱{{ '{:,.0f}'.format(sales_snapshot.best_sale|float) }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted" style="font-size:.74rem;">Close Rate</div>
+                  <div class="fw-bold" style="font-size:1.02rem;">{{ '%.1f'|format(sales_snapshot.close_rate|float) }}%</div>
+                </div>
+              </div>
+            </div>
+            <div class="border rounded p-2 mb-2">
+              <div class="text-muted" style="font-size:.74rem;">Total Value (This Month)</div>
+              <div class="fw-bold text-crimson">₱{{ '{:,.0f}'.format(sales_snapshot.sales_value|float) }}</div>
+            </div>
+            <div class="d-flex align-items-center justify-content-between text-muted" style="font-size:.78rem;">
+              <span>Trip Volume: <span class="fw-semibold text-dark">{{ sales_snapshot.trip_volume }}</span></span>
+              <span>Lifetime Closed: <span class="fw-semibold text-dark">{{ sales_snapshot.lifetime_closed }}</span></span>
+              <span>Last Sale: <span class="fw-semibold text-dark">{{ sales_snapshot.last_sale_date }}</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="sqh-card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="fw-bold mb-0"><i class="fas fa-stream me-2 text-crimson"></i>Assignment Feed</h6>
+              <a href="#" class="btn btn-sm btn-outline-crimson" style="box-shadow: var(--shadow-xs);" onclick="document.querySelector('.sidebar-link[data-page=\'trips\']') && document.querySelector('.sidebar-link[data-page=\'trips\']').click(); return false;">Open Trips</a>
+            </div>
+            {% if assignment_feed_items %}
+            <div class="d-flex flex-column gap-2">
+              {% for item in assignment_feed_items %}
+              <a href="#" class="text-decoration-none" onclick="document.querySelector('.sidebar-link[data-page=\'trips\']') && document.querySelector('.sidebar-link[data-page=\'trips\']').click(); return false;">
+                <div class="p-2 rounded border">
+                  <div class="fw-semibold text-dark small">{{ item.client_name }} • {{ item.property_name }}</div>
+                  <div class="d-flex align-items-center justify-content-between text-muted" style="font-size:.74rem;">
+                    <span>{{ item.preferred_date }} {{ item.preferred_time }}</span>
+                    <span class="sqh-badge badge-conditional">{{ item.status }}</span>
+                  </div>
+                </div>
+              </a>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+              <i class="fas fa-check-circle fa-2x mb-2 d-block" style="color:var(--clr-accent);"></i>
+              <span class="fw-semibold">No assigned tripping requests yet.</span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>{# /page-dashboard #}
+
+    {# ────── PAGE 2: TRIPPING REQUESTS ─────────────────────── #}
+    <div class="dash-page d-none" id="page-trips"
+         data-title="Tripping &lt;em&gt;Requests&lt;/em&gt;"
+         data-subtitle="Model viewing requests from clients">
+
+      <div class="sqh-card p-4">
+        <div class="dash-filter-bar mb-3">
+          <div class="dash-fb-group">
+            <label class="dash-fb-label"><i class="fas fa-search me-1"></i>Search</label>
+            <input type="text" id="tripsSearch" class="form-control dash-fb-input" placeholder="Client or model&#8230;">
+          </div>
+          <div class="dash-fb-group">
+            <label class="dash-fb-label"><i class="fas fa-filter me-1"></i>Status</label>
+            <select id="tripsFilterStatus" class="form-select dash-fb-select">
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="visited">Visited</option>
+              <option value="sold">Sold</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+        {% if my_trips %}
+        <div class="table-responsive">
+          <table class="table sqh-table" id="tripsTable">
+            <thead>
+              <tr>
+                <th class="hide-tablet">#</th>
+                <th>Client</th>
+                <th>Model</th>
+                <th>Preferred Date</th>
+                <th class="hide-tablet">Time</th>
+                <th class="hide-tablet">Submitted</th>
+                <th>Status</th>
+                <th>Visit Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in my_trips %}
+              {% set is_bought = t.id in sold_trip_ids %}
+              {% set s = t.status %}
+                <tr data-status="{{ 'sold' if is_bought else s }}" data-trip-row="{{ t.id }}"
+                  data-property-id="{{ t.property_id }}"
+                  data-client-id="{{ t.client.id }}"
+                  data-client-name="{{ t.client.full_name }}"
+                  data-property-name="{{ t.property_item.name }}"
+                  data-property-images="{{ t.property_item.images or '' }}"
+                  data-preferred-date="{{ t.preferred_date.strftime('%b %d, %Y') }}"
+                  data-preferred-time="{{ (t.preferred_time|ph_time) if t.preferred_time else '—' }}"
+                  data-submitted-date="{{ t.created_at|ph_datetime('%b %d, %Y at %I:%M %p') }}"
+                  data-trip-status="{{ 'Sold' if is_bought else s|capitalize }}"
+                  data-agent-note="{{ (t.agent_note or 'No note provided.')|e }}">
+                <td class="text-muted small hide-tablet" data-label="#">{{ loop.index }}</td>
+                <td class="fw-semibold" data-label="Client">{{ t.client.full_name }}</td>
+                <td data-label="Property">{{ t.property_item.name }}</td>
+                <td class="text-muted small text-nowrap" data-label="Preferred Date">{{ t.preferred_date.strftime('%b %d, %Y') }}</td>
+                <td class="hide-tablet" data-label="Time">{{ (t.preferred_time|ph_time) if t.preferred_time else '&#8212;' }}</td>
+                <td class="text-muted small text-nowrap hide-tablet" data-label="Submitted">{{ t.created_at|ph_datetime('%b %d, %Y at %I:%M %p') }}</td>
+                <td class="trip-status-badge" data-label="Status">
+                  {% set tc = 'badge-sold' if is_bought else ('badge-qualified' if s in ['approved', 'visited'] else ('badge-not-qualified' if s == 'rejected' else 'badge-conditional')) %}
+                  <span class="sqh-badge {{ tc }}">{{ 'Sold' if is_bought else s | capitalize }}</span>
+                </td>
+                <td data-label="Visit Status">
+                  {% if is_bought or s == 'visited' %}
+                  <span class="sqh-badge badge-qualified">Visited</span>
+                  {% else %}
+                  <span class="sqh-badge badge-conditional">Pending</span>
+                  {% endif %}
+                </td>
+                <td data-label="Actions">
+                  <div class="d-none d-md-flex gap-1 flex-wrap">
+                    <button class="btn btn-sm btn-outline-lime open-trip-request-btn" data-trip-id="{{ t.id }}" title="View Request">
+                      <i class="fas fa-clipboard-list"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-blue open-client-modal-btn" data-client-id="{{ t.client.id }}" title="View Client Details">
+                      <i class="fas fa-user"></i>
+                    </button>
+                  </div>
+                  <div class="sqh-row-actions d-md-none">
+                    <button class="sqh-row-actions-btn" type="button" aria-haspopup="true" aria-expanded="false"><i class="fas fa-ellipsis-v"></i></button>
+                    <div class="sqh-row-actions-menu">
+                      <button type="button" class="sqh-row-action-item open-trip-request-btn" data-trip-id="{{ t.id }}"><i class="fas fa-clipboard-list me-2"></i>View Request</button>
+                      <button type="button" class="sqh-row-action-item open-client-modal-btn" data-client-id="{{ t.client.id }}"><i class="fas fa-user me-2"></i>View Client</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div id="tripsNoResults" class="text-center py-5 text-muted d-none">
+          <i class="fas fa-search fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>
+          <span class="fw-semibold d-block mb-1">No matching tripping requests found.</span>
+          <span class="small">Try changing the search text or status filter.</span>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-calendar-times fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>
+          <span class="fw-semibold d-block mb-1">No tripping requests yet.</span>
+          <span class="small">New client requests will appear here once submitted.</span>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>{# /page-trips #}
+
+        {# ────── PAGE 3: LISTINGS ──────────────────────────── #}
+    <div class="dash-page d-none" id="page-listings"
+          data-title="&lt;em&gt;Listings&lt;/em&gt;"
+          data-subtitle="All published properties visible to all agents">
+      <div class="sqh-card p-4">
+        <div class="dash-filter-bar mb-3">
+          <div class="dash-fb-group">
+            <label class="dash-fb-label"><i class="fas fa-search me-1"></i>Search</label>
+            <input type="text" id="listingsSearch" class="form-control dash-fb-input" placeholder="Property name&#8230;">
+          </div>
+          <div class="dash-fb-group">
+            <label class="dash-fb-label"><i class="fas fa-filter me-1"></i>Status</label>
+            <select id="listingsFilterApproval" class="form-select dash-fb-select">
+              <option value="">All Status</option>
+              <option value="available">Available</option>
+              <option value="sold">Sold</option>
+            </select>
+          </div>
+          <div class="dash-fb-group">
+            <label class="dash-fb-label"><i class="fas fa-city me-1"></i>Project</label>
+            <select id="listingsFilterSubdivision" class="form-select dash-fb-select">
+              <option value="">All Projects</option>
+              {% for sub in all_subdivisions %}
+              <option value="{{ sub.name }}">{{ sub.name }}</option>
+              {% endfor %}
+              <option value="__none__">— No Project</option>
+            </select>
+          </div>
+           {% if current_user.role == 'admin' %}
+           <div class="d-flex">
+            <button type="button" class="btn btn-lime btn-sm" data-bs-toggle="modal" data-bs-target="#submitPropertyModal">
+              <i class="fas fa-plus me-1"></i> Submit Property
+            </button>
+          </div>
+           {% endif %}
+        </div>
+        <div class="row g-4" id="listingsCardsGrid">
+          {% for p in my_props %}
+          {% set first_img = p.images.split(',')[0].strip() if p.images else '' %}
+          {% set img_count = p.images.split(',')|length if p.images else 0 %}
+          {% set psgc_tail = [p.barangay_name, p.citymun_name, p.province_name, p.region_name]|select|join(', ') %}
+          {% set full_loc = p.location or '' %}
+          {% if psgc_tail and psgc_tail not in full_loc %}
+          {% set full_loc = ((full_loc ~ ', ' ~ psgc_tail)|trim(', ')) %}
+          {% endif %}
+          {% set listing_label = 'Sold' if p.status == 'sold' else 'Available' %}
+          {% set listing_badge = 'badge-sold' if listing_label == 'Sold' else 'badge-qualified' %}
+          <div class="col-12 col-sm-6 col-xl-4 listing-card-col"
+            data-listing-status="{{ 'sold' if p.status == 'sold' else 'available' }}"
+               data-prop-name="{{ p.name }}"
+               data-prop-loc="{{ full_loc }}"
+               data-prop-subdiv="{{ p.subdivision.name if p.subdivision else '' }}">
+              <div class="prop-card listing-card" data-prop-id="{{ p.id }}"
+                data-detail-requests-pending="{{ pricing_request_pending_count_by_property.get(p.id, 0) }}"
+                data-detail-requests-total="{{ pricing_request_total_count_by_property.get(p.id, 0) }}"
+                 data-name="{{ p.name | e }}"
+                 data-location="{{ full_loc | e }}"
+                 data-street="{{ p.street or '' }}"
+                 data-block="{{ p.block or '' }}"
+                 data-lot-no="{{ p.lot_no or '' }}"
+                 data-region="{{ p.region or '' }}"
+                data-region-code="{{ p.region_code or '' }}"
+                data-region-name="{{ p.region_name or '' }}"
+                data-province-code="{{ p.province_code or '' }}"
+                data-province-name="{{ p.province_name or '' }}"
+                data-citymun-code="{{ p.citymun_code or '' }}"
+                data-citymun-name="{{ p.citymun_name or '' }}"
+                data-barangay-code="{{ p.barangay_code or '' }}"
+                data-barangay-name="{{ p.barangay_name or '' }}"
+                 data-prop-type="{{ p.prop_type or '' }}"
+                 data-prop-unit-type="{{ p.unit_type or '' }}"
+                 data-unit-id="{{ p.unit_id or '' }}"
+                 data-agent-id="{{ p.agent_id or '' }}"
+                 data-price="{{ p.price }}"
+                 data-promo-discount-rate="{{ p.promo_discount_rate if p.promo_discount_rate is not none else '' }}"
+                 data-reservation-fee="{{ p.reservation_fee if p.reservation_fee is not none else '' }}"
+                 data-downpayment-rate="{{ p.downpayment_rate if p.downpayment_rate is not none else '' }}"
+                 data-downpayment-terms-months="{{ p.downpayment_terms_months if p.downpayment_terms_months is not none else '' }}"
+                 data-loanable-percentage="{{ p.loanable_percentage if p.loanable_percentage is not none else '' }}"
+                 data-vat-rate="{{ p.vat_rate if p.vat_rate is not none else '' }}"
+                 data-lmf-rate="{{ p.lmf_rate if p.lmf_rate is not none else '' }}"
+                 data-bedrooms="{{ p.bedrooms or 0 }}"
+                 data-bathrooms="{{ p.bathrooms or 0 }}"
+                 data-storeys="{{ p.storeys or 1 }}"
+                 data-floor-area="{{ p.floor_area or '' }}"
+                 data-lot-area="{{ p.lot_area or '' }}"
+                 data-subdivision-id="{{ p.subdivision_id or '' }}"
+                 data-buyer-id="{{ p.sale_record.client.id if p.sale_record and p.sale_record.client else '' }}"
+                 data-buyer-name="{{ p.sale_record.client.full_name if p.sale_record and p.sale_record.client else '' }}"
+                 data-sold-at="{{ p.sale_record.sold_at|ph_datetime('%b %d, %Y') if p.sale_record and p.sale_record.sold_at else '' }}"
+                 data-description="{{ p.description or '' | e }}"
+                 data-listing-status="{{ 'sold' if p.status == 'sold' else 'available' }}"
+                 data-images="{{ p.images or '' }}">
+              <div class="prop-card-img-wrap">
+                {% if first_img %}
+                <img src="/uploads/{{ first_img }}" alt="{{ p.name }}" class="prop-card-img">
+                {% else %}
+                <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
+                {% endif %}
+                {% if img_count > 1 %}
+                <span class="prop-card-img-count"><i class="fas fa-images me-1"></i>{{ img_count }}</span>
+                {% endif %}
+                <div class="prop-card-actions">
+                  <button type="button" class="sub-card-action-btn listing-view-btn" data-prop-id="{{ p.id }}" title="View"><i class="fas fa-eye"></i></button>
+                  {% if current_user.role == 'admin' and p.status != 'sold' %}
+                  <button type="button" class="sub-card-action-btn sub-card-action-delete prop-delete-btn" data-prop-id="{{ p.id }}" title="Delete"><i class="fas fa-trash"></i></button>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="prop-card-body">
+                <div class="prop-card-header">
+                  <div class="prop-card-name">{{ p.name }}</div>
+                  <span class="sqh-badge {{ listing_badge }}">{{ listing_label }}</span>
+                </div>
+                <div class="prop-card-header">
+                  <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ full_loc }}</div>
+                  <div class="prop-card-icons">
+                    {% if p.bedrooms %}<span class="prop-card-icon-chip"><i class="fas fa-bed" style="color:var(--clr-accent-dk);"></i> {{ p.bedrooms }}</span>{% endif %}
+                    {% if p.bathrooms %}<span class="prop-card-icon-chip"><i class="fas fa-bath" style="color:var(--clr-blue);"></i> {{ p.bathrooms }}</span>{% endif %}
+                    {% if p.storeys %}<span class="prop-card-icon-chip"><i class="fas fa-layer-group" style="color:var(--clr-primary);"></i> {{ p.storeys }}</span>{% endif %}
+                  </div>
+                </div>
+                <div class="prop-card-footer">
+                  <span class="prop-card-type {% if p.unit_type == 'pre-selling' %}prop-type-badge-pre-selling{% elif p.unit_type == 'ready-for-occupancy' %}prop-type-badge-ready-for-occupancy{% elif p.unit_type == 'resale' %}prop-type-badge-resale{% endif %}">{{ p.unit_type.replace('-',' ').title() if p.unit_type else (p.prop_type.replace('-',' ').title() if p.prop_type else '—') }}</span>
+                  <span class="prop-card-price">₱{{ '{:,.0f}'.format(p.price | float) }}</span>
+                </div>
+                <div class="prop-card-meta">
+                  <span><i class="fas fa-city me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
+                  <span>{{ p.created_at.strftime('%b %d, %Y') }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div class="col-12 text-center py-5 text-muted">
+            <i class="fas fa-building fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>
+            <span class="fw-semibold d-block mb-1">No listings yet.</span>
+            <span class="small">No published properties are available yet.</span>
+          </div>
+          {% endfor %}
+          <div class="col-12 text-center py-5 d-none" id="listingsFilterEmpty">
+            <i class="fas fa-search fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>
+            <span class="fw-semibold d-block mb-1">No results found</span>
+            <span class="small text-muted">Try adjusting your search or filter criteria.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>{# /page-listings #}
+
+    {# ────── PAGE 4: SOLD PROPERTIES ──────────────────────── #}
+    <div class="dash-page d-none" id="page-sold"
+         data-title="Sold &lt;em&gt;Properties&lt;/em&gt;"
+         data-subtitle="Closed deals you completed with clients">
+
+      <div class="sqh-card p-4">
+        <div class="dash-filter-bar mb-3">
+          <div class="dash-fb-group">
+            <label class="dash-fb-label"><i class="fas fa-search me-1"></i>Search</label>
+            <input type="text" id="soldSearch" class="form-control dash-fb-input" placeholder="Property or buyer&#8230;">
+          </div>
+          <div class="dash-fb-group">
+            <label class="dash-fb-label"><i class="fas fa-filter me-1"></i>Price</label>
+            <select id="soldPriceFilter" class="form-select dash-fb-select">
+              <option value="">All Prices</option>
+              <option value="lt3000000">Below ₱3,000,000</option>
+              <option value="3000000-6000000">₱3,000,000 - ₱6,000,000</option>
+              <option value="gt6000000">Above ₱6,000,000</option>
+            </select>
+          </div>
+        </div>
+
+        {% if sold_sales %}
+        <div class="row g-4" id="soldCardsGrid">
+          {% for sale in sold_sales %}
+          {% set p = sale.property_item %}
+          {% if p %}
+          {% set first_img = p.images.split(',')[0].strip() if p.images else '' %}
+          {% set img_count = p.images.split(',')|length if p.images else 0 %}
+          {% set psgc_tail = [p.barangay_name, p.citymun_name, p.province_name, p.region_name]|select|join(', ') %}
+          {% set full_loc = p.location or '' %}
+          {% if psgc_tail and psgc_tail not in full_loc %}
+          {% set full_loc = ((full_loc ~ ', ' ~ psgc_tail)|trim(', ')) %}
+          {% endif %}
+          {% set lc = 'badge-sold' %}
+          <div class="col-12 col-sm-6 col-xl-4 sold-listing-card-col"
+               data-prop-name="{{ p.name }}"
+               data-buyer-name="{{ sale.client.full_name if sale.client else '' }}"
+               data-sale-price="{{ sale.selling_price|float if sale.selling_price is not none else 0 }}">
+            <div class="prop-card listing-card" data-prop-id="{{ p.id }}"
+                 data-name="{{ p.name | e }}"
+                data-location="{{ full_loc | e }}"
+                 data-street="{{ p.street or '' }}"
+                 data-block="{{ p.block or '' }}"
+                 data-lot-no="{{ p.lot_no or '' }}"
+                 data-region="{{ p.region or '' }}"
+                data-region-code="{{ p.region_code or '' }}"
+                data-region-name="{{ p.region_name or '' }}"
+                data-province-code="{{ p.province_code or '' }}"
+                data-province-name="{{ p.province_name or '' }}"
+                data-citymun-code="{{ p.citymun_code or '' }}"
+                data-citymun-name="{{ p.citymun_name or '' }}"
+                data-barangay-code="{{ p.barangay_code or '' }}"
+                data-barangay-name="{{ p.barangay_name or '' }}"
+                 data-prop-type="{{ p.prop_type or '' }}"
+                 data-prop-unit-type="{{ p.unit_type or '' }}"
+                 data-unit-id="{{ p.unit_id or '' }}"
+                data-agent-id="{{ p.agent_id or '' }}"
+                 data-price="{{ p.price }}"
+                 data-promo-discount-rate="{{ p.promo_discount_rate if p.promo_discount_rate is not none else '' }}"
+                 data-reservation-fee="{{ p.reservation_fee if p.reservation_fee is not none else '' }}"
+                 data-downpayment-rate="{{ p.downpayment_rate if p.downpayment_rate is not none else '' }}"
+                 data-downpayment-terms-months="{{ p.downpayment_terms_months if p.downpayment_terms_months is not none else '' }}"
+                 data-loanable-percentage="{{ p.loanable_percentage if p.loanable_percentage is not none else '' }}"
+                 data-vat-rate="{{ p.vat_rate if p.vat_rate is not none else '' }}"
+                 data-lmf-rate="{{ p.lmf_rate if p.lmf_rate is not none else '' }}"
+                 data-bedrooms="{{ p.bedrooms or 0 }}"
+                 data-bathrooms="{{ p.bathrooms or 0 }}"
+                 data-storeys="{{ p.storeys or 1 }}"
+                 data-floor-area="{{ p.floor_area or '' }}"
+                 data-lot-area="{{ p.lot_area or '' }}"
+                 data-subdivision-id="{{ p.subdivision_id or '' }}"
+                 data-buyer-id="{{ sale.client.id if sale.client else '' }}"
+                 data-buyer-name="{{ sale.client.full_name if sale.client else '' }}"
+                 data-sold-at="{{ sale.sold_at|ph_datetime('%b %d, %Y') if sale.sold_at else '' }}"
+                 data-description="{{ p.description or '' | e }}"
+                 data-listing-status="sold"
+                 data-images="{{ p.images or '' }}">
+              <div class="prop-card-img-wrap">
+                {% if first_img %}
+                <img src="/uploads/{{ first_img }}" alt="{{ p.name }}" class="prop-card-img">
+                {% else %}
+                <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>
+                {% endif %}
+                {% if img_count > 1 %}
+                <span class="prop-card-img-count"><i class="fas fa-images me-1"></i>{{ img_count }}</span>
+                {% endif %}
+                <div class="prop-card-actions">
+                  <button type="button" class="sub-card-action-btn listing-view-btn" data-prop-id="{{ p.id }}" title="View"><i class="fas fa-eye"></i></button>
+                </div>
+              </div>
+              <div class="prop-card-body">
+                <div class="prop-card-header">
+                  <div class="prop-card-name">{{ p.name }}</div>
+                  <span class="sqh-badge {{ lc }}">Sold</span>
+                </div>
+                <div class="prop-card-header">
+                  <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ full_loc }}</div>
+                  <div class="prop-card-icons">
+                    {% if p.bedrooms %}<span class="prop-card-icon-chip"><i class="fas fa-bed" style="color:var(--clr-accent-dk);"></i> {{ p.bedrooms }}</span>{% endif %}
+                    {% if p.bathrooms %}<span class="prop-card-icon-chip"><i class="fas fa-bath" style="color:var(--clr-blue);"></i> {{ p.bathrooms }}</span>{% endif %}
+                    {% if p.storeys %}<span class="prop-card-icon-chip"><i class="fas fa-layer-group" style="color:var(--clr-primary);"></i> {{ p.storeys }}</span>{% endif %}
+                  </div>
+                </div>
+                <div class="prop-card-footer">
+                  <span class="prop-card-type {% if p.unit_type == 'pre-selling' %}prop-type-badge-pre-selling{% elif p.unit_type == 'ready-for-occupancy' %}prop-type-badge-ready-for-occupancy{% elif p.unit_type == 'resale' %}prop-type-badge-resale{% endif %}">{{ p.unit_type.replace('-',' ').title() if p.unit_type else (p.prop_type.replace('-',' ').title() if p.prop_type else '—') }}</span>
+                  <span class="prop-card-price">₱{{ '{:,.0f}'.format((sale.selling_price|float) if sale.selling_price is not none else (p.price|float)) }}</span>
+                </div>
+                <div class="prop-card-meta">
+                  <span><i class="fas fa-user me-1"></i>{{ sale.client.full_name if sale.client else '—' }}</span>
+                  <span>{{ sale.sold_at|ph_datetime('%b %d, %Y') }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        <div id="soldNoResults" class="text-center py-5 text-muted d-none">
+          <i class="fas fa-search fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>
+          <span class="fw-semibold d-block mb-1">No matching sold properties found.</span>
+          <span class="small">Try changing the search text or price filter.</span>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted" id="soldEmptyState">
+          <i class="fas fa-handshake fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>
+          <span class="fw-semibold d-block mb-1">No sold properties yet</span>
+          <span class="small">Closed deals will appear here once a client purchase is marked complete.</span>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>{# /page-sold #}
+
+    {# ────── PAGE 6: AVAILABILITY ─────────────────────────── #}
+    <div class="dash-page d-none" id="page-availability"
+         data-title="Agent &lt;em&gt;Availability&lt;/em&gt;"
+         data-subtitle="Post your available schedule so admin can assign trips better">
+
+      <div class="row g-4">
+        <div class="col-xl-7">
+          <div class="sqh-card p-4 h-100 avail-calendar-card">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <button type="button" class="btn btn-sm btn-outline-crimson" id="availPrevMonthBtn" title="Previous month">
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              <div class="fw-bold" id="availMonthLabel">Month</div>
+              <button type="button" class="btn btn-sm btn-outline-crimson" id="availNextMonthBtn" title="Next month">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+            <div class="avail-weekdays mb-2">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+            <div id="availCalendarGrid" class="avail-calendar-grid" aria-label="Agent availability calendar"></div>
+            <div class="d-flex gap-3 mt-3 small text-muted flex-wrap">
+              <span><i class="fas fa-circle avail-legend-dot avail-legend-available me-1"></i>Available</span>
+              <span><i class="fas fa-circle avail-legend-dot avail-legend-unavailable me-1"></i>Not Available</span>
+              <span><i class="fas fa-circle avail-legend-dot avail-legend-none me-1"></i>No entry</span>
+            </div>
+            <div class="d-flex justify-content-between small text-muted mt-2">
+              <div class="d-flex align-items-center"?>
+                <i class="fas fa-mouse-pointer me-1"></i>Use Multi Select to select multiple dates, then apply one availability update to all selected dates.
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-blue" id="availClearSelectionBtn">
+                <i class="fas fa-layer-group me-1"></i>Multi Select
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-5">
+          <div class="sqh-card p-4 h-100 avail-detail-card">
+            <div class="mb-3">
+              <div class="text-muted small">Selected Date</div>
+              <div class="fw-bold fs-5" id="availSelectedDateLabel">—</div>
+              <div class="small text-muted" id="availSelectionMeta">1 date selected</div>
+            </div>
+
+            <div class="row g-3 align-items-end">
+              <div class="col-12">
+                <label class="sqh-form-label">Availability State</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-toggle-on"></i></span>
+                  <select id="availStatus" class="form-select sqh-form-control">
+                    <option value="available">Available</option>
+                    <option value="not_available">Not Available</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-6" id="availStartWrap">
+                <label class="sqh-form-label">Available From</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-hourglass-start"></i></span>
+                  <input type="time" id="availStart" class="form-control sqh-form-control">
+                </div>
+                <div class="sqh-live-error" id="availStartError"></div>
+              </div>
+              <div class="col-md-6" id="availEndWrap">
+                <label class="sqh-form-label">Available Until</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-hourglass-end"></i></span>
+                  <input type="time" id="availEnd" class="form-control sqh-form-control">
+                </div>
+                <div class="sqh-live-error" id="availEndError"></div>
+              </div>
+              <div class="col-12">
+                <label class="sqh-form-label" id="availNoteLabel">Note (optional)</label>
+                <div class="input-group sqh-input-group align-items-start">
+                  <span class="input-group-text sqh-ig-text" style="min-height:38px;"><i class="fas fa-note-sticky"></i></span>
+                  <textarea id="availNote" class="form-control sqh-form-control" rows="3" maxlength="255" placeholder="Add context for this date"></textarea>
+                </div>
+              </div>
+              <div class="col-12 d-grid">
+                <button type="button" class="btn btn-lime" id="availAddBtn"><i class="fas fa-plus me-1"></i>Add Entry for Selected Date(s)</button>
+              </div>
+            </div>
+
+            <div id="availError" class="alert alert-danger small d-none mt-3 mb-0"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sqh-card p-4 mt-4">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <h6 class="fw-bold mb-0">Entries on this date</h6>
+          <span class="small text-muted" id="availDateEntryCount">0 entry</span>
+        </div>
+        <div id="availEntriesList" class="avail-entries-list">
+          <div class="text-muted small">No entries for this date.</div>
+        </div>
+      </div>
+
+    </div>{# /page-availability #}
+
+    {# ────── PAGE 6: MY PROFILE ───────────────────────────── #}
+    <div class="dash-page d-none" id="page-profile"
+         data-title="My &lt;em&gt;Profile&lt;/em&gt;"
+         data-subtitle="Update your account and agent information">
+
+      {# ── Profile Hero Card ─────────────────────────────── #}
+      <div class="prof-hero-card sqh-card mb-4">
+        {# Banner #}
+        <div class="prof-hero-banner" id="profHeroBanner"
+          {% if banner_url %}style="background-image:url('{{ banner_url }}');background-size:cover;background-position:center;"{% endif %}>
+          <div class="prof-banner-controls">
+            <button type="button" class="prof-banner-preview-btn" id="bannerPreviewBtn" title="Preview cover" {% if not banner_url %}style="display:none;"{% endif %}><i class="fas fa-eye me-1"></i> Preview</button>
+            <label class="prof-upload-overlay" title="Change cover photo">
+              <input type="file" id="bannerFileInput" accept="image/*" style="display:none;">
+              <i class="fas fa-camera"></i> Change Cover
+            </label>
+          </div>
+        </div>
+        <div class="prof-hero-body">
+          {# Avatar #}
+          <div class="prof-avatar-lg" id="profAvatarLg">
+            {% if avatar_url %}
+              <img id="profAvatarImg" src="{{ avatar_url }}" alt="Profile photo">
+            {% else %}
+              <i class="fas fa-user" id="profAvatarIcon"></i>
+            {% endif %}
+            <label class="prof-avatar-upload-btn" title="Change photo">
+              <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+              <i class="fas fa-camera"></i>
+            </label>
+            <button type="button" class="prof-img-preview-btn" id="avatarPreviewBtn" title="Preview photo" {% if not avatar_url %}style="display:none;"{% endif %}><i class="fas fa-eye me-1"></i></button>
+          </div>
+          <div class="prof-hero-info">
+            <div class="d-flex align-items-center flex-wrap gap-2 mb-1 mt-2">
+              <h4 class="fw-bold mb-0" id="profHeroName">{{ current_user.full_name }}</h4>
+              <span class="sqh-badge badge-conditional" style="font-size:.72rem;">Agent</span>
+            </div>
+            <div class="text-muted small mb-1">
+              <i class="fas fa-envelope me-1" style="color: var(--clr-primary);"></i>{{ current_user.email }}
+            </div>
+            {% if agent_info and agent_info.license_no %}
+            <div class="text-muted small">
+              <i class="fas fa-id-card me-1" style="color: var(--clr-primary);"></i>PRC {{ agent_info.license_no }}
+            </div>
+            {% endif %}
+          </div>
+          <div class="prof-hero-stats ms-auto d-none d-md-flex">
+            <div class="prof-hero-stat">
+              <span class="prof-hero-stat-val">{{ my_props | length }}</span>
+              <span class="prof-hero-stat-lbl">Listings</span>
+            </div>
+            <div class="prof-hero-stat">
+              <span class="prof-hero-stat-val">{{ my_availability | length }}</span>
+              <span class="prof-hero-stat-lbl">Availability</span>
+            </div>
+            <div class="prof-hero-stat">
+              <span class="prof-hero-stat-val">{{ sold_sales|length }}</span>
+              <span class="prof-hero-stat-lbl">Sold</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        {# ── Personal Information ─────────────────────────── #}
+        <div class="col-lg-6">
+          <div class="sqh-card p-4 h-100">
+            <div class="prof-section-header">
+              <div class="prof-section-icon" style="background:rgba(139,26,26,.1);">
+                <i class="fas fa-user" style="color:var(--clr-primary);"></i>
+              </div>
+              <div>
+                <div class="prof-section-title">Personal Information</div>
+                <div class="prof-section-sub">Your account name and contact details</div>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="sqh-form-label">First Name <span class="text-danger">*</span></label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-user"></i></span>
+                  <input type="text" id="prof_first_name" class="form-control sqh-form-control"
+                         value="{{ current_user.first_name }}" placeholder="First name">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="sqh-form-label">Last Name <span class="text-danger">*</span></label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-user"></i></span>
+                  <input type="text" id="prof_last_name" class="form-control sqh-form-control"
+                         value="{{ current_user.last_name }}" placeholder="Last name">
+                </div>
+              </div>
+              <div class="col-12">
+                <label class="sqh-form-label">Email Address</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-envelope"></i></span>
+                  <input type="email" id="prof_email" class="form-control sqh-form-control" value="{{ current_user.email }}" placeholder="your@email.com">
+                </div>
+                <div class="sqh-live-error" id="prof_email_error"></div>
+              </div>
+              <div class="col-12">
+                <label class="sqh-form-label">Username <span class="text-danger">*</span></label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-at"></i></span>
+                  <input type="text" id="prof_username" class="form-control sqh-form-control"
+                         value="{{ current_user.username or '' }}" placeholder="username">
+                </div>
+              </div>
+              <div class="col-12">
+                <label class="sqh-form-label">Contact Number</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-phone"></i></span>
+                  <input type="text" id="prof_contact" class="form-control sqh-form-control"
+                         value="{{ current_user.contact_number or '' }}" placeholder="09XX XXX XXXX">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# ── Agent Details ────────────────────────────────── #}
+        <div class="col-lg-6">
+          <div class="sqh-card p-4 h-100">
+            <div class="prof-section-header">
+              <div class="prof-section-icon" style="background:rgba(26,38,153,.08);">
+                <i class="fas fa-id-badge" style="color:var(--clr-blue);"></i>
+              </div>
+              <div>
+                <div class="prof-section-title">Agent Details</div>
+                <div class="prof-section-sub">Your professional profile information</div>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="sqh-form-label">PRC License No.</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-id-card"></i></span>
+                  <input type="text" id="prof_license" class="form-control sqh-form-control"
+                         value="{{ agent_info.license_no if agent_info and agent_info.license_no else '' }}"
+                         placeholder="PRC-XXXXXX">
+                </div>
+              </div>
+              <div class="col-12">
+                <label class="sqh-form-label">Agent Contact Number</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-phone-alt"></i></span>
+                  <input type="text" id="prof_agent_contact" class="form-control sqh-form-control"
+                         value="{{ agent_info.contact_no if agent_info and agent_info.contact_no else '' }}"
+                         placeholder="09XX XXX XXXX">
+                </div>
+              </div>
+              <div class="col-12">
+                <label class="sqh-form-label">About / Bio</label>
+                <textarea id="prof_bio" class="form-control sqh-form-control" rows="4"
+                          placeholder="Brief professional bio&#8230;">{{ agent_info.bio if agent_info and agent_info.bio else '' }}</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# ── Change Password ──────────────────────────────── #}
+        <div class="col-12">
+          <div class="sqh-card p-4">
+            <div class="prof-section-header">
+              <div class="prof-section-icon" style="background:rgba(179,98,0,.1);">
+                <i class="fas fa-key" style="color:#b36200;"></i>
+              </div>
+              <div>
+                <div class="prof-section-title">Change Password</div>
+                <div class="prof-section-sub">Leave blank to keep your current password</div>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="sqh-form-label"><i class="fas fa-lock me-1 text-crimson"></i>New Password</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-lock"></i></span>
+                  <input type="password" id="prof_new_password" class="form-control sqh-form-control"
+                         placeholder="Leave blank to keep current">
+                  <button type="button" class="btn sqh-eye-btn sqh-pw-toggle toggle-password" data-target="prof_new_password"
+                          tabindex="-1" aria-label="Toggle visibility">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                {# pw-checklist (same as register page) #}
+                <ul class="pw-checklist mt-1" id="profPwChecklist">
+                  <li id="profPwLen"><i class="fas fa-circle-dot"></i> 6+ chars</li>
+                  <li id="profPwUpper"><i class="fas fa-circle-dot"></i> Uppercase</li>
+                  <li id="profPwNum"><i class="fas fa-circle-dot"></i> Number</li>
+                  <li id="profPwSpecial"><i class="fas fa-circle-dot"></i> Symbol</li>
+                </ul>
+                <div class="sqh-live-error" id="prof_new_password_error"></div>
+              </div>
+              <div class="col-md-6">
+                <label class="sqh-form-label"><i class="fas fa-lock me-1 text-crimson"></i>Confirm New Password</label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-lock"></i></span>
+                  <input type="password" id="prof_confirm_password" class="form-control sqh-form-control"
+                         placeholder="Re-enter new password">
+                  <button type="button" class="btn sqh-eye-btn sqh-pw-toggle toggle-password" data-target="prof_confirm_password"
+                          tabindex="-1" aria-label="Toggle visibility">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                <div class="sqh-live-error" id="prof_confirm_password_error"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# ── Save Row ──────────────────────────────────────── #}
+        <div class="col-12">
+          <div id="profileError" class="alert alert-danger small d-none"></div>
+          <button type="button" class="btn btn-lime px-4" id="saveProfileBtn">
+            <i class="fas fa-save me-1"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+    </div>{# /page-profile #}
+
+    </div>{# /dash-body #}
+  </div>{# /dashboard-content #}
+</div>{# /dashboard-layout #}
+{% endblock %}

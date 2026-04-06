@@ -1,0 +1,233 @@
+SMARTQUALIHOME - System Summary
+
+Overview
+SMARTQUALIHOME is a Flask web platform for client qualification, property management, tripping requests, and sales tracking with role-based dashboards for client, agent, and admin users.
+
+Core modules
+- app/auth: Authentication, registration, password reset, user onboarding.
+- app/client: Client qualification flow, profile updates, and tripping actions.
+- app/main: Dashboards, listing operations, PSGC endpoints, admin/agent actions.
+- app/ml: Similarity-augmented C5.0 qualification engine.
+- app/models.py: SQLAlchemy models for users, profiles, properties, logs, requests, and settings.
+
+Main capabilities
+- Role-based access control (client, agent, admin).
+- Qualification scoring using DTI + similarity-enhanced C5.0 logic.
+- Property lifecycle management (pending, approved, sold, rejected flows).
+- Tripping scheduling and request management.
+- Full property detail request workflow (pending, approved, rejected).
+- Activity logs and in-dashboard notification handling.
+- Configurable qualification and security settings through system_config.
+
+C5.0 and Data Pipeline Updates (Today)
+- Historical buyer records now directly affect model quality via sync-to-training workflows.
+- Added admin endpoints:
+  - GET /admin/c50/sync-status
+  - POST /admin/c50/sync-historical (supports dry_run)
+- Closed-sale flow now auto-syncs captured historical buyer info into training_data using a sale marker in notes.
+- Added async retrain trigger with lock protection to avoid overlapping background retrains.
+- Startup C5.0 warm-up is now guarded: if fewer than 10 usable training rows exist, model training is skipped and rules remain as fallback.
+- Training now validates outcome labels and skips invalid rows safely, exposing invalid_labels_skipped in model meta.
+- Seeding logic now uses all current employment types and weights generation by current stability scores from system_config.
+
+Admin Dashboard/UX Updates (Today)
+- Seed training action now uses a confirmation modal instead of browser confirm.
+- Existing-data seed warning now shows as toast instead of blocking alert.
+- Added C5.0 historical sync status panel (synced/unsynced visibility).
+- Added Sync Historical action with confirmation modal and toast-based results.
+- Mobile responsiveness refinements for sync panel and action toolbar:
+  - icon + status text stay aligned
+  - badges move below status text on narrow screens
+  - button group alignment/order tuned for mobile
+
+Existing recent dashboard updates
+- Admin notification dropdown is unified and sorted by latest timestamp across types.
+- Admin Activity Log supports full detail request event filtering.
+- Client Home now has a Qualified Properties for You section.
+- Client Browse supports Qualified Only filtering.
+- Client Profile employment/financial and housing preference display blocks are read-only and icon-aligned.
+
+Maintenance and compatibility updates
+- requirements.txt explicitly includes sqlalchemy and wtforms.
+- migrations/schema.sql includes properties.price used by Property model.
+- migrations/schema.sql includes property_pricing_detail_request_history used by request history views.
+
+Data and storage
+- Development default: SQLite at instance/smartqualihome.db.
+- Production option: MySQL via app/config.py and migrations/schema.sql.
+- Uploads: instance/uploads.
+
+Startup behavior
+On app startup, the system:
+1) Creates/opens required instance paths.
+2) Initializes Flask extensions and blueprints.
+3) Attempts C5.0 warm-up from training_data when at least 10 rows are available.
+4) Falls back safely to rule-based assessment if model warm-up fails or data is insufficient.
+
+Pre-seeded accounts (created only when missing)
+- Admin
+  Email: admin@smartqualihome.com
+  Password: Admin@2026!
+  Role: admin
+
+- Agent
+  Email: agent@smartqualihome.com
+  Password: Agent@2026!
+  Role: agent
+
+- Client
+  Email: client@smartqualihome.com
+  Password: Client@2026!
+  Role: client
+
+Operational notes
+- Session timeout and security thresholds are configurable.
+- Forgot-password delivery supports SMTP with fallback behavior.
+- C5.0 historical sync dedupe currently uses note markers (AUTO_SYNC_SALE_ID=...).
+- migrations/schema.sql remains idempotent and aligned with active models.
+
+Sample Add Model Input (adminCreatePropertyModal)
+Use these sample values to test Add Model Listing in the Admin dashboard.
+
+Important behavior notes
+- Required by create endpoint: name, location details (or subdivision), unit_type, price.
+- prop_type is fixed as house-and-lot in backend.
+- unit_id is auto-generated after save (do not manually set).
+- If subdivision is selected, subdivision PSGC/location values override manual PSGC fields.
+
+Sample A: Manual PSGC + Street/Block/Lot (no subdivision)
+- Model Name: Mahogany Prime Model A
+- Region (acp_region/acp_region_name): CALABARZON
+- Region Code (acp_region_code): 040000000
+- Province Name (acp_province_name): Cavite
+- Province Code (acp_province_code): 042100000
+- City/Municipality Name (acp_citymun_name): Dasmarinas City
+- City/Municipality Code (acp_citymun_code): 042108000
+- Barangay Name (acp_barangay_name): Salawag
+- Barangay Code (acp_barangay_code): 042108022
+- Street (acp_street): Mahogany Street
+- Block (acp_block): 5
+- Lot No. (acp_lot_no): 12
+- Subdivision (acp_subdivision): blank / None
+- Unit Type (acp_unit_type): pre-selling
+- Total Selling Price (acp_price): 2850000
+- Promo Discount % (acp_promo_discount_rate): 3
+- Reservation Fee (acp_reservation_fee): 25000
+- Downpayment % (acp_downpayment_rate): 20
+- Downpayment Terms Months (acp_downpayment_terms_months): 24
+- Loanable Percentage % (acp_loanable_percentage): 80
+- VAT Rate % (acp_vat_rate): 12
+- LMF Rate % (acp_lmf_rate): 2
+- Bedrooms (acp_bedrooms): 3
+- Bathrooms (acp_bathrooms): 2
+- Storeys (acp_storeys): 2
+- Floor Area sqm (acp_floor_area): 78.5
+- Lot Area sqm (acp_lot_area): 88
+- Description (acp_description): 3-bedroom corner model near clubhouse with parking provision.
+- Images (acp_images): optional test JPG/PNG/WEBP files
+
+Sample B: With Subdivision selected (recommended)
+- Model Name: Acacia Ready Model B
+- Street: Acacia Ave
+- Block: 2
+- Lot No.: 7
+- Subdivision (acp_subdivision): select any existing subdivision from dropdown
+- Unit Type: ready-for-occupancy
+- Total Selling Price: 3650000
+- Promo Discount %: 2.5
+- Reservation Fee: 30000
+- Downpayment %: 15
+- Downpayment Terms Months: 18
+- Loanable Percentage %: 85
+- VAT Rate %: 12
+- LMF Rate %: 1.5
+- Bedrooms: 4
+- Bathrooms: 3
+- Storeys: 2
+- Floor Area sqm: 96
+- Lot Area sqm: 110
+- Description: Family-ready RFO model with expanded living area and service space.
+- Images: optional
+
+Field map used by frontend FormData
+- name, location, street, block, lot_no
+- region, region_code, region_name
+- province_code, province_name
+- citymun_code, citymun_name
+- barangay_code, barangay_name
+- prop_type, unit_type, price
+- promo_discount_rate, reservation_fee, downpayment_rate
+- downpayment_terms_months, loanable_percentage, vat_rate, lmf_rate
+- bedrooms, bathrooms, storeys, floor_area, lot_area
+- subdivision_id, unit_id, description, images[]
+
+Client qualification test data (sample inputs):
+- Client A:
+  - Name: Maria Santos
+  - Age: 32
+  - Employment type: employed
+  - Tenure months: 36
+  - Gross income: 70,000
+  - Monthly loans: 15,000
+  - DTI limit (default): qualified <= 35, conditional <= 42
+- Client B:
+  - Name: Carlo Reyes
+  - Age: 28
+  - Employment type: ofw-landbased
+  - Tenure months: 18
+  - Gross income: 45,000
+  - Monthly loans: 18,000
+- Client C:
+  - Name: Ana Cruz
+  - Age: 40
+  - Employment type: licensed-professional
+  - Tenure months: 120
+  - Gross income: 35,000
+  - Monthly loans: 10,000
+- Client D:
+  - Name: Rico dela Cruz
+  - Age: 38
+  - Employment type: with-co-borrower
+  - Tenure months: 72
+  - Gross income: 28,000
+  - Monthly loans: 12,000
+
+Sample property listings for eligibility path tests:
+1. House 1 (High affordability):
+  - name: Bayview Heights Unit 1
+  - location: Dasmarinas, Cavite
+  - unit_type: ready-for-occupancy
+  - price: 3,100,000
+  - downpayment_rate: 20
+  - loanable_percentage: 80
+  - expected client outcome: Qualified (DTI should be low for high income/low obligation)
+2. House 2 (Moderate affordability):
+  - name: Acacia Ready Model B
+  - location: Silang, Cavite
+  - unit_type: pre-selling
+  - price: 5,200,000
+  - downpayment_rate: 20
+  - loanable_percentage: 80
+  - expected outcome: Conditionally Qualified (higher amount, still supported with conditional DTI range)
+3. House 3 (Higher risk):
+  - name: Pinecrest Entry Model
+  - location: Calamba, Laguna
+  - unit_type: resale
+  - price: 7,500,000
+  - downpayment_rate: 15
+  - loanable_percentage: 75
+  - expected outcome: Not Qualified (industry checks may reject for high DTI or low affordability)
+4. House 4 (Edge case):
+  - name: Cypress Prime Model
+  - location: Muntinlupa, Metro Manila
+  - unit_type: pre-selling
+  - price: 4,800,000
+  - downpayment_rate: 25
+  - loanable_percentage: 70
+  - expected outcome: Conditionally Qualified or Qualified depending on computed DTI/loanable balance
+
+How to test:
+- Create each house via admin modal with required fields (name, unit_type, price, location/subdivision).
+- Then log in as each client and run the qualification engine.
+- Compare computed DTI and similarity scores to expected outcomes.
+- Use the Admin dashboard property list to verify model appears with status approved and valid unit_id.

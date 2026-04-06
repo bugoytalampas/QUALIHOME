@@ -1,0 +1,1691 @@
+﻿{% extends "base.html" %}
+{% block title %}{% if result %}Registration Complete{% else %}Get Qualified{% endif %} — QUALIHOME{% endblock %}
+
+{% block content %}
+{% if result %}
+{# ═══════════════════════════════════════════════════════════
+   RESULT VIEW
+   ═══════════════════════════════════════════════════════════ #}
+<style>
+  .result-status-banner {
+    border-radius: 12px;
+    border: 1px solid transparent;
+  }
+  .result-status-banner.status-qualified {
+    background: rgba(170, 221, 42, 0.1);
+    border-color: rgba(170, 221, 42, 0.35);
+  }
+  .result-status-banner.status-conditional {
+    background: rgba(244, 196, 48, 0.1);
+    border-color: rgba(244, 196, 48, 0.35);
+  }
+  .result-status-banner.status-not-qualified {
+    background: rgba(139, 26, 26, 0.08);
+    border-color: rgba(139, 26, 26, 0.25);
+  }
+  .result-status-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+  }
+  .result-status-banner.status-qualified .result-status-icon,
+  .result-status-banner.status-qualified .result-status-title,
+  .result-status-banner.status-qualified .result-dti-value {
+    color: var(--clr-accent);
+  }
+  .result-status-banner.status-conditional .result-status-icon,
+  .result-status-banner.status-conditional .result-status-title,
+  .result-status-banner.status-conditional .result-dti-value {
+    color: var(--clr-warning);
+  }
+  .result-status-banner.status-not-qualified .result-status-icon,
+  .result-status-banner.status-not-qualified .result-status-title,
+  .result-status-banner.status-not-qualified .result-dti-value {
+    color: var(--clr-primary);
+  }
+  .result-dti-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+    width: 0;
+  }
+</style>
+<main class="py-4">
+<div class="wizard-wrapper">
+  <div class="wizard-card">
+
+    {# ── Header ─────────────────────────────────────────────── #}
+    <div class="wizard-header">
+      <h4 class="mb-1"><i class="fas fa-clipboard-check me-2"></i>Pre-Qualification Result</h4>
+      <p class="mb-0">Your account has been created and your assessment is ready</p>
+    </div>
+
+    <div class="wizard-body">
+
+      {# ── Welcome message ───────────────────────────────── #}
+      <div class="p-3 mb-4" style="background:rgba(26,38,153,.04);border:1px solid rgba(26,38,153,.15);border-radius:10px;">
+        <p class="mb-0 small">
+          <i class="fas fa-user-check me-2" style="color:var(--clr-blue);"></i>
+          <strong>Welcome, {{ user_name }}!</strong> Your QUALIHOME account has been created successfully.
+          Sign in to access your full dashboard, browse matched models, and connect with an agent.
+        </p>
+      </div>
+
+      {# ── Status helpers ──────────────────────────────────── #}
+      {% if result.status == 'Qualified' %}
+        {% set status_theme = 'qualified' %}
+        {% set status_icon  = 'fa-check-circle' %}
+        {% set status_desc  = 'Congratulations! Your debt-to-income ratio is within the ideal range. You are highly likely to be approved by lenders.' %}
+        {% set dti_class    = 'dti-safe' %}
+      {% elif result.status == 'Conditionally Qualified' %}
+        {% set status_theme = 'conditional' %}
+        {% set status_icon  = 'fa-exclamation-triangle' %}
+        {% set status_desc  = 'Your DTI ratio is elevated but manageable. Conditional approval is possible with compensating factors or reduced debt.' %}
+        {% set dti_class    = 'dti-caution' %}
+      {% else %}
+        {% set status_theme = 'not-qualified' %}
+        {% set status_icon  = 'fa-times-circle' %}
+        {% set status_desc  = 'Your current debt load exceeds safe lending limits. Consider reducing obligations and reassessing in the future.' %}
+        {% set dti_class    = 'dti-danger' %}
+      {% endif %}
+      {% set dti_width = [result.dti_ratio, 100]|min %}
+
+      {# ── Status banner ──────────────────────────────────── #}
+      <div class="p-4 mb-4 result-status-banner status-{{ status_theme }}">
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="result-status-icon">
+            <i class="fas {{ status_icon }}"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0 result-status-title">{{ result.status }}</h5>
+            <span class="text-muted small">Assessment completed {{ result.created_at|ph_datetime('%B %d, %Y at %I:%M %p') if result.created_at else 'just now' }}</span>
+          </div>
+        </div>
+        <p class="mb-0 small" style="color:var(--clr-text);">{{ status_desc }}</p>
+      </div>
+
+      {# ── Metrics row ────────────────────────────────────── #}
+      <div class="row g-3 mb-4">
+
+        {# DTI Ratio #}
+        <div class="col-sm-4">
+          <div class="sqh-card p-3 text-center h-100" style="border-radius:12px;">
+            <div class="text-muted small mb-1"><i class="fas fa-percentage me-1"></i>DTI Ratio</div>
+            <div class="fw-bold fs-3 result-dti-value">
+              {{ "%.1f"|format(result.dti_ratio) }}%
+            </div>
+            <div class="dti-meter-track mt-2" style="height:6px;">
+              <div class="{{ dti_class }} result-dti-fill" data-width="{{ dti_width }}"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-1" style="font-size:.65rem;color:var(--clr-muted);">
+              <span>0%</span><span>35%</span><span>42%</span><span>100%</span>
+            </div>
+          </div>
+        </div>
+
+        {# Max Loanable #}
+        <div class="col-sm-4">
+          <div class="sqh-card p-3 text-center h-100" style="border-radius:12px;">
+            <div class="text-muted small mb-1"><i class="fas fa-home me-1"></i>Max Loanable Amount</div>
+            <div class="fw-bold fs-3" style="color:var(--clr-blue);">
+              &#8369;{{ "{:,.0f}".format(result.max_loanable|float) }}
+            </div>
+            <div class="text-muted small mt-1">Estimated based on your profile</div>
+          </div>
+        </div>
+
+        {# Similarity Score #}
+        <div class="col-sm-4">
+          <div class="sqh-card p-3 text-center h-100" style="border-radius:12px;">
+            <div class="text-muted small mb-1"><i class="fas fa-chart-line me-1"></i>Similarity Score</div>
+            <div class="fw-bold fs-3" style="color:var(--clr-text);">
+              {{ "%.2f"|format(result.similarity_score if result.similarity_score else 0) }}
+              <span class="text-muted" style="font-size:.85rem;font-weight:500;">/ 1.00</span>
+            </div>
+            <div class="text-muted small mt-1">Compared to approved applicants</div>
+          </div>
+        </div>
+
+      </div>
+
+      {# ── Factors ─────────────────────────────────────────── #}
+      {% if result.factors_json %}
+        <div class="mb-4">
+          <div class="form-section-title"><i class="fas fa-list-check me-2"></i>Key Assessment Factors</div>
+          <div id="factorsContainer" class="d-flex flex-column gap-2"></div>
+        </div>
+      {% endif %}
+
+      {# ── What's next ────────────────────────────────────── #}
+      <div class="info-box mb-2">
+        <i class="fas fa-info-circle me-2"></i>
+        Sign in to your new account to view your full dashboard, browse matched models, and connect with an Annregar Realty agent.
+      </div>
+
+      {# ── Actions ─────────────────────────────────────────── #}
+      <hr class="mt-4 mb-3">
+      <div class="d-flex justify-content-center">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-lime px-5 fw-bold">
+          <i class="fas fa-sign-in-alt me-2"></i>Sign In to Your Account
+        </a>
+      </div>
+
+    </div>{# wizard-body #}
+  </div>{# wizard-card #}
+</div>{# wizard-wrapper #}
+</main>
+
+{% else %}
+{# ═══════════════════════════════════════════════════════════
+   REGISTRATION FORM VIEW
+   ═══════════════════════════════════════════════════════════ #}
+<section class="gq-page">
+  <div class="container-xl">
+    <div class="gq-layout">
+
+      <!-- ── LEFT SIDEBAR ──────────────────────────────────────── -->
+      <aside class="gq-sidebar">
+        <div class="auth-split-left-inner">
+        <h3 class="gq-sidebar-title mb-2">Start Your <em>Pre-Qualification</em></h3>
+        <p class="gq-sidebar-sub mb-4">
+Fill in your details and receive an instant AI-powered evaluation of your mortgage eligibility based on your financial profile and DTI ratio.
+        <!-- Step indicators -->
+        <div class="gq-step-list" id="gqStepList">
+          <div class="gq-step-item gq-step-current" data-step="1">
+            <div class="gq-step-circle">1</div>
+            <div class="gq-step-info">
+              <div class="gq-step-label">Step 1</div>
+              <div class="gq-step-name">Personal Info</div>
+            </div>
+          </div>
+          <div class="gq-step-item" data-step="2">
+            <div class="gq-step-circle">2</div>
+            <div class="gq-step-info">
+              <div class="gq-step-label">Step 2</div>
+              <div class="gq-step-name">Financial</div>
+            </div>
+          </div>
+          <div class="gq-step-item" data-step="3">
+            <div class="gq-step-circle">3</div>
+            <div class="gq-step-info">
+              <div class="gq-step-label">Step 3</div>
+              <div class="gq-step-name">Housing Preferences</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Why qualify block -->
+        <div class="gq-why-box mt-5">
+          <div class="gq-why-title"><i class="fas fa-shield-alt me-2"></i>Why Get Qualified?</div>
+          <ul class="gq-why-list">
+            <li><i class="fas fa-check"></i> Know your budget before you shop</li>
+            <li><i class="fas fa-check"></i> No credit pull — zero risk</li>
+            <li><i class="fas fa-check"></i> Instant results in minutes</li>
+            <li><i class="fas fa-check"></i> Matched with real models</li>
+          </ul>
+        </div>
+
+        </div><!-- /.auth-split-left-inner -->
+      </aside>
+
+      <!-- ── RIGHT CONTENT ─────────────────────────────────────── -->
+      <div class="gq-content">
+
+        <!-- Step tracker -->
+        <div class="gq-step-tracker mb-1">
+          <div class="gq-tracker-node gq-tracker-active" id="trackerNode1">
+            <div class="gq-tracker-node-circle">
+              <i class="fas fa-check" id="trackerCheck1" style="display:none;font-size:.65rem;"></i>
+              <span id="trackerNum1">1</span>
+            </div>
+            <span class="gq-tracker-node-label">Personal</span>
+          </div>
+          <div class="gq-tracker-line">
+            <div class="gq-tracker-line-fill" id="trackerLine1" style="width:0%"></div>
+          </div>
+          <div class="gq-tracker-node" id="trackerNode2">
+            <div class="gq-tracker-node-circle">
+              <i class="fas fa-check" id="trackerCheck2" style="display:none;font-size:.65rem;"></i>
+              <span id="trackerNum2">2</span>
+            </div>
+            <span class="gq-tracker-node-label">Financial</span>
+          </div>
+          <div class="gq-tracker-line">
+            <div class="gq-tracker-line-fill" id="trackerLine2" style="width:0%"></div>
+          </div>
+          <div class="gq-tracker-node" id="trackerNode3">
+            <div class="gq-tracker-node-circle">
+              <i class="fas fa-check" id="trackerCheck3" style="display:none;font-size:.65rem;"></i>
+              <span id="trackerNum3">3</span>
+            </div>
+            <span class="gq-tracker-node-label">Housing</span>
+          </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.register') }}" enctype="multipart/form-data"
+            novalidate id="gqForm">
+          {{ form.hidden_tag() }}
+
+          <!-- ══════════ STEP 1 — Personal Info ══════════ -->
+          <div class="gq-step-panel" id="gqPanel1">
+            <div class="gq-panel-header mb-4">
+              <h4 class="gq-panel-title">Personal Information</h4>
+              <p class="gq-panel-desc">Create your QUALIHOME account. All fields are required.</p>
+              <div class="mt-2 d-flex align-items-center gap-2" style="font-size:.78rem;color:var(--clr-muted);">
+                <i class="fas fa-lock text-crimson" style="font-size:.75rem;"></i>
+                Your data is encrypted and only used to build your custom mortgage profile.
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <!-- First Name -->
+              <div class="col-md-4">
+                <label class="sqh-form-label">
+                  {{ form.first_name.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-user text-muted"></i></span>
+                  {{ form.first_name(class="form-control sqh-form-control" + (" is-invalid" if form.first_name.errors else ""),
+                                     id="first_name") }}
+                </div>
+                {% for err in form.first_name.errors %}
+                  <div class="invalid-feedback">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="first_name_error"></div>
+              </div>
+
+              <!-- Middle Name -->
+              <div class="col-md-4">
+                <label class="sqh-form-label">
+                  {{ form.middle_name.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-user text-muted"></i></span>
+                  {{ form.middle_name(class="form-control sqh-form-control" + (" is-invalid" if form.middle_name.errors else ""),
+                                      id="middle_name") }}
+                </div>
+                {% for err in form.middle_name.errors %}
+                  <div class="invalid-feedback">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="middle_name_error"></div>
+              </div>
+
+              <!-- Last Name -->
+              <div class="col-md-4">
+                <label class="sqh-form-label">
+                  {{ form.last_name.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-user text-muted"></i></span>
+                  {{ form.last_name(class="form-control sqh-form-control" + (" is-invalid" if form.last_name.errors else ""),
+                                    id="last_name") }}
+                </div>
+                {% for err in form.last_name.errors %}
+                  <div class="invalid-feedback">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="last_name_error"></div>
+              </div>
+
+              <!-- Username -->
+              <div class="col-sm-6">
+                <label class="sqh-form-label">
+                  {{ form.username.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-at text-muted"></i></span>
+                  {{ form.username(class="form-control sqh-form-control" + (" is-invalid" if form.username.errors else ""),
+                                   id="username") }}
+                </div>
+                {% for err in form.username.errors %}
+                  <div class="invalid-feedback">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="username_error"></div>
+              </div>
+
+              <!-- Email -->
+              <div class="col-sm-6">
+                <label class="sqh-form-label">
+                  {{ form.email.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-envelope text-muted"></i></span>
+                  {{ form.email(class="form-control sqh-form-control" + (" is-invalid" if form.email.errors else ""),
+                                id="email") }}
+                </div>
+                {% for err in form.email.errors %}
+                  <div class="invalid-feedback">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="email_error"></div>
+              </div>
+
+              <!-- Contact Number -->
+              <div class="col-md-6">
+                <label class="sqh-form-label">
+                  {{ form.contact_number.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-phone text-muted"></i></span>
+                  {{ form.contact_number(class="form-control sqh-form-control" + (" is-invalid" if form.contact_number.errors else ""),
+                                         id="contact_number", type="tel", inputmode="numeric", maxlength="11", pattern="09[0-9]{9}", placeholder="e.g. 09171234567") }}
+                </div>
+                {% for err in form.contact_number.errors %}
+                  <div class="invalid-feedback">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="contact_number_error"></div>
+              </div>
+
+              <!-- Birthdate -->
+              <div class="col-md-6">
+                <label class="sqh-form-label">
+                  {{ form.birth_date.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-calendar-day text-muted"></i></span>
+                  {{ form.birth_date(class="form-control sqh-form-control" + (" is-invalid" if form.birth_date.errors else ""),
+                                     id="birth_date") }}
+                </div>
+                {% for err in form.birth_date.errors %}
+                  <div class="invalid-feedback d-block">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="birth_date_error"></div>
+              </div>
+
+              <!-- Civil Status -->
+              <div class="col-sm-6">
+                <label class="sqh-form-label">
+                  {{ form.civil_status.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-ring text-muted"></i></span>
+                  {{ form.civil_status(class="form-select sqh-form-control" + (" is-invalid" if form.civil_status.errors else ""),
+                                       id="civil_status") }}
+                </div>
+                {% for err in form.civil_status.errors %}
+                  <div class="invalid-feedback d-block">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="civil_status_error"></div>
+              </div>
+
+              <!-- Citizenship -->
+              <div class="col-sm-6">
+                <label class="sqh-form-label">
+                  {{ form.citizenship.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-flag text-muted"></i></span>
+                  {{ form.citizenship(class="form-select sqh-form-control" + (" is-invalid" if form.citizenship.errors else ""),
+                                      id="citizenship") }}
+                </div>
+                {% for err in form.citizenship.errors %}
+                  <div class="invalid-feedback d-block">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="citizenship_error"></div>
+              </div>
+
+              <!-- Gender -->
+              <div class="col-sm-6">
+                <label class="sqh-form-label">
+                  {{ form.gender.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-venus-mars text-muted"></i></span>
+                  {{ form.gender(class="form-select sqh-form-control" + (" is-invalid" if form.gender.errors else ""),
+                                 id="gender") }}
+                </div>
+                {% for err in form.gender.errors %}
+                  <div class="invalid-feedback d-block">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="gender_error"></div>
+              </div>
+
+              <!-- Dependents -->
+              <div class="col-sm-6">
+                <label class="sqh-form-label">
+                  {{ form.dependents.label.text }}
+                </label>
+                <div class="input-group sqh-input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-children text-muted"></i></span>
+                  {{ form.dependents(class="form-control sqh-form-control" + (" is-invalid" if form.dependents.errors else ""),
+                                     id="dependents", min="0", max="20", step="1") }}
+                </div>
+                {% for err in form.dependents.errors %}
+                  <div class="invalid-feedback d-block">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="dependents_error"></div>
+              </div>
+
+              <!-- Password -->
+              <div class="col-sm-6">
+                <label class="sqh-form-label">
+                  {{ form.password.label.text }}
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-lock text-muted"></i></span>
+                  {{ form.password(class="form-control sqh-form-control" + (" is-invalid" if form.password.errors else ""),
+                                   id="password") }}
+                  <button type="button" class="btn sqh-eye-btn toggle-password" data-target="password">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                <!-- Live password checklist -->
+                <ul class="pw-checklist mt-1" id="pwChecklist">
+                  <li id="pwLen"><i class="fas fa-circle-dot"></i> 8+ chars</li>
+                  <li id="pwUpper"><i class="fas fa-circle-dot"></i> Uppercase</li>
+                  <li id="pwNum"><i class="fas fa-circle-dot"></i> Number</li>
+                  <li id="pwSpecial"><i class="fas fa-circle-dot"></i> Symbol</li>
+                </ul>
+                {% for err in form.password.errors %}
+                  <div class="invalid-feedback d-block">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="password_error"></div>
+              </div>
+              <div class="col-sm-6">
+                <label class="sqh-form-label">
+                  {{ form.confirm_password.label.text }}
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text sqh-ig-text"><i class="fas fa-lock text-muted"></i></span>
+                  {{ form.confirm_password(class="form-control sqh-form-control" + (" is-invalid" if form.confirm_password.errors else ""),
+                                           id="confirm_password") }}
+                  <button type="button" class="btn sqh-eye-btn toggle-password" data-target="confirm_password">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                {% for err in form.confirm_password.errors %}
+                  <div class="invalid-feedback d-block">{{ err }}</div>
+                {% endfor %}
+                <div class="sqh-live-error" id="confirm_password_error"></div>
+              </div>
+            </div>
+
+            <div class="gq-panel-footer mt-4">
+              <span></span>
+              <button type="button" class="btn btn-lime px-4" onclick="gqNext(1)">
+                Continue <i class="fas fa-arrow-right ms-2"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ══════════ STEP 2 — Financial & Employment ══════════ -->
+          <div class="gq-step-panel" id="gqPanel2" style="display:none;">
+            <div class="gq-panel-header mb-4">
+              <h4 class="gq-panel-title">Pre-Qualification Assessment</h4>
+              <p class="gq-panel-desc">Your financial and employment details are used to compute your DTI ratio and loan eligibility.</p>
+            </div>
+
+            <!-- Financial Capability sub-section -->
+            <div class="gq-sub-section mb-4">
+              <div class="gq-sub-header">
+                <span class="gq-sub-num">1</span>
+                <div>
+                  <div class="gq-sub-title">Financial Capability</div>
+                  <div class="gq-sub-desc">Enter your monthly income and obligations</div>
+                </div>
+              </div>
+
+              <div class="row g-3 mt-2">
+                <!-- Gross Monthly Income -->
+                <div class="col-sm-6">
+                  <label class="sqh-form-label">
+                    {{ form.gross_monthly_income.label.text }}
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text sqh-peso-prefix">&#8369;</span>
+                    {{ form.gross_monthly_income(class="form-control sqh-form-control" + (" is-invalid" if form.gross_monthly_income.errors else ""),
+                                                 id="gross_monthly_income") }}
+                  </div>
+                  {% for err in form.gross_monthly_income.errors %}
+                    <div class="invalid-feedback d-block">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="gross_monthly_income_error"></div>
+                </div>
+                <div class="col-sm-6">
+                  <label class="sqh-form-label">
+                    {{ form.monthly_debt_loans.label.text }}
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text sqh-peso-prefix">&#8369;</span>
+                    {{ form.monthly_debt_loans(class="form-control sqh-form-control" + (" is-invalid" if form.monthly_debt_loans.errors else ""),
+                                               id="monthly_debt_loans") }}
+                  </div>
+                  {% for err in form.monthly_debt_loans.errors %}
+                    <div class="invalid-feedback d-block">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="monthly_debt_loans_error"></div>
+                </div>
+              </div>
+              <div class="dti-meter-wrap mt-3" id="regDtiWrap" style="display:none;">
+                <div class="d-flex justify-content-between mb-1">
+                  <span class="sqh-form-label mb-0">Estimated DTI Ratio</span>
+                  <strong id="regDtiVal">0%</strong>
+                </div>
+                <div class="dti-meter-track">
+                  <div class="dti-meter-fill dti-safe" id="regDtiBar" style="width:0%"></div>
+                </div>
+                <div class="dti-zones">
+                  <span>0%</span>
+                  <span style="color:var(--clr-accent-dk);font-weight:600;">35% — Safe</span>
+                  <span style="color:var(--clr-amber-dk);font-weight:600;">42% — Caution</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Employment sub-section -->
+            <div class="gq-sub-section">
+              <div class="gq-sub-header">
+                <span class="gq-sub-num">2</span>
+                <div>
+                  <div class="gq-sub-title">Employment</div>
+                  <div class="gq-sub-desc">Your employment details</div>
+                </div>
+              </div>
+
+              <div class="row g-3 mt-2">
+                <!-- Employment Status -->
+                <div class="col-12">
+                  <label class="sqh-form-label">
+                    {{ form.employment_status.label.text }}
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-briefcase text-muted"></i></span>
+                    {{ form.employment_status(class="form-select sqh-form-control" + (" is-invalid" if form.employment_status.errors else ""),
+                                              id="employment_status") }}
+                  </div>
+                  {% for err in form.employment_status.errors %}
+                    <div class="invalid-feedback">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="employment_status_error"></div>
+                </div>
+
+                <!-- Tenure -->
+                <div class="col-sm-6">
+                  <label class="sqh-form-label">
+                    {{ form.tenure_months.label.text }}
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-calendar-alt text-muted"></i></span>
+                    {{ form.tenure_months(class="form-control sqh-form-control" + (" is-invalid" if form.tenure_months.errors else ""),
+                                          id="tenure_months") }}
+                  </div>
+                  <div class="form-text small text-muted" id="tenure_hint">Enter number of months (e.g. 24 = 2 years)</div>
+                  {% for err in form.tenure_months.errors %}
+                    <div class="invalid-feedback">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="tenure_months_error"></div>
+                </div>
+
+                <!-- Age -->
+                <div class="col-sm-6">
+                  <label class="sqh-form-label">
+                    {{ form.age.label.text }}
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-birthday-cake text-muted"></i></span>
+                    {{ form.age(class="form-control sqh-form-control" + (" is-invalid" if form.age.errors else ""),
+                                id="age") }}
+                  </div>
+                  <div class="form-text small text-muted" id="age_hint">Must be 18–80 years old</div>
+                  {% for err in form.age.errors %}
+                    <div class="invalid-feedback">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="age_error"></div>
+                </div>
+
+                <!-- SSS/GSIS/UMID -->
+                <div class="col-sm-6">
+                  <label class="sqh-form-label">
+                    {{ form.sss_gsis_umid.label.text }}
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-id-card text-muted"></i></span>
+                    {{ form.sss_gsis_umid(class="form-control sqh-form-control" + (" is-invalid" if form.sss_gsis_umid.errors else ""),
+                                          id="sss_gsis_umid") }}
+                  </div>
+                  {% for err in form.sss_gsis_umid.errors %}
+                    <div class="invalid-feedback">{{ err }}</div>
+                  {% endfor %}
+                </div>
+
+                <!-- TIN -->
+                <div class="col-sm-6">
+                  <label class="sqh-form-label">
+                    {{ form.tin_no.label.text }}
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt text-muted"></i></span>
+                    {{ form.tin_no(class="form-control sqh-form-control" + (" is-invalid" if form.tin_no.errors else ""),
+                                   id="tin_no") }}
+                  </div>
+                  {% for err in form.tin_no.errors %}
+                    <div class="invalid-feedback">{{ err }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <div class="gq-panel-footer mt-4">
+              <button type="button" class="btn btn-outline-crimson px-4" onclick="gqPrev(2)">
+                <i class="fas fa-arrow-left me-2"></i> Back
+              </button>
+              <button type="button" class="btn btn-lime px-4" onclick="gqNext(2)">
+                Continue <i class="fas fa-arrow-right ms-2"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ══════════ STEP 3 — Verification + Model Preferences ══════════ -->
+          <div class="gq-step-panel" id="gqPanel3" style="display:none;">
+            <div class="gq-panel-header mb-4">
+              <h4 class="gq-panel-title">Verification &amp; Model Preferences</h4>
+              <p class="gq-panel-desc">Confirm required documents honestly. Uploading files is optional.</p>
+            </div>
+
+            <div class="gq-sub-section mb-4">
+              <div class="gq-sub-header">
+                <span class="gq-sub-num">3A</span>
+                <div>
+                  <div class="gq-sub-title">Document Honesty Check</div>
+                  <div class="gq-sub-desc">Optional upload, required declaration</div>
+                </div>
+              </div>
+
+              <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                  <label class="sqh-form-label">
+                    {{ form.has_valid_id.label.text }}
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-id-card text-muted"></i></span>
+                    {{ form.has_valid_id(class="form-select sqh-form-control" + (" is-invalid" if form.has_valid_id.errors else ""), id="has_valid_id") }}
+                  </div>
+                  {% for err in form.has_valid_id.errors %}
+                    <div class="invalid-feedback d-block">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="has_valid_id_error"></div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="sqh-form-label">
+                    {{ form.has_income_proof.label.text }}
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-file-invoice-dollar text-muted"></i></span>
+                    {{ form.has_income_proof(class="form-select sqh-form-control" + (" is-invalid" if form.has_income_proof.errors else ""), id="has_income_proof") }}
+                  </div>
+                  {% for err in form.has_income_proof.errors %}
+                    <div class="invalid-feedback d-block">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="has_income_proof_error"></div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="sqh-form-label" for="valid_id_file">
+                    Upload Valid ID (Optional)
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-upload text-muted"></i></span>
+                    <input class="form-control sqh-form-control" type="file" id="valid_id_file" name="valid_id_file" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                  </div>
+                  <div class="form-text small text-muted">Allowed: JPG, PNG, WEBP, PDF</div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="sqh-form-label" for="income_proof_file">
+                    Upload Proof of Income (Optional)
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-upload text-muted"></i></span>
+                    <input class="form-control sqh-form-control" type="file" id="income_proof_file" name="income_proof_file" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                  </div>
+                  <div class="form-text small text-muted">Allowed: JPG, PNG, WEBP, PDF</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="gq-sub-section">
+              <div class="gq-sub-header">
+                <span class="gq-sub-num">3B</span>
+                <div>
+                  <div class="gq-sub-title">Preferred Model (Optional) &amp; Budget</div>
+                  <div class="gq-sub-desc">Optionally select a model name and set your price range</div>
+                </div>
+              </div>
+
+              <div class="row g-3 mt-2">
+                <div class="col-12">
+                  <label class="sqh-form-label">
+                    {{ form.preferred_type.label.text }}
+                  </label>
+                  <div class="input-group sqh-input-group">
+                    <span class="input-group-text sqh-ig-text"><i class="fas fa-home text-muted"></i></span>
+                    {{ form.preferred_type(class="form-select sqh-form-control" + (" is-invalid" if form.preferred_type.errors else ""),
+                                           id="preferred_type") }}
+                  </div>
+                  {% for err in form.preferred_type.errors %}
+                    <div class="invalid-feedback d-block">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="preferred_type_error"></div>
+                </div>
+
+                <div class="col-sm-6">
+                  <label class="sqh-form-label">
+                    <i class="fas fa-arrow-down me-1 text-crimson"></i>
+                    {{ form.budget_min.label.text }}
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text sqh-peso-prefix">&#8369;</span>
+                    {{ form.budget_min(class="form-control sqh-form-control" + (" is-invalid" if form.budget_min.errors else ""),
+                                       id="budget_min") }}
+                  </div>
+                  {% for err in form.budget_min.errors %}
+                    <div class="invalid-feedback d-block">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="budget_min_error"></div>
+                </div>
+
+                <div class="col-sm-6">
+                  <label class="sqh-form-label">
+                    <i class="fas fa-arrow-up me-1 text-crimson"></i>
+                    {{ form.budget_max.label.text }}
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text sqh-peso-prefix">&#8369;</span>
+                    {{ form.budget_max(class="form-control sqh-form-control" + (" is-invalid" if form.budget_max.errors else ""),
+                                       id="budget_max") }}
+                  </div>
+                  {% for err in form.budget_max.errors %}
+                    <div class="invalid-feedback d-block">{{ err }}</div>
+                  {% endfor %}
+                  <div class="sqh-live-error" id="budget_max_error"></div>
+                </div>
+
+                <div class="col-12">
+                  <div class="sqh-live-error" id="budget_error"></div>
+                  <div class="form-text small text-muted">These preferences help us match listings to your budget and selected model (if any).</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="gq-panel-footer mt-4">
+              <button type="button" class="btn btn-outline-crimson px-4" onclick="gqPrev(3)">
+                <i class="fas fa-arrow-left me-2"></i> Back
+              </button>
+              <button type="submit" class="btn btn-lime px-5 fw-bold">
+                <i class="fas fa-rocket me-2"></i> Submit &amp; Get My Result
+              </button>
+            </div>
+          </div>
+
+        </form>
+
+        <!-- Already have account -->
+        <p class="text-center small text-muted mt-auto pt-2">
+          Already have an account?
+          <a href="{{ url_for('auth.login') }}" class="fw-bold text-crimson">Sign in here</a>
+        </p>
+
+      </div><!-- /gq-content -->
+    </div><!-- /gq-layout -->
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block scripts %}
+{% if result %}
+<script id="factors-json" type="application/json">{{ result.factors_json or '[]' }}</script>
+<script>
+(function () {
+  var factorsScript = document.getElementById('factors-json');
+  var raw = factorsScript ? factorsScript.textContent : '[]';
+  var container = document.getElementById('factorsContainer');
+  if (!container || !raw) return;
+
+  var dtiFill = document.querySelector('.result-dti-fill');
+  if (dtiFill) {
+    var widthVal = parseFloat(dtiFill.dataset.width || '0');
+    dtiFill.style.width = Math.max(0, Math.min(widthVal, 100)) + '%';
+  }
+
+  var factors;
+  try { factors = (typeof raw === 'string') ? JSON.parse(raw) : raw; }
+  catch (e) { container.innerHTML = '<div class="text-muted small">Unable to parse factors.</div>'; return; }
+
+  if (!Array.isArray(factors)) return;
+
+  var icons = { success: 'fa-check-circle', warning: 'fa-exclamation-triangle', danger: 'fa-times-circle' };
+  var colors = { success: 'var(--clr-accent-dk)', warning: 'var(--clr-warning)', danger: 'var(--clr-primary)' };
+  var bgs = { success: 'rgba(170,221,42,.08)', warning: 'rgba(244,196,48,.08)', danger: 'rgba(139,26,26,.06)' };
+  var borders = { success: 'rgba(170,221,42,.25)', warning: 'rgba(244,196,48,.25)', danger: 'rgba(139,26,26,.2)' };
+
+  factors.forEach(function (f) {
+    var flag = f.flag || 'success';
+    var icon = icons[flag] || icons.success;
+    var color = colors[flag] || colors.success;
+    var bg = bgs[flag] || bgs.success;
+    var border = borders[flag] || borders.success;
+
+    var div = document.createElement('div');
+    div.className = 'sqh-card p-3 d-flex align-items-start gap-3';
+    div.style.cssText = 'border-radius:10px;background:' + bg + ';border:1px solid ' + border + ';';
+    div.innerHTML =
+      '<div style="font-size:1.2rem;color:' + color + ';margin-top:2px;"><i class="fas ' + icon + '"></i></div>' +
+      '<div style="flex:1;">' +
+        '<div class="d-flex align-items-center justify-content-between gap-2 mb-1">' +
+          '<span class="fw-bold small" style="color:var(--clr-text);">' + (f.key || '') + '</span>' +
+          '<span class="fw-bold small" style="color:' + color + ';">' + (f.value || '') + '</span>' +
+        '</div>' +
+        '<div class="text-muted" style="font-size:.8rem;">' + (f.note || '') + '</div>' +
+      '</div>';
+    container.appendChild(div);
+  });
+})();
+</script>
+{% else %}
+<script id="gq-live-config" type="application/json">{{ (live_meter_cfg or {})|tojson }}</script>
+<script>
+(function () {
+  'use strict';
+
+  /* ══════════════════════════════════════════════════════════════
+     HELPERS
+  ══════════════════════════════════════════════════════════════ */
+  function setValid(el, errEl) {
+    el.classList.add('lv-valid');
+    el.classList.remove('lv-invalid', 'is-invalid');
+    if (errEl) { errEl.textContent = ''; errEl.classList.remove('sqh-err-visible'); }
+  }
+  function setInvalid(el, errEl, msg) {
+    el.classList.add('lv-invalid');
+    el.classList.remove('lv-valid');
+    if (errEl) { errEl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + msg; errEl.classList.add('sqh-err-visible'); }
+  }
+  function clearState(el, errEl) {
+    el.classList.remove('lv-valid', 'lv-invalid', 'is-invalid');
+    if (errEl) { errEl.textContent = ''; errEl.classList.remove('sqh-err-visible'); }
+  }
+
+  /* ── Element refs ────────────────────────────────────────────── */
+  var firstNameEl = document.getElementById('first_name');
+  var middleNameEl = document.getElementById('middle_name');
+  var lastNameEl = document.getElementById('last_name');
+  var usernameEl = document.getElementById('username');
+  var emailEl    = document.getElementById('email');
+  var phoneEl    = document.getElementById('contact_number');
+  var civilStatusEl = document.getElementById('civil_status');
+  var citizenshipEl = document.getElementById('citizenship');
+  var genderEl = document.getElementById('gender');
+  var dependentsEl = document.getElementById('dependents');
+  var birthDateEl = document.getElementById('birth_date');
+  var passEl     = document.getElementById('password');
+  var confirmEl  = document.getElementById('confirm_password');
+
+  var grossEl    = document.getElementById('gross_monthly_income');
+  var debtEl     = document.getElementById('monthly_debt_loans');
+  var statusEl   = document.getElementById('employment_status');
+  var tenureEl   = document.getElementById('tenure_months');
+  var ageEl      = document.getElementById('age');
+
+  var firstNameErr = document.getElementById('first_name_error');
+  var middleNameErr = document.getElementById('middle_name_error');
+  var lastNameErr = document.getElementById('last_name_error');
+  var usernameErr = document.getElementById('username_error');
+  var emailErr    = document.getElementById('email_error');
+  var phoneErr    = document.getElementById('contact_number_error');
+  var civilStatusErr = document.getElementById('civil_status_error');
+  var citizenshipErr = document.getElementById('citizenship_error');
+  var genderErr = document.getElementById('gender_error');
+  var dependentsErr = document.getElementById('dependents_error');
+  var birthDateErr = document.getElementById('birth_date_error');
+  var passErr     = document.getElementById('password_error');
+  var confirmErr  = document.getElementById('confirm_password_error');
+  var grossErr    = document.getElementById('gross_monthly_income_error');
+  var debtErr     = document.getElementById('monthly_debt_loans_error');
+  var statusErr   = document.getElementById('employment_status_error');
+  var tenureErr   = document.getElementById('tenure_months_error');
+  var ageErr      = document.getElementById('age_error');
+  var preferredTypeErr = document.getElementById('preferred_type_error');
+  var preferredTypeEl = document.getElementById('preferred_type');
+  var hasValidIdEl = document.getElementById('has_valid_id');
+  var hasIncomeProofEl = document.getElementById('has_income_proof');
+  var hasValidIdErr = document.getElementById('has_valid_id_error');
+  var hasIncomeProofErr = document.getElementById('has_income_proof_error');
+  var budgetMinEl = document.getElementById('budget_min');
+  var budgetMaxEl = document.getElementById('budget_max');
+  var budgetErr   = document.getElementById('budget_error');
+  var budgetMinErr = document.getElementById('budget_min_error');
+  var budgetMaxErr = document.getElementById('budget_max_error');
+  var tenureHint  = document.getElementById('tenure_hint');
+  var ageHint     = document.getElementById('age_hint');
+
+  var emailRe    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  var usernameRe = /^[\w.]+$/;
+  var phoneRe    = /^09\d{9}$/;
+
+  var gqLiveCfg = {
+    dti_qualified_max: 35,
+    dti_conditional_max: 42,
+    min_tenure_months: 6,
+    stability_scores: {
+      employed: 5,
+      'ofw-landbased': 4,
+      'ofw-seafarer': 4,
+      'licensed-professional': 5,
+      'with-financial-support': 3,
+      'with-attorney-in-fact': 3,
+      'with-co-borrower': 4,
+    },
+  };
+
+  var cfgEl = document.getElementById('gq-live-config');
+  if (cfgEl && cfgEl.textContent) {
+    try {
+      var parsedCfg = JSON.parse(cfgEl.textContent);
+      if (parsedCfg && typeof parsedCfg === 'object') {
+        gqLiveCfg = parsedCfg;
+      }
+    } catch (err) {
+      debugWarn('Unable to parse gq-live-config JSON; using defaults');
+    }
+  }
+
+  var liveTouched = {
+    budgetMin: false,
+    budgetMax: false,
+    propertyType: false,
+    declarationValidId: false,
+    declarationIncomeProof: false,
+    step3Submitted: false,
+  };
+
+  var liveUniq = {
+    usernameTaken: false,
+    emailTaken: false,
+    usernameReqId: 0,
+    emailReqId: 0,
+    usernameTimer: null,
+    emailTimer: null,
+  };
+
+  var GQ_CACHE_KEY = 'gq_register_session_v1';
+  var GQ_FIELD_IDS = [
+    'first_name', 'middle_name', 'last_name', 'username', 'email', 'contact_number', 'civil_status', 'citizenship', 'gender', 'dependents', 'birth_date', 'password', 'confirm_password',
+    'gross_monthly_income', 'monthly_debt_loans', 'employment_status', 'tenure_months', 'age', 'sss_gsis_umid', 'tin_no',
+    'has_valid_id', 'has_income_proof', 'preferred_type', 'budget_min', 'budget_max'
+  ];
+
+  function isRefreshNavigation() {
+    try {
+      var entries = (performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation') : [];
+      var navType = (entries && entries.length) ? entries[0].type : '';
+      return navType === 'reload';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function gqCurrentStep() {
+    for (var i = 1; i <= 3; i++) {
+      var panel = document.getElementById('gqPanel' + i);
+      if (panel && panel.style.display !== 'none') return i;
+    }
+    return 1;
+  }
+
+  function gqSaveSession(stepOverride) {
+    try {
+      var payload = { step: (stepOverride || gqCurrentStep()), fields: {} };
+      GQ_FIELD_IDS.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) payload.fields[id] = el.value || '';
+      });
+      sessionStorage.setItem(GQ_CACHE_KEY, JSON.stringify(payload));
+    } catch (_) {}
+  }
+
+  function gqRestoreSession() {
+    try {
+      var raw = sessionStorage.getItem(GQ_CACHE_KEY);
+      if (!raw) return null;
+      var payload = JSON.parse(raw);
+      if (!payload || typeof payload !== 'object') return null;
+      var fields = payload.fields || {};
+      Object.keys(fields).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = fields[id];
+      });
+      return parseInt(payload.step || '1', 10) || 1;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function debugLog(message, details) {
+    if (typeof details === 'undefined') {
+      console.log('[GQ Register] ' + message);
+      return;
+    }
+    console.log('[GQ Register] ' + message, details);
+  }
+
+  function debugWarn(message, details) {
+    if (typeof details === 'undefined') {
+      console.warn('[GQ Register] ' + message);
+      return;
+    }
+    console.warn('[GQ Register] ' + message, details);
+  }
+
+  function debugError(message, details) {
+    if (typeof details === 'undefined') {
+      console.error('[GQ Register] ' + message);
+      return;
+    }
+    console.error('[GQ Register] ' + message, details);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     STEP 1 — Personal Info validators
+     force = true  → show error even on empty (used by gqNext)
+     force = false → only show error when field has content but it's wrong
+  ══════════════════════════════════════════════════════════════ */
+  function vFirstName(force) {
+    var v = firstNameEl.value.trim();
+    if (!v) { if (force) setInvalid(firstNameEl, firstNameErr, 'First name is required.'); else clearState(firstNameEl, firstNameErr); return false; }
+    if (v.length < 2) { setInvalid(firstNameEl, firstNameErr, 'First name must be at least 2 characters.'); return false; }
+    setValid(firstNameEl, firstNameErr); return true;
+  }
+  function vMiddleName(force) {
+    var v = middleNameEl ? middleNameEl.value.trim() : '';
+    if (!v) { if (force) setInvalid(middleNameEl, middleNameErr, 'Middle name is required.'); else clearState(middleNameEl, middleNameErr); return false; }
+    if (v.length < 2) { setInvalid(middleNameEl, middleNameErr, 'Middle name must be at least 2 characters.'); return false; }
+    setValid(middleNameEl, middleNameErr); return true;
+  }
+  function vLastName(force) {
+    var v = lastNameEl.value.trim();
+    if (!v) { if (force) setInvalid(lastNameEl, lastNameErr, 'Last name is required.'); else clearState(lastNameEl, lastNameErr); return false; }
+    if (v.length < 2) { setInvalid(lastNameEl, lastNameErr, 'Last name must be at least 2 characters.'); return false; }
+    setValid(lastNameEl, lastNameErr); return true;
+  }
+  function vUsername(force) {
+    var v = usernameEl.value.trim();
+    if (!v) { if (force) setInvalid(usernameEl, usernameErr, 'Username is required.'); else clearState(usernameEl, usernameErr); return false; }
+    if (v.length < 3) { setInvalid(usernameEl, usernameErr, 'Username must be at least 3 characters.'); return false; }
+    if (!usernameRe.test(v)) { setInvalid(usernameEl, usernameErr, 'Only letters, numbers, dots and underscores.'); return false; }
+    if (liveUniq.usernameTaken) { setInvalid(usernameEl, usernameErr, 'This username is already taken.'); return false; }
+    setValid(usernameEl, usernameErr); return true;
+  }
+  function vEmail(force) {
+    var v = emailEl.value.trim();
+    if (!v) { if (force) setInvalid(emailEl, emailErr, 'Email is required.'); else clearState(emailEl, emailErr); return false; }
+    if (!emailRe.test(v)) { setInvalid(emailEl, emailErr, 'Enter a valid email (e.g. name@example.com).'); return false; }
+    if (liveUniq.emailTaken) { setInvalid(emailEl, emailErr, 'This email is already registered.'); return false; }
+    setValid(emailEl, emailErr); return true;
+  }
+
+  async function checkAvailability(field, value, reqId) {
+    var url = '/auth/register/check-field?field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value);
+    var res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    var data = await res.json();
+    if (!res.ok || !data || !data.ok) {
+      throw new Error((data && data.error) || 'Availability check failed');
+    }
+    return { reqId: reqId, exists: !!data.exists };
+  }
+
+  function scheduleUsernameCheck() {
+    if (!usernameEl) return;
+    var value = usernameEl.value.trim();
+    if (liveUniq.usernameTimer) clearTimeout(liveUniq.usernameTimer);
+
+    if (!value || value.length < 3 || !usernameRe.test(value)) {
+      liveUniq.usernameTaken = false;
+      return;
+    }
+
+    var reqId = ++liveUniq.usernameReqId;
+    liveUniq.usernameTimer = setTimeout(function () {
+      checkAvailability('username', value, reqId)
+        .then(function (result) {
+          if (result.reqId !== liveUniq.usernameReqId) return;
+          liveUniq.usernameTaken = result.exists;
+          vUsername(false);
+          debugLog('Username availability checked', { value: value, exists: result.exists });
+        })
+        .catch(function (err) {
+          debugWarn('Username availability check failed', err && err.message ? err.message : err);
+        });
+    }, 320);
+  }
+
+  function scheduleEmailCheck() {
+    if (!emailEl) return;
+    var value = emailEl.value.trim();
+    if (liveUniq.emailTimer) clearTimeout(liveUniq.emailTimer);
+
+    if (!value || !emailRe.test(value)) {
+      liveUniq.emailTaken = false;
+      return;
+    }
+
+    var reqId = ++liveUniq.emailReqId;
+    liveUniq.emailTimer = setTimeout(function () {
+      checkAvailability('email', value, reqId)
+        .then(function (result) {
+          if (result.reqId !== liveUniq.emailReqId) return;
+          liveUniq.emailTaken = result.exists;
+          vEmail(false);
+          debugLog('Email availability checked', { value: value, exists: result.exists });
+        })
+        .catch(function (err) {
+          debugWarn('Email availability check failed', err && err.message ? err.message : err);
+        });
+    }, 320);
+  }
+  function vPhone(force) {
+    var v = phoneEl.value.replace(/\D/g, '').slice(0, 11);
+    phoneEl.value = v;
+    if (!v) { if (force) setInvalid(phoneEl, phoneErr, 'Contact number is required.'); else clearState(phoneEl, phoneErr); return false; }
+    if (!phoneRe.test(v)) { setInvalid(phoneEl, phoneErr, 'Enter a valid 11-digit PH mobile number (e.g. 09171234567).'); return false; }
+    setValid(phoneEl, phoneErr); return true;
+  }
+  function vCivilStatus(force) {
+    var v = civilStatusEl ? civilStatusEl.value : '';
+    if (!v) { if (force) setInvalid(civilStatusEl, civilStatusErr, 'Civil status is required.'); else clearState(civilStatusEl, civilStatusErr); return false; }
+    setValid(civilStatusEl, civilStatusErr); return true;
+  }
+  function vCitizenship(force) {
+    var v = citizenshipEl ? citizenshipEl.value : '';
+    if (!v) { if (force) setInvalid(citizenshipEl, citizenshipErr, 'Citizenship is required.'); else clearState(citizenshipEl, citizenshipErr); return false; }
+    setValid(citizenshipEl, citizenshipErr); return true;
+  }
+  function vGender(force) {
+    var v = genderEl ? genderEl.value : '';
+    if (!v) { if (force) setInvalid(genderEl, genderErr, 'Gender is required.'); else clearState(genderEl, genderErr); return false; }
+    setValid(genderEl, genderErr); return true;
+  }
+  function vDependents(force) {
+    var v = dependentsEl ? dependentsEl.value.trim() : '';
+    if (!v) { if (force) setInvalid(dependentsEl, dependentsErr, 'Number of dependents is required.'); else clearState(dependentsEl, dependentsErr); return false; }
+    var n = parseInt(v, 10);
+    if (isNaN(n) || n < 0 || n > 20) { setInvalid(dependentsEl, dependentsErr, 'Dependents must be between 0 and 20.'); return false; }
+    setValid(dependentsEl, dependentsErr); return true;
+  }
+  function vBirthDate(force) {
+    var v = birthDateEl ? birthDateEl.value : '';
+    if (!v) { if (force) setInvalid(birthDateEl, birthDateErr, 'Birthdate is required.'); else clearState(birthDateEl, birthDateErr); return false; }
+    setValid(birthDateEl, birthDateErr); return true;
+  }
+  function vPassword(force) {
+    var v = passEl.value;
+    if (!v) { if (force) setInvalid(passEl, passErr, 'Password is required.'); else clearState(passEl, passErr); return false; }
+    if (v.length < 8) { setInvalid(passEl, passErr, 'Must be at least 8 characters.'); return false; }
+    setValid(passEl, passErr); return true;
+  }
+  function vConfirm(force) {
+    var v = confirmEl.value;
+    if (!v) { if (force) setInvalid(confirmEl, confirmErr, 'Please confirm your password.'); else clearState(confirmEl, confirmErr); return false; }
+    if (v !== passEl.value) { setInvalid(confirmEl, confirmErr, 'Passwords do not match.'); return false; }
+    setValid(confirmEl, confirmErr); return true;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     STEP 2 — Financial & Employment validators
+  ══════════════════════════════════════════════════════════════ */
+  function vGross(force) {
+    var v = grossEl.value.trim(), n = parseFloat(v);
+    if (!v) { if (force) setInvalid(grossEl, grossErr, 'Gross monthly income is required.'); else clearState(grossEl, grossErr); return false; }
+    if (isNaN(n) || n <= 0) { setInvalid(grossEl, grossErr, 'Income must be greater than ₱0.'); return false; }
+    setValid(grossEl, grossErr); return true;
+  }
+  function vDebt() {
+    var v = debtEl.value.trim(), n = parseFloat(v);
+    if (!v) { clearState(debtEl, debtErr); return true; }
+    if (isNaN(n) || n < 0) { setInvalid(debtEl, debtErr, 'Debt amount cannot be negative.'); return false; }
+    setValid(debtEl, debtErr); return true;
+  }
+  function vStatus(force) {
+    if (!statusEl.value) { if (force) setInvalid(statusEl, statusErr, 'Please select employment status.'); else clearState(statusEl, statusErr); return false; }
+    setValid(statusEl, statusErr); return true;
+  }
+  function vTenure() {
+    var v = tenureEl.value.trim();
+    if (!v) { clearState(tenureEl, tenureErr); updateTenureHint(null); return true; }
+    var n = parseInt(v);
+    if (isNaN(n) || n < 0) { setInvalid(tenureEl, tenureErr, 'Tenure must be 0 or more months.'); updateTenureHint(null); return false; }
+    if (n > 600) { setInvalid(tenureEl, tenureErr, 'Cannot exceed 600 months (50 years).'); updateTenureHint(null); return false; }
+    setValid(tenureEl, tenureErr); updateTenureHint(n); return true;
+  }
+  function updateTenureHint(months) {
+    if (!tenureHint) return;
+    if (months === null) { tenureHint.textContent = 'Enter number of months (e.g. 24 = 2 years)'; return; }
+    var y = Math.floor(months / 12), m = months % 12, parts = [];
+    if (y > 0) parts.push(y + ' yr' + (y !== 1 ? 's' : ''));
+    if (m > 0) parts.push(m + ' mo' + (m !== 1 ? 's' : ''));
+    tenureHint.innerHTML = parts.length ? '<i class="fas fa-calendar-alt me-1 text-crimson"></i><strong>' + parts.join(' ') + '</strong>' : '<i class="fas fa-calendar-alt me-1 text-crimson"></i>Less than 1 month';
+  }
+  function vAge(force) {
+    var v = ageEl.value.trim();
+    if (!v) { if (force) setInvalid(ageEl, ageErr, 'Age is required.'); else clearState(ageEl, ageErr); updateAgeHint(null); return false; }
+    var n = parseInt(v);
+    if (isNaN(n)) { setInvalid(ageEl, ageErr, 'Enter a valid age.'); return false; }
+    if (n < 18) { setInvalid(ageEl, ageErr, 'Must be at least 18 years old.'); updateAgeHint(null); return false; }
+    if (n > 80) { setInvalid(ageEl, ageErr, 'Must not exceed 80 years.'); updateAgeHint(null); return false; }
+    setValid(ageEl, ageErr); updateAgeHint(n); return true;
+  }
+  function updateAgeHint(age) {
+    if (!ageHint) return;
+    if (age === null) { ageHint.innerHTML = 'Must be 18&ndash;80 years old'; return; }
+    var tenor = 80 - age;
+    ageHint.innerHTML = 'Must be 18&ndash;80 &mdash; <strong class="text-crimson">Max loan tenor: ' + tenor + ' yr' + (tenor !== 1 ? 's' : '') + '</strong>';
+  }
+
+  function vBudget(force) {
+    var show = !!force;
+    var minRaw = (budgetMinEl && budgetMinEl.value || '').trim();
+    var maxRaw = (budgetMaxEl && budgetMaxEl.value || '').trim();
+    var minVal = parseFloat(minRaw);
+    var maxVal = parseFloat(maxRaw);
+    var hasTouched = liveTouched.step3Submitted || liveTouched.budgetMin || liveTouched.budgetMax;
+
+    if (!show && !hasTouched) {
+      clearState(budgetMinEl, budgetMinErr);
+      clearState(budgetMaxEl, budgetMaxErr);
+      if (budgetErr) { budgetErr.textContent = ''; budgetErr.classList.remove('sqh-err-visible'); }
+      if (budgetMinEl) budgetMinEl.classList.remove('lv-invalid');
+      if (budgetMaxEl) budgetMaxEl.classList.remove('lv-invalid');
+      return true;
+    }
+
+    if (!minRaw || isNaN(minVal) || minVal <= 0) {
+      if (show || hasTouched) setInvalid(budgetMinEl, budgetMinErr, 'Minimum budget is required and must be greater than 0.');
+      clearState(budgetMaxEl, budgetMaxErr);
+      if (budgetErr) { budgetErr.textContent = ''; budgetErr.classList.remove('sqh-err-visible'); }
+      return false;
+    }
+
+    if (!maxRaw || isNaN(maxVal) || maxVal <= 0) {
+      clearState(budgetMinEl, budgetMinErr);
+      if (show || hasTouched) setInvalid(budgetMaxEl, budgetMaxErr, 'Maximum budget is required and must be greater than 0.');
+      if (budgetErr) { budgetErr.textContent = ''; budgetErr.classList.remove('sqh-err-visible'); }
+      return false;
+    }
+
+    if (minVal > maxVal) {
+      setInvalid(budgetMinEl, budgetMinErr, 'Minimum budget must be less than or equal to maximum budget.');
+      setInvalid(budgetMaxEl, budgetMaxErr, 'Maximum budget must be greater than or equal to minimum budget.');
+      if (budgetErr) { budgetErr.textContent = ''; budgetErr.classList.remove('sqh-err-visible'); }
+      return false;
+    }
+
+    setValid(budgetMinEl, budgetMinErr);
+    setValid(budgetMaxEl, budgetMaxErr);
+    if (budgetErr) { budgetErr.textContent = ''; budgetErr.classList.remove('sqh-err-visible'); }
+    return true;
+  }
+
+  function vDeclarations(force) {
+    if (!hasValidIdEl || !hasIncomeProofEl) return true;
+    var show = !!force || liveTouched.step3Submitted;
+    var touchedAny = liveTouched.declarationValidId || liveTouched.declarationIncomeProof;
+    if (!show && !touchedAny) {
+      clearState(hasValidIdEl, hasValidIdErr);
+      clearState(hasIncomeProofEl, hasIncomeProofErr);
+      return true;
+    }
+
+    var validIdOk = true;
+    var incomeProofOk = true;
+
+    if (!hasValidIdEl || !hasValidIdEl.value) {
+      if (show || liveTouched.declarationValidId) {
+        setInvalid(hasValidIdEl, hasValidIdErr, 'Please select an answer.');
+      }
+      validIdOk = false;
+    } else {
+      setValid(hasValidIdEl, hasValidIdErr);
+    }
+
+    if (!hasIncomeProofEl || !hasIncomeProofEl.value) {
+      if (show || liveTouched.declarationIncomeProof) {
+        setInvalid(hasIncomeProofEl, hasIncomeProofErr, 'Please select an answer.');
+      }
+      incomeProofOk = false;
+    } else {
+      setValid(hasIncomeProofEl, hasIncomeProofErr);
+    }
+
+    return validIdOk && incomeProofOk;
+  }
+
+  function vHousingRequired(force) {
+    if (!preferredTypeEl) return true;
+    clearState(preferredTypeEl, preferredTypeErr);
+    return true;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     EVENT BINDINGS — only flag errors when content is invalid, not empty
+  ══════════════════════════════════════════════════════════════ */
+  function bind(el, fn) {
+    if (!el) return;
+    el.addEventListener('input', function () { fn(false); gqSaveSession(); });
+    el.addEventListener('blur',  function () { fn(false); gqSaveSession(); });
+  }
+  function bindChange(el, fn) {
+    if (!el) return;
+    el.addEventListener('change', function () { fn(false); gqSaveSession(); });
+    el.addEventListener('blur',   function () { fn(false); gqSaveSession(); });
+  }
+  bind(firstNameEl, vFirstName);
+  bind(middleNameEl, vMiddleName);
+  bind(lastNameEl, vLastName);
+  bind(usernameEl, vUsername);
+  bind(emailEl,    vEmail);
+  bind(phoneEl,    vPhone);
+  bindChange(civilStatusEl, vCivilStatus);
+  bindChange(citizenshipEl, vCitizenship);
+  bindChange(genderEl, vGender);
+  bind(dependentsEl, vDependents);
+  bindChange(birthDateEl, vBirthDate);
+  bind(passEl,     vPassword);
+  bind(confirmEl,  vConfirm);
+  bind(grossEl,    vGross);
+  bind(debtEl,     vDebt);
+  bindChange(statusEl, vStatus);
+  bind(tenureEl,   vTenure);
+  bind(ageEl,      vAge);
+  if (phoneEl) {
+    phoneEl.addEventListener('input', function () {
+      phoneEl.value = (phoneEl.value || '').replace(/\D/g, '').slice(0, 11);
+    });
+  }
+  if (usernameEl) {
+    usernameEl.addEventListener('input', function () { liveUniq.usernameTaken = false; scheduleUsernameCheck(); });
+    usernameEl.addEventListener('blur', function () { scheduleUsernameCheck(); });
+  }
+  if (emailEl) {
+    emailEl.addEventListener('input', function () { liveUniq.emailTaken = false; scheduleEmailCheck(); });
+    emailEl.addEventListener('blur', function () { scheduleEmailCheck(); });
+  }
+  if (budgetMinEl) budgetMinEl.addEventListener('input', function () { liveTouched.budgetMin = true; vBudget(false); });
+  if (budgetMaxEl) budgetMaxEl.addEventListener('input', function () { liveTouched.budgetMax = true; vBudget(false); });
+  if (hasValidIdEl) hasValidIdEl.addEventListener('change', function () { liveTouched.declarationValidId = true; vDeclarations(false); });
+  if (hasIncomeProofEl) hasIncomeProofEl.addEventListener('change', function () { liveTouched.declarationIncomeProof = true; vDeclarations(false); });
+  if (preferredTypeEl) preferredTypeEl.addEventListener('change', function () { liveTouched.propertyType = true; vHousingRequired(false); });
+
+  if (passEl) passEl.addEventListener('input', function () { if (confirmEl.value) vConfirm(false); });
+
+  /* ══════════════════════════════════════════════════════════════
+     PASSWORD STRENGTH CHECKLIST
+  ══════════════════════════════════════════════════════════════ */
+  if (passEl) {
+    passEl.addEventListener('input', function () {
+      var v = this.value;
+      function set(id, ok) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('pw-ok', ok);
+        el.querySelector('i').className = ok ? 'fas fa-check-circle' : 'fas fa-circle-dot';
+      }
+      set('pwLen',     v.length >= 8);
+      set('pwUpper',   /[A-Z]/.test(v));
+      set('pwNum',     /[0-9]/.test(v));
+      set('pwSpecial', /[^A-Za-z0-9]/.test(v));
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     DTI LIVE METER
+  ══════════════════════════════════════════════════════════════ */
+  var dtiWrap = document.getElementById('regDtiWrap');
+  var dtiBar  = document.getElementById('regDtiBar');
+  var dtiVal  = document.getElementById('regDtiVal');
+
+  var sidebarDti     = document.getElementById('sidebarDti');
+  var sidebarDtiVal  = document.getElementById('sidebarDtiVal');
+  var sidebarDtiFill = document.getElementById('sidebarDtiFill');
+  var sidebarDtiStat = document.getElementById('sidebarDtiStatus');
+
+  function updateDti() {
+    var g = parseFloat(grossEl.value) || 0;
+    var d = parseFloat(debtEl.value)  || 0;
+    var statusKey = (statusEl.value || '').trim().toLowerCase();
+    var tenureMonths = parseInt(tenureEl.value || '0', 10) || 0;
+    var ageValue = parseInt(ageEl.value || '0', 10) || 0;
+    var stabilityScores = gqLiveCfg.stability_scores || {};
+    var stabilityVals = Object.keys(stabilityScores).map(function (k) { return parseFloat(stabilityScores[k]) || 1; });
+    if (!stabilityVals.length) stabilityVals = [1];
+    var maxStability = Math.max.apply(null, [1].concat(stabilityVals));
+    var minStability = Math.min.apply(null, stabilityVals);
+    var stabilityScore = parseFloat(stabilityScores[statusKey] || minStability || 1) || 1;
+
+    var basePct = (d / g * 100);
+    var stabilityRelief = Math.max(0, ((stabilityScore - 1) / Math.max(1, maxStability - 1)) * 6.0);
+    var tenureTarget = parseInt(gqLiveCfg.min_tenure_months || 6, 10) || 6;
+    var tenureRelief = Math.min(Math.max(tenureMonths, 0) / Math.max(tenureTarget, 1), 1) * 3.0;
+    var agePenalty = 0;
+    if (ageValue > 0 && (ageValue < 21 || ageValue > 60)) {
+      agePenalty = Math.min(Math.abs(ageValue < 21 ? 21 - ageValue : ageValue - 60) * 0.15, 4.0);
+    }
+
+    var pct = Math.min(Math.max(basePct - stabilityRelief - tenureRelief + agePenalty, 0), 100);
+    var safeLimit = parseFloat(gqLiveCfg.dti_qualified_max || 35);
+    var cautionLimit = parseFloat(gqLiveCfg.dti_conditional_max || 42);
+    var details = {
+      gross_monthly_income: g,
+      monthly_debt_loans: d,
+      employment_status: statusKey,
+      employment_stability_score: stabilityScore,
+      tenure_months: tenureMonths,
+      age: ageValue,
+      dti_base_pct: basePct,
+      stability_relief_pct: stabilityRelief,
+      tenure_relief_pct: tenureRelief,
+      age_penalty_pct: agePenalty,
+      dti_adjusted_pct: pct,
+    };
+
+    debugLog('DTI recompute triggered', details);
+
+    if (g <= 0) {
+      if (dtiWrap) dtiWrap.style.display = 'none';
+      if (sidebarDti) { sidebarDtiVal.textContent = '—'; sidebarDtiFill.style.width = '0%'; sidebarDtiStat.textContent = 'Enter your income to see your ratio'; }
+      debugWarn('DTI skipped because gross income is empty/zero');
+      return;
+    }
+    if (dtiWrap) dtiWrap.style.display = 'block';
+    debugLog('Adjusted DTI formula computed with employment stability + tenure + age', details);
+    var cls = pct < safeLimit ? 'dti-safe' : pct <= cautionLimit ? 'dti-caution' : 'dti-danger';
+    var sidebarBg   = pct < 35 ? 'var(--clr-accent)' : pct <= 42 ? 'var(--clr-warning)' : 'var(--clr-primary)';
+    var sidebarText = pct < 35 ? '✓ Safe DTI range' : pct <= 42 ? '⚠ Borderline — caution' : '✗ High DTI — reduce obligations';
+
+    if (pct < safeLimit) {
+      sidebarBg = 'var(--clr-accent)';
+      sidebarText = '✓ Safe DTI range';
+    } else if (pct <= cautionLimit) {
+      sidebarBg = 'var(--clr-warning)';
+      sidebarText = '⚠ Borderline — caution';
+    } else {
+      sidebarBg = 'var(--clr-primary)';
+      sidebarText = '✗ High DTI — reduce obligations';
+    }
+
+    if (dtiVal) dtiVal.textContent = pct.toFixed(1) + '%';
+    if (dtiBar) { dtiBar.style.width = pct + '%'; dtiBar.className = 'dti-meter-fill ' + cls; }
+
+    if (sidebarDti) {
+      sidebarDti.classList.add('visible');
+      sidebarDtiVal.textContent = pct.toFixed(1) + '%';
+      sidebarDtiFill.style.width = pct + '%';
+      sidebarDtiFill.style.background = sidebarBg;
+      sidebarDtiStat.textContent = sidebarText;
+    }
+  }
+
+  if (grossEl) grossEl.addEventListener('input', updateDti);
+  if (debtEl)  debtEl.addEventListener('input',  updateDti);
+  if (statusEl) statusEl.addEventListener('change', updateDti);
+  if (tenureEl) tenureEl.addEventListener('input', updateDti);
+  if (ageEl) ageEl.addEventListener('input', updateDti);
+
+  /* ══════════════════════════════════════════════════════════════
+     WIZARD NAVIGATION
+  ══════════════════════════════════════════════════════════════ */
+  var totalSteps = 3;
+
+  function setStep(n) {
+    for (var i = 1; i <= totalSteps; i++) {
+      var panel    = document.getElementById('gqPanel' + i);
+      var sideItem = document.querySelector('[data-step="' + i + '"]');
+      if (panel) panel.style.display = (i === n) ? 'block' : 'none';
+      if (sideItem) {
+        sideItem.classList.remove('gq-step-current', 'gq-step-done');
+        if (i < n)   sideItem.classList.add('gq-step-done');
+        if (i === n) sideItem.classList.add('gq-step-current');
+      }
+
+      var node  = document.getElementById('trackerNode'  + i);
+      var check = document.getElementById('trackerCheck' + i);
+      var num   = document.getElementById('trackerNum'   + i);
+      if (node) {
+        node.classList.remove('gq-tracker-active', 'gq-tracker-done');
+        if (i < n) {
+          node.classList.add('gq-tracker-done');
+          if (check) check.style.display = 'inline';
+          if (num)   num.style.display   = 'none';
+        } else if (i === n) {
+          node.classList.add('gq-tracker-active');
+          if (check) check.style.display = 'none';
+          if (num)   num.style.display   = '';
+        } else {
+          if (check) check.style.display = 'none';
+          if (num)   num.style.display   = '';
+        }
+      }
+
+      if (i < totalSteps) {
+        var line = document.getElementById('trackerLine' + i);
+        if (line) line.style.width = (n > i) ? '100%' : '0%';
+      }
+    }
+
+    if (sidebarDti) sidebarDti.classList.toggle('visible', n === 2);
+    gqSaveSession(n);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  window.gqNext = function (current) {
+    var ok = true;
+    if (current === 1) {
+      var a = vFirstName(true);
+      var b = vMiddleName(true);
+      var c = vLastName(true);
+      var d = vUsername(true);
+      var e = vEmail(true);
+      var f = vPhone(true);
+      var g1 = vCivilStatus(true);
+      var h1 = vCitizenship(true);
+      var i1 = vGender(true);
+      var j1 = vDependents(true);
+      var k1 = vBirthDate(true);
+      var l1 = vPassword(true);
+      var m1 = vConfirm(true);
+      ok = a && b && c && d && e && f && g1 && h1 && i1 && j1 && k1 && l1 && m1;
+      if (!ok) {
+        var first1 = document.getElementById('gqPanel1').querySelector('.lv-invalid');
+        if (first1) first1.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+    if (current === 2) {
+      var g = vGross(true);
+      vDebt();
+      var h = vStatus(true);
+      vTenure();
+      var j = vAge(true);
+      ok = g && h && j;
+      if (!ok) {
+        var first2 = document.getElementById('gqPanel2').querySelector('.lv-invalid');
+        if (first2) first2.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+    if (current === 3) {
+      liveTouched.step3Submitted = true;
+      var k = vDeclarations(true);
+      var l = vHousingRequired(true);
+      var m = vBudget(true);
+      ok = k && l && m;
+      if (!ok) {
+        var first3 = document.getElementById('gqPanel3').querySelector('.lv-invalid, .is-invalid');
+        if (first3) {
+          first3.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+        return;
+      }
+    }
+    if (ok && current < totalSteps) setStep(current + 1);
+  };
+
+  window.gqPrev = function (current) {
+    if (current > 1) setStep(current - 1);
+  };
+
+  var gqFormEl = document.getElementById('gqForm');
+  if (gqFormEl) {
+    gqFormEl.addEventListener('submit', function (e) {
+      liveTouched.step3Submitted = true;
+      var declOk = vDeclarations(true);
+      var locOk = vHousingRequired(true);
+      var budgetOk = vBudget(true);
+      if (!declOk || !locOk || !budgetOk) {
+        e.preventDefault();
+        var firstInvalid = document.getElementById('gqPanel3').querySelector('.lv-invalid, .is-invalid');
+        if (firstInvalid) {
+          firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      } else {
+        try { sessionStorage.removeItem(GQ_CACHE_KEY); } catch (_) {}
+      }
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     ON LOAD — jump to step with server errors
+  ══════════════════════════════════════════════════════════════ */
+  document.addEventListener('DOMContentLoaded', function () {
+    var cachedStep = gqRestoreSession();
+    var errorFields = {
+      1: ['first_name','middle_name','last_name','username','email','contact_number','civil_status','citizenship','gender','dependents','birth_date','password','confirm_password'],
+      2: ['gross_monthly_income','monthly_debt_loans','employment_status','tenure_months','age','sss_gsis_umid','tin_no'],
+      3: ['has_valid_id','has_income_proof','preferred_type','budget_min','budget_max'],
+    };
+    var targetStep = 0;
+    for (var s = 1; s <= 3; s++) {
+      for (var k = 0; k < errorFields[s].length; k++) {
+        var fid = errorFields[s][k];
+        var fEl = document.getElementById(fid);
+        if (fEl && fEl.classList.contains('is-invalid')) {
+          targetStep = s; break;
+        }
+      }
+      if (targetStep) break;
+    }
+    updateDti();
+    if (!targetStep && !isRefreshNavigation()) {
+      try { sessionStorage.removeItem(GQ_CACHE_KEY); } catch (_) {}
+      cachedStep = null;
+    }
+    if (targetStep) setStep(targetStep);
+    else if (cachedStep) setStep(cachedStep);
+  });
+
+}());
+</script>
+{% endif %}
+{% endblock %}
+

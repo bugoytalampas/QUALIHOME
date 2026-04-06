@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+
+# Local runtime data
+instance/smartqualihome.db
+instance/uploads/
+
+# Environment variables
+.env
+venv/
+env/
+__pycache__/
