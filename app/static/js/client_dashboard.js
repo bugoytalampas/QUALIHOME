@@ -2383,6 +2383,11 @@
       if (el) el.textContent = val;
     };
 
+    var setHtml = function(id, html) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    };
+
     var downRate = Number(pricingData.downpayment_rate || pricingData.down_payment_rate || 0);
     var vatRate = Number(pricingData.vat_rate || 0);
     var lmfRate = Number(pricingData.lmf_rate || 0);
@@ -2395,6 +2400,28 @@
     var loanTerm = String(pricingData.loanTerm || pricingData.loan_term || '').trim();
     var amort = pricingData.amortization || {};
     var reqIncome = pricingData.required_monthly_income || {};
+    var browsePage = document.getElementById('page-browse');
+    var clientIncome = 0;
+    if (browsePage) {
+      clientIncome = parseFloat(browsePage.dataset.userGrossIncome || browsePage.getAttribute('data-user-gross-income') || '0');
+    }
+
+    function reqStatusMarkup(requiredIncome) {
+      var req = Number(requiredIncome || 0);
+      var income = Number(clientIncome || 0);
+      var threshold = 0.7;
+
+      if (!(income > 0) || !(req > 0)) {
+        return '<span style="color:#6c757d;">Unavailable</span>';
+      }
+      if (income >= req) {
+        return '<span style="color:#28a745;">Qualified</span>';
+      }
+      if (income >= (req * threshold) && income < req) {
+        return '<span style="color:#ffc107;">Conditional</span>';
+      }
+      return '<span style="color:#dc3545;">Not Qualified</span>';
+    }
 
     setText('pvmTotalSellingPrice', formatPhp(pricingData.total_selling_price || pricingData.tcp));
     setText('pvmPromoDiscountRate', formatPercent(pricingData.promo_discount_rate || 0, 2));
@@ -2420,6 +2447,10 @@
     setText('pvmReqIncome10', formatPhp(reqIncome['10'] || 0));
     setText('pvmReqIncome15', formatPhp(reqIncome['15'] || 0));
     setText('pvmReqIncome20', formatPhp(reqIncome['20'] || 0));
+    setHtml('pvmReqStatus5', reqStatusMarkup(reqIncome['5'] || 0));
+    setHtml('pvmReqStatus10', reqStatusMarkup(reqIncome['10'] || 0));
+    setHtml('pvmReqStatus15', reqStatusMarkup(reqIncome['15'] || 0));
+    setHtml('pvmReqStatus20', reqStatusMarkup(reqIncome['20'] || 0));
     setText('pvmProcessingFee', processingFee || '—');
     setText('pvmOrPrNo', orPrNo || '—');
     setText('pvmOrPrDate', orPrDate || '—');
@@ -2630,16 +2661,124 @@
       detailsBtn.classList.remove('d-none');
       detailsBtn.classList.remove('btn-outline-blue', 'btn-outline-crimson', 'btn-outline-lime');
       if (isBoughtModel || effectiveDetailStatus === 'approved') {
-        detailsBtn.classList.add('d-none');
+        detailsBtn.classList.add('btn-outline-lime');
+        detailsBtn.innerHTML = '<i class="fas fa-file-invoice-dollar me-1"></i> View Price Breakdown';
       } else if (effectiveDetailStatus === 'pending') {
         detailsBtn.classList.add('btn-outline-crimson');
-        detailsBtn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Details Requested';
+        detailsBtn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested';
       } else if (effectiveDetailStatus === 'rejected') {
         detailsBtn.classList.add('btn-outline-blue');
-        detailsBtn.innerHTML = '<i class="fas fa-redo me-1"></i> Request Full Details Again';
+        detailsBtn.innerHTML = '<i class="fas fa-redo me-1"></i> Request Full Pricing Breakdown Again';
       } else {
         detailsBtn.classList.add('btn-outline-blue');
-        detailsBtn.innerHTML = '<i class="fas fa-file-signature me-1"></i> Request Full Details';
+        detailsBtn.innerHTML = '<i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown';
+      }
+    }
+
+    // Handle Conditional Requirements button
+    var condReqBtn = document.getElementById('pvmConditionalReqsBtn');
+    
+    // Get current qualification filter value
+    var qualFilterEl = document.getElementById('browseQualifiedFilter');
+    var qualFilterValue = qualFilterEl ? qualFilterEl.value : '';
+    
+    // Only show button if a SPECIFIC filter is selected (not "All")
+    var hasSpecificFilter = qualFilterValue && qualFilterValue !== '';
+    
+    var isConditional = false;
+    var statusText = 'No filter selected';
+    
+    if (hasSpecificFilter) {
+      // Extract loan term from filter (e.g., "qualified_5" → "5")
+      var selectedTerm = '5'; // fallback
+      if (qualFilterValue.includes('_')) {
+        selectedTerm = qualFilterValue.split('_')[1] || '5';
+      }
+      
+      // Calculate qualification using the SAME logic as the browse filter
+      var browsePage = document.getElementById('page-browse');
+      var clientIncome = 0;
+      if (browsePage) {
+        clientIncome = parseFloat(browsePage.dataset.userGrossIncome || browsePage.getAttribute('data-user-gross-income') || '0');
+      }
+      
+      // Prefer browse wrapper data because filters are computed from .browse-card-col.
+      var sourceCol = card;
+      if (card && typeof card.closest === 'function') {
+        sourceCol = card.closest('.browse-card-col') || card;
+      }
+
+      // Get required income for this term from card data, with fallback to pricing JSON.
+      var requiredIncome = 0;
+      if (sourceCol) {
+        var camelKey = 'reqIncome' + selectedTerm;
+        requiredIncome = parseFloat(sourceCol.dataset[camelKey] || 0);
+        if (!requiredIncome || requiredIncome <= 0) {
+          requiredIncome = parseFloat(sourceCol.getAttribute('data-req-income-' + selectedTerm) || 0);
+        }
+      }
+      if ((!requiredIncome || requiredIncome <= 0) && card && card !== sourceCol) {
+        var altCamelKey = 'reqIncome' + selectedTerm;
+        requiredIncome = parseFloat(card.dataset[altCamelKey] || 0);
+        if (!requiredIncome || requiredIncome <= 0) {
+          requiredIncome = parseFloat(card.getAttribute('data-req-income-' + selectedTerm) || 0);
+        }
+      }
+      if ((!requiredIncome || requiredIncome <= 0) && pricingData && pricingData.required_monthly_income) {
+        var reqMap = pricingData.required_monthly_income;
+        requiredIncome = parseFloat(reqMap[selectedTerm] || reqMap[String(selectedTerm)] || 0);
+      }
+
+      // Same thresholds as browse filter.
+      var conditionalThreshold = 0.7;
+      var isQualifiedForTerm = (clientIncome > 0 && requiredIncome > 0 && clientIncome >= requiredIncome);
+      var isConditionalForTerm = (
+        clientIncome > 0 &&
+        requiredIncome > 0 &&
+        clientIncome >= (requiredIncome * conditionalThreshold) &&
+        clientIncome < requiredIncome
+      );
+      var isNotQualifiedForTerm = !isQualifiedForTerm && !isConditionalForTerm;
+
+      // Show button only for true Conditional status.
+      isConditional = isConditionalForTerm;
+
+      if (isQualifiedForTerm) {
+        statusText = '<span style="color:#28a745;"><i class="fas fa-check-circle me-1"></i>Qualified at ' + selectedTerm + ' Years</span>';
+      } else if (isConditionalForTerm) {
+        statusText = '<span style="color:#ffc107;"><i class="fas fa-exclamation-circle me-1"></i>Conditional at ' + selectedTerm + ' Years</span>';
+      } else if (isNotQualifiedForTerm) {
+        statusText = '<span style="color:#dc3545;"><i class="fas fa-times-circle me-1"></i>Not Qualified at ' + selectedTerm + ' Years</span>';
+      } else {
+        statusText = '<span style="color:#6c757d;"><i class="fas fa-info-circle me-1"></i>Qualification unavailable for ' + selectedTerm + ' Years</span>';
+      }
+
+      console.log('[DEBUG] Modal Qual Calc:', {
+        clientIncome: clientIncome,
+        requiredIncome: requiredIncome,
+        selectedTerm: selectedTerm,
+        isQualifiedForTerm: isQualifiedForTerm,
+        isConditionalForTerm: isConditionalForTerm,
+        isNotQualifiedForTerm: isNotQualifiedForTerm,
+        buttonVisible: isConditional,
+        sourceHasReqIncome: !!(sourceCol && (sourceCol.dataset['reqIncome' + selectedTerm] || sourceCol.getAttribute('data-req-income-' + selectedTerm))),
+        usingPricingFallback: (!sourceCol || (!sourceCol.dataset['reqIncome' + selectedTerm] && !sourceCol.getAttribute('data-req-income-' + selectedTerm)))
+      });
+    }
+    
+    // Update the qualification status indicator in the modal
+    var qualStatusEl = document.getElementById('pvmQualStatusText');
+    if (qualStatusEl) {
+      qualStatusEl.innerHTML = statusText;
+    }
+    
+    if (condReqBtn) {
+      if (isConditional && !isBoughtModel) {
+        condReqBtn.classList.remove('d-none');
+        condReqBtn.dataset.propName = name;
+        condReqBtn.dataset.propId = _pdmPropId;
+      } else {
+        condReqBtn.classList.add('d-none');
       }
     }
 
@@ -2723,6 +2862,52 @@
     var next = document.getElementById('pvmNext');
     if (prev) prev.addEventListener('click', function(e) { e.stopPropagation(); _pvmShowSlide(_pvmIdx - 1); });
     if (next) next.addEventListener('click', function(e) { e.stopPropagation(); _pvmShowSlide(_pvmIdx + 1); });
+
+    var condReqBtn = document.getElementById('pvmConditionalReqsBtn');
+    if (condReqBtn) {
+      condReqBtn.addEventListener('click', function() {
+        var propName = this.dataset.propName || 'Property';
+        var requirements = [
+          {
+            icon: 'fa-users',
+            title: 'Add a Co-Borrower',
+            description: 'Bring someone with stable income to strengthen your application and increase your borrowing capacity.'
+          },
+          {
+            icon: 'fa-hourglass-end',
+            title: 'Longer Loan Term',
+            description: 'Extend the repayment period to lower your monthly amortization and improve your debt-to-income ratio.'
+          },
+          {
+            icon: 'fa-piggy-bank',
+            title: 'Larger Down Payment',
+            description: 'Increase your down payment to reduce the loan amount and meet the lender\'s requirements.'
+          },
+          {
+            icon: 'fa-briefcase',
+            title: 'Improve Employment Stability',
+            description: 'Show at least 6 months of consistent employment in your current position to strengthen your application.'
+          }
+        ];
+
+        var reqsList = document.getElementById('condReqsList');
+        if (reqsList) {
+          reqsList.innerHTML = requirements.map(function(req, idx) {
+            return '<div class="list-group-item" style="border-left:3px solid var(--clr-blue);padding-top:1rem;padding-bottom:1rem;">' +
+              '<div style="display:flex;gap:1rem;">' +
+              '<div style="color:var(--clr-warning);font-size:1.3rem;flex-shrink:0;"><i class="fas ' + req.icon + '"></i></div>' +
+              '<div style="flex:1;min-width:0;">' +
+              '<div style="font-weight:600;color:var(--clr-text);margin-bottom:.25rem;">' + req.title + '</div>' +
+              '<div style="font-size:0.9rem;color:var(--clr-text-muted);">' + req.description + '</div>' +
+              '</div>' +
+              '</div>' +
+              '</div>';
+          }).join('');
+        }
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('conditionalReqsModal')).show();
+      });
+    }
 
     var reqBtn = document.getElementById('pvmRequestTripBtn');
     if (reqBtn) {
@@ -2854,7 +3039,7 @@
     if (noteEl) {
       noteEl.textContent = status === 'rejected'
         ? 'Previous request for ' + propName + ' was rejected. Send a new request to the assigned agent?'
-        : 'Send a full details request for ' + propName + '?';
+        : 'Send a full pricing breakdown request for ' + propName + '?';
     }
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
   }
@@ -2871,7 +3056,7 @@
       return;
     }
     if (status === 'pending') {
-      toast('Your request is pending agent approval.', 'info');
+      toast('Your pricing breakdown request is pending agent approval.', 'info');
       return;
     }
     try {
@@ -2882,7 +3067,7 @@
       });
       var data = await res.json();
       if (!res.ok || !data.ok) {
-        toast((data && data.error) || 'Unable to submit full-details request.', 'danger');
+        toast((data && data.error) || 'Unable to submit full pricing breakdown request.', 'danger');
         return;
       }
 
@@ -2893,7 +3078,7 @@
           btn.dataset.detailStatus = data.status || 'pending';
           btn.classList.remove('btn-outline-blue', 'btn-outline-lime');
           btn.classList.add('btn-outline-crimson');
-          btn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Details Requested';
+          btn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested';
         }
       });
       var detailsBtn = document.getElementById('pvmRequestDetailsBtn');
@@ -2901,11 +3086,11 @@
         detailsBtn.dataset.detailStatus = data.status || 'pending';
         detailsBtn.classList.remove('btn-outline-blue', 'btn-outline-lime');
         detailsBtn.classList.add('btn-outline-crimson');
-        detailsBtn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Details Requested';
+        detailsBtn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested';
       }
-      toast('Full details request sent. An agent will review it.', 'success');
+      toast('Full pricing breakdown request sent. An agent will review it.', 'success');
     } catch (_) {
-      toast('Network error while sending full-details request.', 'danger');
+      toast('Network error while sending full pricing breakdown request.', 'danger');
     }
   }
 
@@ -2962,6 +3147,14 @@
     reqDetailsBtn.addEventListener('click', function() {
       if (!_pdmPropId) return;
       var card = document.querySelector('.prop-card-clickable[data-prop-id="' + _pdmPropId + '"]');
+      var currentStatus = String(reqDetailsBtn.dataset.detailStatus || (card && card.dataset ? card.dataset.detailRequestStatus : '') || 'none').toLowerCase();
+      if (currentStatus === 'approved') {
+        var pricingPanel = document.getElementById('pvmPricingBreakdown');
+        if (pricingPanel && !pricingPanel.classList.contains('d-none')) {
+          pricingPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        return;
+      }
       openFullDetailsConfirm(card);
     });
   }

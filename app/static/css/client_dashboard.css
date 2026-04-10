@@ -2736,3 +2736,16 @@ body.page-client-portal {
     font-size: var(--fs-xs);
   }
 }
+
+.prop-availability-note {
+  margin-top: .3rem;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: #4f7400;
+  background: rgba(170, 221, 42, .16);
+  border: 1px solid rgba(170, 221, 42, .45);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  padding: .14rem .52rem;
+}

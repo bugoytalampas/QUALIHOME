@@ -28,6 +28,15 @@ function getApiErrorMessage(res, fallback) {
   return fallback;
 }
 
+function _escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
   function hardenAddressAutofill(ids) {
@@ -3972,6 +3981,7 @@ _bind('lemNext', 'click', function(e) { e.stopPropagation(); _lemShowSlide(_lemI
 document.addEventListener('click', function(e) {
   if (!document.getElementById('editPropertyModal')) return;
   if (e.target.closest('.pvm-delete-btn') || e.target.closest('.prop-delete-btn')) return;
+  if (e.target.closest('.prop-status-toggle') || e.target.closest('.prop-status-menu')) return;
   var viewBtn = e.target.closest('.prop-view-btn-icon');
   var cardClick = e.target.closest('.prop-card-clickable');
   var pendingBtn = e.target.closest('.pvm-full-details-btn');
@@ -4002,8 +4012,27 @@ document.addEventListener('click', function(e) {
     return;
   }
   if (viewBtn || cardClick) {
+    // Don't open property modal if clicking on editable note
+    if (e.target.closest('.editable-note')) {
+      return;
+    }
     var card = e.target.closest('.prop-card-clickable');
     if (card) _openAdminEditPropertyModal(card.dataset);
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  var statusToggle = e.target.closest ? e.target.closest('.prop-status-toggle') : null;
+  var editableNote = e.target.closest ? e.target.closest('.editable-note') : null;
+  
+  if (statusToggle) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    statusToggle.click();
+  } else if (editableNote && !editableNote.classList.contains('editing')) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    editableNote.click();
   }
 });
 
@@ -4048,6 +4077,278 @@ function _syncAdminEditPropertyLocation() {
   setVal('ep_citymun_name', cityName);
   setVal('ep_barangay_code', brgySel ? brgySel.value : '');
   setVal('ep_barangay_name', brgyName);
+}
+
+function _listingStatusMeta(status) {
+  var s = String(status || 'available').toLowerCase();
+  if (s !== 'sold' && s !== 'reserved' && s !== 'available') s = 'available';
+  if (s === 'sold') {
+    return { value: 'sold', label: 'Sold', badgeClass: 'badge-sold' };
+  }
+  if (s === 'reserved') {
+    return { value: 'reserved', label: 'Reserved', badgeClass: 'badge-conditional' };
+  }
+  return { value: 'available', label: 'Available', badgeClass: 'badge-qualified' };
+}
+
+var _activeListingStatusMenu = null;
+
+function _statusToggleHtml(propId, status) {
+  var meta = _listingStatusMeta(status);
+  return '<span class="sqh-badge ' + meta.badgeClass + ' prop-status-toggle"'
+    + ' role="button" tabindex="0"'
+    + ' data-prop-id="' + _escapeHtml(propId || '') + '"'
+    + ' data-current-status="' + _escapeHtml(meta.value) + '"'
+    + ' title="Change listing status">'
+    + _escapeHtml(meta.label)
+    + ' <i class="fas fa-caret-down ms-1"></i></span>';
+}
+
+function _closeListingStatusMenu() {
+  if (_activeListingStatusMenu && _activeListingStatusMenu.parentNode) {
+    _activeListingStatusMenu.parentNode.removeChild(_activeListingStatusMenu);
+  }
+  _activeListingStatusMenu = null;
+}
+
+function _editAvailabilityNote(noteEl) {
+  if (!noteEl) return;
+  
+  var propId = String(noteEl.dataset.propId || '').trim();
+  if (!propId || !/^\d+$/.test(propId)) {
+    showToast('Invalid property ID for note edit.', 'danger');
+    return;
+  }
+  
+  var displaySpan = noteEl.querySelector('.note-display');
+  if (!displaySpan) return;
+  
+  var currentText = displaySpan.textContent || '';
+  var autoCount = String(noteEl.dataset.autoCount || '0').trim();
+  
+  // Enter edit mode
+  noteEl.classList.add('editing');
+  
+  // Create input field
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'edit-input';
+  input.value = currentText;
+  input.maxLength = '255';
+  input.placeholder = autoCount + ' house' + (autoCount !== '1' ? 's' : '') + ' left';
+  
+  // Replace display span with input, hide edit icon
+  displaySpan.style.display = 'none';
+  var editIcon = noteEl.querySelector('.edit-icon');
+  if (editIcon) editIcon.style.display = 'none';
+  noteEl.insertBefore(input, displaySpan);
+  input.focus();
+  input.select();
+  
+  // Prevent clicks on input from bubbling (to avoid triggering property view)
+  input.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+  });
+  
+  var finishEdit = function(save) {
+    if (save) {
+      // Call API to save
+      fetch('/admin/property/' + propId + '/availability-note', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken()
+        },
+        body: JSON.stringify({ note: input.value })
+      })
+      .then(function(r) {
+        if (r.status === 403) {
+          showToast('You do not have permission to edit this note.', 'danger');
+          return Promise.reject();
+        }
+        var ct = String((r.headers && r.headers.get && r.headers.get('content-type')) || '').toLowerCase();
+        if (ct.indexOf('application/json') !== -1) {
+          return r.json().then(function(d) {
+            return { ok: r.ok, status: r.status, data: d };
+          });
+        }
+        return r.text().then(function(t) {
+          showToast('Server error: ' + (t || 'HTTP ' + r.status), 'danger');
+          return Promise.reject();
+        });
+      })
+      .then(function(res) {
+        if (!res || !res.ok || !res.data || !res.data.success) {
+          var msg = (res && res.data && (res.data.error || res.data.message)) || 'Failed to save note.';
+          showToast(msg, 'danger');
+          return;
+        }
+        // Exit edit mode successfully
+        noteEl.classList.remove('editing');
+        var newText = res.data.custom_note || (autoCount + ' house' + (autoCount !== '1' ? 's' : '') + ' left');
+        displaySpan.textContent = newText;
+        displaySpan.style.display = '';
+        if (editIcon) editIcon.style.display = '';
+        if (input.parentNode) input.parentNode.removeChild(input);
+        showToast('Availability note saved!', 'success');
+      })
+      .catch(function(err) {
+        // On error, exit edit mode but revert changes
+        noteEl.classList.remove('editing');
+        displaySpan.style.display = '';
+        if (editIcon) editIcon.style.display = '';
+        if (input.parentNode) input.parentNode.removeChild(input);
+        if (err) {
+          var msg = 'Error saving note.';
+          if (err.message) msg = msg + ' ' + err.message;
+          showToast(msg, 'danger');
+        }
+      });
+    } else {
+      // Cancel edit
+      noteEl.classList.remove('editing');
+      displaySpan.style.display = '';
+      if (editIcon) editIcon.style.display = '';
+      if (input.parentNode) input.parentNode.removeChild(input);
+    }
+  };
+  
+  // Save on Enter, cancel on Escape
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finishEdit(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      finishEdit(false);
+    }
+  });
+  
+  // Save on blur
+  input.addEventListener('blur', function() {
+    finishEdit(true);
+  });
+}
+
+function _openListingStatusMenu(anchorEl, currentStatus, onPick) {
+  _closeListingStatusMenu();
+
+  var curr = _listingStatusMeta(currentStatus).value;
+  var values = ['available', 'reserved', 'sold'];
+  var menu = document.createElement('div');
+  menu.className = 'prop-status-menu';
+  menu.innerHTML = values.map(function (statusVal) {
+    var meta = _listingStatusMeta(statusVal);
+    var active = curr === statusVal ? ' is-active' : '';
+    return '<button type="button" class="prop-status-menu-item' + active + '" data-status="' + _escapeHtml(meta.value) + '">' + _escapeHtml(meta.label) + '</button>';
+  }).join('');
+
+  document.body.appendChild(menu);
+  _activeListingStatusMenu = menu;
+
+  var rect = anchorEl.getBoundingClientRect();
+  var top = rect.bottom + window.scrollY + 6;
+  var left = rect.left + window.scrollX;
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+
+  var menuRect = menu.getBoundingClientRect();
+  var maxRight = window.scrollX + document.documentElement.clientWidth - 8;
+  if (left + menuRect.width > maxRight) {
+    menu.style.left = Math.max(window.scrollX + 8, maxRight - menuRect.width) + 'px';
+  }
+
+  var maxBottom = window.scrollY + document.documentElement.clientHeight - 8;
+  if (top + menuRect.height > maxBottom) {
+    menu.style.top = Math.max(window.scrollY + 8, (rect.top + window.scrollY) - menuRect.height - 6) + 'px';
+  }
+
+  menu.addEventListener('click', function (evt) {
+    var opt = evt.target.closest('.prop-status-menu-item');
+    if (!opt) return;
+    var picked = String(opt.dataset.status || '').toLowerCase();
+    _closeListingStatusMenu();
+    if (picked) onPick(picked);
+  });
+}
+
+function _propModelKeyFromCard(card) {
+  if (!card) return '';
+  var key = String(card.dataset.propModelKey || '').trim();
+  if (key) return key;
+  var subdivisionId = String(card.dataset.propSubdivisionId || '').trim();
+  var modelName = String(card.dataset.propName || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  return subdivisionId + ':' + modelName;
+}
+
+function _refreshAvailabilityNotes() {
+  var cards = Array.prototype.slice.call(document.querySelectorAll('#page-properties .prop-card-clickable'));
+  if (!cards.length) return;
+
+  var counts = {};
+  cards.forEach(function(card) {
+    if (String(card.dataset.propListingStatus || 'available').toLowerCase() !== 'available') return;
+    var key = _propModelKeyFromCard(card);
+    if (!key) return;
+    counts[key] = (counts[key] || 0) + 1;
+  });
+
+  cards.forEach(function(card) {
+    var key = _propModelKeyFromCard(card);
+    var status = String(card.dataset.propListingStatus || 'available').toLowerCase();
+    var count = key ? Number(counts[key] || 0) : 0;
+    card.dataset.propAvailableLeft = String(count);
+
+    var body = card.querySelector('.prop-card-body');
+    if (!body) return;
+    var noteEl = body.querySelector('.prop-availability-note');
+
+    if (status === 'available' && count > 0) {
+      var text = count + ' house' + (count === 1 ? '' : 's') + ' left';
+      if (noteEl) {
+        noteEl.textContent = text;
+      } else {
+        var header = body.querySelector('.prop-card-header');
+        if (header) {
+          header.insertAdjacentHTML('afterend', '<div class="prop-availability-note">' + _escapeHtml(text) + '</div>');
+        }
+      }
+    } else if (noteEl) {
+      noteEl.remove();
+    }
+  });
+}
+
+function _syncListingStatusCard(card, nextStatus) {
+  if (!card) return;
+  var meta = _listingStatusMeta(nextStatus);
+  card.dataset.propListingStatus = meta.value;
+
+  var col = card.closest('.prop-card-col');
+  if (col) col.dataset.status = meta.value;
+
+  var bodyHeader = card.querySelector('.prop-card-body .prop-card-header');
+  if (bodyHeader) {
+    var oldToggle = bodyHeader.querySelector('.prop-status-toggle') || bodyHeader.querySelector('.sqh-badge');
+    if (oldToggle) {
+      oldToggle.outerHTML = _statusToggleHtml(card.dataset.propId || '', meta.value);
+    } else {
+      bodyHeader.insertAdjacentHTML('beforeend', _statusToggleHtml(card.dataset.propId || '', meta.value));
+    }
+  }
+
+  var actionsWrap = card.querySelector('.prop-card-actions');
+  if (actionsWrap) {
+    var propId = card.dataset.propId || '';
+    var html = '<button type="button" class="sub-card-action-btn prop-view-btn-icon" title="View details"><i class="fas fa-eye"></i></button>';
+    if (meta.value !== 'sold') {
+      html += '<button type="button" class="sub-card-action-btn sub-card-action-delete pvm-delete-btn" data-prop-id="' + _escapeHtml(propId) + '" title="Delete"><i class="fas fa-trash"></i></button>';
+    }
+    actionsWrap.innerHTML = html;
+  }
+
+  _refreshAvailabilityNotes();
 }
 
 function initAdminEditPropertyPsgc() {
@@ -4707,6 +5008,81 @@ var _activityDeleteBtn = null;
 
 document.addEventListener('click', function (e) {
   var btn = e.target.closest('.activity-delete-btn');
+  var statusToggle = e.target.closest('.prop-status-toggle');
+  var editableNote = e.target.closest('.editable-note');
+  
+  if (!statusToggle && _activeListingStatusMenu && !e.target.closest('.prop-status-menu')) {
+    _closeListingStatusMenu();
+  }
+  
+  // Handle editable availability note click
+  if (editableNote && !editableNote.classList.contains('editing')) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+    _editAvailabilityNote(editableNote);
+    return;
+  }
+  
+  if (statusToggle) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+
+    var cardForStatus = statusToggle.closest('.prop-card-clickable');
+    if (!cardForStatus) return;
+    var propIdForStatus = cardForStatus.dataset.propId || statusToggle.dataset.propId;
+    if (!propIdForStatus || !/^\d+$/.test(String(propIdForStatus))) {
+      showToast('Invalid property id for status update.', 'danger');
+      return;
+    }
+
+    var currentStatus = String(statusToggle.dataset.currentStatus || cardForStatus.dataset.propListingStatus || 'available').toLowerCase();
+    _openListingStatusMenu(statusToggle, currentStatus, function(nextStatus) {
+      if (nextStatus !== 'available' && nextStatus !== 'reserved' && nextStatus !== 'sold') return;
+      if (nextStatus === currentStatus) return;
+
+      fetch('/admin/property/' + propIdForStatus + '/listing-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken()
+        },
+        body: JSON.stringify({ status: nextStatus })
+      })
+      .then(function(r) {
+        var ct = String((r.headers && r.headers.get && r.headers.get('content-type')) || '').toLowerCase();
+        if (ct.indexOf('application/json') !== -1) {
+          return r.json().then(function(d) {
+            return { ok: r.ok, status: r.status, data: d, nonJsonText: '' };
+          });
+        }
+        return r.text().then(function(t) {
+          return { ok: r.ok, status: r.status, data: null, nonJsonText: t || '' };
+        });
+      })
+      .then(function(res) {
+        if (!res.ok || !res.data || !res.data.success) {
+          var err = (res.data && (res.data.error || res.data.message)) || '';
+          if (!err && !res.data) {
+            err = 'Server returned HTTP ' + String(res.status || 0) + ' for listing status update.';
+          }
+          showToast(err || 'Unable to update listing status.', 'danger');
+          return;
+        }
+        _syncListingStatusCard(cardForStatus, res.data.listing_status || nextStatus);
+        var searchEl = document.getElementById('propSearch');
+        if (searchEl) searchEl.dispatchEvent(new Event('input', { bubbles: true }));
+        showToast('Listing status updated to ' + _listingStatusMeta(res.data.listing_status || nextStatus).label + '.', 'success');
+      })
+      .catch(function(err) {
+        var msg = 'Network error while updating listing status.';
+        if (err && err.message) msg = msg + ' ' + err.message;
+        showToast(msg, 'danger');
+      });
+    });
+    return;
+  }
   if (!btn) return;
   e.preventDefault();
   _activityDeleteBtn = btn;
@@ -6855,7 +7231,11 @@ var _pendingAcpFiles = [];
     var name = String(prop.name || 'Property');
     var status = 'available';
     var listingStatus = String(prop.listing_status || 'available').toLowerCase();
-    if (listingStatus !== 'sold') listingStatus = 'available';
+    if (listingStatus !== 'sold' && listingStatus !== 'reserved' && listingStatus !== 'available') listingStatus = 'available';
+    var modelKey = String(prop.model_key || '').trim();
+    if (!modelKey) {
+      modelKey = String(prop.subdivision_id || '') + ':' + String(name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    }
     var colStatus = listingStatus;
     var priceNum = Number(prop.price || 0);
     var priceText = priceNum ? ('₱' + priceNum.toLocaleString('en-PH', { maximumFractionDigits: 0 })) : '₱0';
@@ -6896,21 +7276,25 @@ var _pendingAcpFiles = [];
       + ' data-prop-added="' + _escapeHtml(prop.created_at || '') + '"'
       + ' data-prop-status="' + _escapeHtml(status) + '"'
       + ' data-prop-listing-status="' + _escapeHtml(listingStatus) + '"'
+      + ' data-prop-model-key="' + _escapeHtml(modelKey) + '"'
+      + ' data-prop-available-left="0"'
       + ' data-prop-images="' + _escapeHtml(imagesCsv) + '">'
       + '  <div class="prop-card-img-wrap">'
       + (firstImg
           ? '    <img src="/uploads/' + _escapeHtml(firstImg) + '" alt="' + _escapeHtml(name) + '" class="prop-card-img">'
           : '    <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>')
       + (imgCount > 1 ? '    <span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + imgCount + '</span>' : '')
-      + '    <div class="prop-card-actions">'
-      + '      <button type="button" class="sub-card-action-btn prop-view-btn-icon" title="View details"><i class="fas fa-eye"></i></button>'
-      + '      <button type="button" class="sub-card-action-btn sub-card-action-delete pvm-delete-btn" data-prop-id="' + _escapeHtml(prop.id) + '" title="Delete"><i class="fas fa-trash"></i></button>'
-      + '    </div>'
+        + '    <div class="prop-card-actions">'
+        + '      <button type="button" class="sub-card-action-btn prop-view-btn-icon" title="View details"><i class="fas fa-eye"></i></button>'
+        + (listingStatus !== 'sold'
+          ? '      <button type="button" class="sub-card-action-btn sub-card-action-delete pvm-delete-btn" data-prop-id="' + _escapeHtml(prop.id) + '" title="Delete"><i class="fas fa-trash"></i></button>'
+          : '')
+        + '    </div>'
       + '  </div>'
       + '  <div class="prop-card-body">'
       + '    <div class="prop-card-header">'
       + '      <div class="prop-card-name">' + _escapeHtml(name) + '</div>'
-      + '      <span class="sqh-badge ' + (listingStatus === 'sold' ? 'badge-not-qualified' : 'badge-qualified') + '">' + (listingStatus === 'sold' ? 'Sold' : 'Available') + '</span>'
+      + '      ' + _statusToggleHtml(prop.id, listingStatus)
       + '    </div>'
       + '    <div class="prop-card-header">'
       + '      <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escapeHtml(location) + '</div>'
@@ -6942,6 +7326,7 @@ var _pendingAcpFiles = [];
       grid.insertBefore(col, grid.firstChild);
     }
 
+    _refreshAvailabilityNotes();
     var searchEl = document.getElementById('propSearch');
     if (searchEl) searchEl.dispatchEvent(new Event('input', { bubbles: true }));
   }

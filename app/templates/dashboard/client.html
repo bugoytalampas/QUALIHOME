@@ -619,6 +619,12 @@
           <div id="pvmStatusBadge" class="flex-shrink-0"></div>
         </div>
 
+        <!-- Qualification Status Indicator -->
+        <div id="pvmQualStatusIndicator" class="mb-3 p-2 rounded" style="background-color: #f8f9fa; border-left: 3px solid #6c757d;">
+          <small class="text-muted">Qualification Status (Filter):</small>
+          <div id="pvmQualStatusText" class="fw-bold" style="font-size:0.95rem; margin-top:4px;">—</div>
+        </div>
+
         <!-- Icon chips (beds / baths / storeys / areas) -->
         <div id="pvmIconChips" class="pvm-icon-chips mb-3"></div>
 
@@ -758,6 +764,7 @@
               <div class="pvm-pb-amort-card">
                 <div class="pvm-pb-amort-term">5 YEARS</div>
                 <div class="pvm-pb-amort-value" id="pvmReqIncome5">—</div>
+                <div class="pvm-pb-amort-unit" id="pvmReqStatus5">—</div>
                 <div class="pvm-pb-amort-unit">/month</div>
               </div>
             </div>
@@ -765,6 +772,7 @@
               <div class="pvm-pb-amort-card">
                 <div class="pvm-pb-amort-term">10 YEARS</div>
                 <div class="pvm-pb-amort-value" id="pvmReqIncome10">—</div>
+                <div class="pvm-pb-amort-unit" id="pvmReqStatus10">—</div>
                 <div class="pvm-pb-amort-unit">/month</div>
               </div>
             </div>
@@ -772,6 +780,7 @@
               <div class="pvm-pb-amort-card">
                 <div class="pvm-pb-amort-term">15 YEARS</div>
                 <div class="pvm-pb-amort-value" id="pvmReqIncome15">—</div>
+                <div class="pvm-pb-amort-unit" id="pvmReqStatus15">—</div>
                 <div class="pvm-pb-amort-unit">/month</div>
               </div>
             </div>
@@ -779,6 +788,7 @@
               <div class="pvm-pb-amort-card">
                 <div class="pvm-pb-amort-term">20 YEARS</div>
                 <div class="pvm-pb-amort-value" id="pvmReqIncome20">—</div>
+                <div class="pvm-pb-amort-unit" id="pvmReqStatus20">—</div>
                 <div class="pvm-pb-amort-unit">/month</div>
               </div>
             </div>
@@ -786,15 +796,57 @@
         </div>
 
         <!-- Actions -->
-        <div class="d-flex gap-2 justify-content-end pt-3 border-top">
+        <div class="d-flex gap-2 justify-content-end pt-3 border-top flex-wrap">
           <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-warning px-4 d-none" id="pvmConditionalReqsBtn" title="View conditional qualification requirements">
+            <i class="fas fa-exclamation-triangle me-1"></i> Conditional Requirements
+          </button>
           <button type="button" class="btn btn-outline-blue px-4" id="pvmRequestDetailsBtn">
-            <i class="fas fa-file-signature me-1"></i> Request Full Details
+            <i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown
           </button>
           <button type="button" class="btn btn-lime px-4" id="pvmRequestTripBtn">
             <i class="fas fa-calendar-plus me-1"></i> Request Visit
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Conditional Requirements Modal #}
+<div class="modal fade" id="conditionalReqsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content sqh-modal">
+      <div class="sqh-modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fas fa-exclamation-triangle text-white"></i>
+          <span class="sqh-modal-title">Conditional Qualification Requirements</span>
+        </div>
+        <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3 p-3 alert alert-warning" style="background:rgba(255,193,7,.1);border-color:rgba(255,193,7,.3);">
+          <div style="font-weight:700;color:var(--clr-warning);margin-bottom:.5rem;">
+            <i class="fas fa-info-circle me-2"></i>You are Conditionally Qualified for this property
+          </div>
+          <div style="font-size:0.9rem;color:var(--clr-text);">
+            To upgrade to fully qualified, you'll need to meet one or more of the following requirements:
+          </div>
+        </div>
+
+        <div id="condReqsList" class="list-group list-group-flush">
+          <!-- Requirements appended by JavaScript -->
+        </div>
+
+        <div class="mt-4 p-3" style="background:rgba(100,130,215,.08);border-radius:.5rem;border-left:3px solid var(--clr-blue);">
+          <div style="font-size:0.85rem;color:var(--clr-text-muted);">
+            <i class="fas fa-lightbulb me-2" style="color:var(--clr-blue);"></i>
+            <strong>Tip:</strong> You can still proceed with this property. Have you considered bringing a co-borrower to strengthen your application?
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-crimson" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -1247,8 +1299,8 @@
             <div class="prof-section-header buyer-prof-section mb-2">
               <div class="prof-section-icon" style="background:rgba(139,26,26,.12);color:var(--clr-primary);"><i class="fas fa-user-friends"></i></div>
               <div>
-                <div class="prof-section-title">Spouse</div>
-                <div class="prof-section-sub">Personal details of the spouse for co-evaluation and records.</div>
+                <div class="prof-section-title">Spouse <span class="badge bg-secondary">Optional</span></div>
+                <div class="prof-section-sub">Personal details of the spouse for co-evaluation and records. You may skip this section if not applicable.</div>
               </div>
             </div>
             <div class="row g-3 mb-4">
@@ -1281,8 +1333,8 @@
             <div class="prof-section-header buyer-prof-section mb-2">
               <div class="prof-section-icon" style="background:rgba(139,26,26,.12);color:var(--clr-primary);"><i class="fas fa-user-tie"></i></div>
               <div>
-                <div class="prof-section-title">Spouse Employment</div>
-                <div class="prof-section-sub">Spouse employment and company address with PSGC-linked location.</div>
+                <div class="prof-section-title">Spouse Employment <span class="badge bg-secondary">Optional</span></div>
+                <div class="prof-section-sub">Spouse employment and company address with PSGC-linked location. You may skip this section if not applicable.</div>
               </div>
             </div>
             <div class="row g-3 mb-4">
@@ -2290,20 +2342,20 @@
       <div class="cp-section-header mb-3">
         <div>
           <h2 class="cp-section-title"><i class="fas fa-check-circle me-2" style="color:var(--clr-accent-dk);"></i>Qualified Models for You</h2>
-        {# Confirm Full Details Request Modal #}
+        {# Confirm Full Pricing Breakdown Request Modal #}
         <div class="modal fade" id="requestFullDetailsConfirmModal" tabindex="-1" aria-hidden="true">
           <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content sqh-modal">
               <div class="sqh-modal-header">
                 <div class="d-flex align-items-center gap-2">
                   <i class="fas fa-file-signature text-white"></i>
-                  <span class="sqh-modal-title">Request Full Details</span>
+                  <span class="sqh-modal-title">Request Full Pricing Breakdown</span>
                 </div>
                 <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
               </div>
               <div class="modal-body p-4 text-center">
                 <div class="mb-3" style="font-size:2.4rem;color:var(--clr-blue);"><i class="fas fa-file-circle-question"></i></div>
-                <p class="fw-bold mb-1">Send full details request?</p>
+                <p class="fw-bold mb-1">Send full pricing breakdown request?</p>
                 <p class="text-muted small mb-4" id="fullDetailsConfirmPropName">The assigned agent will review your request.</p>
                 <div class="d-flex gap-2 justify-content-center">
                   <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Cancel</button>
@@ -2362,12 +2414,19 @@
                data-prop-images="{{ p.images or '' }}"
                data-prop-subdivision="{{ p.subdivision.name if p.subdivision else '' }}"
                data-prop-listing-status="{{ p.status or '' }}"
+               data-prop-model-key="{{ model_key_by_prop_id.get(p.id, '') }}"
+               data-prop-available-left="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
                data-prop-added="{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '' }}"
                data-has-request="{{ '1' if has_request else '0' }}"
                data-detail-request-status="{{ detail_status }}"
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
+               data-qual-status="{{ qual_result.status if qual_result else '' }}"
+               data-prop-qualified-5="{{ '1' if is_eligible_5 else '0' }}"
+               data-prop-qualified-10="{{ '1' if is_eligible_10 else '0' }}"
+               data-prop-qualified-15="{{ '1' if is_eligible_15 else '0' }}"
+               data-prop-qualified-20="{{ '1' if is_eligible_20 else '0' }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
@@ -2403,15 +2462,18 @@
                 <span><i class="fas fa-city me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
+              {% if (p.status or '').lower() == 'available' and available_units_left_by_prop_id.get(p.id, 0) > 0 %}
+              <div class="prop-availability-note">{% if p.custom_availability_note %}{{ p.custom_availability_note }}{% else %}{{ available_units_left_by_prop_id.get(p.id, 0) }} house{{ '' if available_units_left_by_prop_id.get(p.id, 0) == 1 else 's' }} left{% endif %}</div>
+              {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-lime' if detail_status == 'approved' else ('btn-outline-crimson' if detail_status == 'pending' else 'btn-outline-blue') }} w-100 mt-2 prop-card-details-btn"
                       data-detail-status="{{ detail_status }}">
                 {% if detail_status == 'approved' %}
-                <i class="fas fa-file-invoice-dollar me-1"></i> View Full Details
+                  <i class="fas fa-file-invoice-dollar me-1"></i> View Price Breakdown
                 {% elif detail_status == 'pending' %}
-                <i class="fas fa-hourglass-half me-1"></i> Details Requested
+                  <i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested
                 {% else %}
-                <i class="fas fa-file-signature me-1"></i> Request Full Details
+                <i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown
                 {% endif %}
               </button>
             </div>
@@ -2480,12 +2542,19 @@
                data-prop-images="{{ p.images or '' }}"
                data-prop-subdivision="{{ p.subdivision.name if p.subdivision else '' }}"
                data-prop-listing-status="{{ p.status or '' }}"
+               data-prop-model-key="{{ model_key_by_prop_id.get(p.id, '') }}"
+               data-prop-available-left="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
                data-prop-added="{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '' }}"
                data-has-request="{{ '1' if has_request else '0' }}"
                data-detail-request-status="{{ detail_status }}"
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
+               data-qual-status="{{ qual_result.status if qual_result else '' }}"
+               data-prop-qualified-5="{{ '1' if is_eligible_5 else '0' }}"
+               data-prop-qualified-10="{{ '1' if is_eligible_10 else '0' }}"
+               data-prop-qualified-15="{{ '1' if is_eligible_15 else '0' }}"
+               data-prop-qualified-20="{{ '1' if is_eligible_20 else '0' }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
@@ -2523,15 +2592,18 @@
                 <span><i class="fas fa-city me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
+              {% if (p.status or '').lower() == 'available' and available_units_left_by_prop_id.get(p.id, 0) > 0 %}
+              <div class="prop-availability-note">{% if p.custom_availability_note %}{{ p.custom_availability_note }}{% else %}{{ available_units_left_by_prop_id.get(p.id, 0) }} house{{ '' if available_units_left_by_prop_id.get(p.id, 0) == 1 else 's' }} left{% endif %}</div>
+              {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-lime' if detail_status == 'approved' else ('btn-outline-crimson' if detail_status == 'pending' else 'btn-outline-blue') }} w-100 mt-2 prop-card-details-btn"
                       data-detail-status="{{ detail_status }}">
                 {% if detail_status == 'approved' %}
-                <i class="fas fa-file-invoice-dollar me-1"></i> View Full Details
+                  <i class="fas fa-file-invoice-dollar me-1"></i> View Price Breakdown
                 {% elif detail_status == 'pending' %}
-                <i class="fas fa-hourglass-half me-1"></i> Details Requested
+                  <i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested
                 {% else %}
-                <i class="fas fa-file-signature me-1"></i> Request Full Details
+                <i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown
                 {% endif %}
               </button>
             </div>
@@ -2792,13 +2864,20 @@
                data-prop-images="{{ p.images or '' }}"
                data-prop-subdivision="{{ p.subdivision.name if p.subdivision else '' }}"
                data-prop-listing-status="{{ p.status or '' }}"
+               data-prop-model-key="{{ model_key_by_prop_id.get(p.id, '') }}"
+               data-prop-available-left="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
                data-prop-added="{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '' }}"
                data-has-request="{{ '1' if has_request else '0' }}"
                data-visited="{{ '1' if p.id in visited_prop_ids else '0' }}"
                data-detail-request-status="{{ detail_status }}"
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
+               data-qual-status="{{ qual_result.status if qual_result else '' }}"
+               data-prop-qualified-5="{{ '1' if is_eligible_5 else '0' }}"
+               data-prop-qualified-10="{{ '1' if is_eligible_10 else '0' }}"
+               data-prop-qualified-15="{{ '1' if is_eligible_15 else '0' }}"
+               data-prop-qualified-20="{{ '1' if is_eligible_20 else '0' }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
@@ -2841,6 +2920,9 @@
                 <span><i class="fas fa-map-pin me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
+              {% if (p.status or '').lower() == 'available' and available_units_left_by_prop_id.get(p.id, 0) > 0 %}
+              <div class="prop-availability-note">{% if p.custom_availability_note %}{{ p.custom_availability_note }}{% else %}{{ available_units_left_by_prop_id.get(p.id, 0) }} house{{ '' if available_units_left_by_prop_id.get(p.id, 0) == 1 else 's' }} left{% endif %}</div>
+              {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-blue' if p.id in visited_prop_ids else ('btn-outline-crimson' if has_request else 'btn-lime') }} w-100 mt-2 prop-card-request-btn"
                       data-requested="{{ '1' if has_request else '0' }}"
@@ -2857,11 +2939,11 @@
                       class="btn {{ 'btn-outline-lime' if detail_status == 'approved' else ('btn-outline-crimson' if detail_status == 'pending' else 'btn-outline-blue') }} w-100 mt-2 prop-card-details-btn"
                       data-detail-status="{{ detail_status }}">
                 {% if detail_status == 'approved' %}
-                <i class="fas fa-file-invoice-dollar me-1"></i> View Full Details
+                  <i class="fas fa-file-invoice-dollar me-1"></i> View Price Breakdown
                 {% elif detail_status == 'pending' %}
-                <i class="fas fa-hourglass-half me-1"></i> Details Requested
+                  <i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested
                 {% else %}
-                <i class="fas fa-file-signature me-1"></i> Request Full Details
+                <i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown
                 {% endif %}
               </button>
             </div>
@@ -3156,13 +3238,12 @@
          data-title="My Qualification" data-subtitle="Your pre-qualification result &amp; history">
 
       {% if qual_result %}
-      <div class="cd-result-hero {{ qs_class }} mb-4">
+      <div class="cd-result-hero mb-4">
         <div class="cd-result-hero-inner">
-          <div class="cd-result-icon"><i class="fas {{ qs_icon }}"></i></div>
           <div class="cd-result-info">
-            <div class="cd-result-label">Latest Assessment Result</div>
-            <div class="cd-result-status">{{ qual_result.status }}</div>
-            <div class="cd-result-date">{{ qual_result.created_at|ph_datetime('%B %d, %Y at %I:%M %p') }}</div>
+            <div class="cd-result-label">Your Financial Profile</div>
+            <div class="cd-result-date">Last updated {{ qual_result.created_at|ph_datetime('%B %d, %Y at %I:%M %p') }}</div>
+            <p class="text-muted small mt-1">Qualification status varies by property and financing term. View properties to see your eligibility.</p>
           </div>
           <button type="button" class="btn btn-sm qs-hero-btn-primary ms-auto"
               data-assessment-mode="reassess"
@@ -3239,7 +3320,7 @@
         <div class="table-responsive">
           <table class="table sqh-table mb-0 cp-mobile-card-table" id="assessmentHistoryTable">
             <thead>
-              <tr><th class="hide-mobile">#</th><th>Date</th><th>Assessment Type</th><th>Result</th><th>DTI</th><th>Max Loanable</th><th>Score</th></tr>
+              <tr><th class="hide-mobile">#</th><th>Date</th><th>Assessment Type</th><th>DTI</th><th>Max Loanable</th><th>Score</th></tr>
             </thead>
             <tbody>
               {% for r in all_results %}
@@ -3255,7 +3336,6 @@
                   <span class="sqh-badge" style="background:rgba(26,38,153,.12);color:var(--clr-blue);">Re-Assess</span>
                   {% endif %}
                 </td>
-                <td data-label="Result"><span class="sqh-badge {{ rbc }}">{{ r.status }}</span></td>
                 <td data-label="DTI">{{ '%.1f%%'|format(r.dti_ratio) if r.dti_ratio is not none else '' }}</td>
                 <td data-label="Max Loanable">&#8369;{{ '{:,.0f}'.format(r.max_loanable|float) if r.max_loanable else '' }}</td>
                 <td data-label="Score">{{ '%.1f%%'|format(r.similarity_score * 100) if r.similarity_score is not none else '' }}</td>

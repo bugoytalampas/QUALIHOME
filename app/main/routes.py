@@ -93,6 +93,40 @@ def _get_synced_sale_ids_from_training() -> set[int]:
     return sale_ids
 
 
+def _normalize_model_name(value: str | None) -> str:
+    raw = re.sub(r"\s+", " ", (value or "").strip().lower())
+    return raw
+
+
+def _model_key_for_property(prop: Property) -> str:
+    model_name = _normalize_model_name(prop.name)
+    subdivision_id = int(prop.subdivision_id or 0)
+    if not model_name:
+        return f"{subdivision_id}:prop-{int(prop.id or 0)}"
+    return f"{subdivision_id}:{model_name}"
+
+
+def _build_available_units_left_maps(properties: list[Property]) -> tuple[dict[int, str], dict[int, int]]:
+    model_key_by_prop_id: dict[int, str] = {}
+    available_counts_by_key: dict[str, int] = {}
+
+    for prop in properties:
+        if not prop or not prop.id:
+            continue
+        key = _model_key_for_property(prop)
+        model_key_by_prop_id[int(prop.id)] = key
+        status = (prop.status or "available").strip().lower()
+        approved = (prop.approval_status in (None, "approved"))
+        if status == "available" and approved:
+            available_counts_by_key[key] = int(available_counts_by_key.get(key, 0)) + 1
+
+    available_units_left_by_prop_id: dict[int, int] = {}
+    for prop_id, key in model_key_by_prop_id.items():
+        available_units_left_by_prop_id[prop_id] = int(available_counts_by_key.get(key, 0))
+
+    return model_key_by_prop_id, available_units_left_by_prop_id
+
+
 def _trigger_c50_retrain_async(reason: str) -> bool:
     app_obj = current_app._get_current_object()
     if not _C50_RETRAIN_LOCK.acquire(blocking=False):
@@ -101,6 +135,8 @@ def _trigger_c50_retrain_async(reason: str) -> bool:
     def _worker():
         try:
             with app_obj.app_context():
+                from ..financing_utils import regenerate_qualification_matches_for_all_clients
+                
                 buyers = HistoricalBuyer.query.all()
                 c50_engine.train(buyers)
                 meta = c50_engine.get_meta()
@@ -111,6 +147,17 @@ def _trigger_c50_retrain_async(reason: str) -> bool:
                     meta.get("n_samples", 0),
                     meta.get("train_accuracy", "N/A"),
                 )
+                
+                # Regenerate property matches for all clients after model retrains
+                try:
+                    num_matches = regenerate_qualification_matches_for_all_clients()
+                    app_obj.logger.info(
+                        "Property qualification matches regenerated: %s matches created",
+                        num_matches
+                    )
+                except Exception as e:
+                    app_obj.logger.error("Failed to regenerate property matches: %s", e)
+                    
         except Exception:
             app_obj.logger.exception("C5.0 retrain failed (%s)", reason)
         finally:
@@ -808,6 +855,7 @@ def client_dashboard():
         prop_id: _compute_property_pricing(prop)
         for prop_id, prop in pricing_props_by_id.items()
     }
+    model_key_by_prop_id, available_units_left_by_prop_id = _build_available_units_left_maps(all_props)
     buyer_bank_options = _load_local_ph_banks()
     country_options = _load_countries()
     live_meter_cfg = _get_live_meter_criteria()
@@ -834,6 +882,8 @@ def client_dashboard():
         detail_request_status_by_property=detail_request_status_by_property,
         approved_detail_property_ids=approved_detail_property_ids,
         property_pricing_map=property_pricing_map,
+        model_key_by_prop_id=model_key_by_prop_id,
+        available_units_left_by_prop_id=available_units_left_by_prop_id,
         buyer_bank_options=buyer_bank_options,
         country_options=country_options,
         live_meter_cfg=live_meter_cfg,
@@ -1147,6 +1197,7 @@ def admin_dashboard():
 
     # Full lists for sub-pages
     all_properties = Property.query.order_by(Property.created_at.desc()).all()
+    model_key_by_prop_id, available_units_left_by_prop_id = _build_available_units_left_maps(all_properties)
     all_clients    = User.query.filter_by(role="client").order_by(User.created_at.desc()).all()
     all_agents     = User.query.filter_by(role="agent").order_by(User.created_at.desc()).all()
     agent_availability_summary = _build_agent_availability_summary(all_agents)
@@ -1333,7 +1384,9 @@ def admin_dashboard():
                            banner_url=(url_for("main.serve_admin_banner", user_id=current_user.id)
                                        if current_user.profile and current_user.profile.banner_data else None),
                            pending_detail_request_counts=pending_detail_request_counts,
-                           purchase_form_counts=purchase_form_counts)
+                           purchase_form_counts=purchase_form_counts,
+                           model_key_by_prop_id=model_key_by_prop_id,
+                           available_units_left_by_prop_id=available_units_left_by_prop_id)
 
 # ── Admin: toggle user active status ───────────────────────────────────────────────
 
@@ -1679,6 +1732,65 @@ def admin_reject_property(prop_id):
     log_activity("prop_reject", f"Property rejected: \"{prop.name}\"")
     db.session.commit()
     return jsonify({"success": True, "property_id": prop.id, "approval_status": "rejected"})
+
+
+@main_bp.route("/admin/property/<int:prop_id>/listing-status", methods=["POST"])
+@login_required
+def admin_update_property_listing_status(prop_id):
+    if current_user.role != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+
+    prop = db.session.get(Property, prop_id)
+    if not prop:
+        return jsonify({"error": "Not found"}), 404
+
+    payload = request.get_json(silent=True) or {}
+    next_status = str(payload.get("status") or request.form.get("status") or "").strip().lower()
+    allowed = {"available", "reserved", "sold"}
+    if next_status not in allowed:
+        return jsonify({"error": "Invalid status. Allowed values: available, reserved, sold."}), 400
+
+    prev_status = (prop.status or "available").lower()
+    if prev_status == next_status:
+        return jsonify({"success": True, "property_id": prop.id, "listing_status": prev_status, "changed": False})
+
+    prop.status = next_status
+    log_activity("prop_listing_status_update", f"Property listing status updated: \"{prop.name}\" ({prev_status} -> {next_status})")
+    db.session.commit()
+
+    return jsonify({"success": True, "property_id": prop.id, "listing_status": next_status, "changed": True})
+
+
+@main_bp.route("/admin/property/<int:prop_id>/availability-note", methods=["POST"])
+@login_required
+def admin_update_property_availability_note(prop_id):
+    """Save custom availability note for a property."""
+    if current_user.role != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+
+    prop = db.session.get(Property, prop_id)
+    if not prop:
+        return jsonify({"error": "Not found"}), 404
+
+    payload = request.get_json(silent=True) or {}
+    custom_note = str(payload.get("note") or "").strip()
+    
+    # Allow empty/null to clear the custom note (revert to auto-calculated)
+    if len(custom_note) > 255:
+        return jsonify({"error": "Note too long (max 255 characters)."}), 400
+
+    prev_note = prop.custom_availability_note or "(auto-calculated)"
+    prop.custom_availability_note = custom_note if custom_note else None
+    
+    log_activity("prop_availability_note_update", f"Property availability note updated for \"{prop.name}\": \"{prev_note}\" → \"{prop.custom_availability_note or '(auto-calculated)'}\"")
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "property_id": prop.id,
+        "custom_note": prop.custom_availability_note or "",
+        "message": "Availability note saved successfully."
+    })
 
 
 @main_bp.route("/admin/property/<int:prop_id>/delete", methods=["POST"])
@@ -2989,6 +3101,16 @@ def agent_submit_property():
         prop.unit_id = _generate_property_unit_id(prop.id)
     log_activity("prop_submit", f"Property created by admin: \"{name}\"")
     db.session.commit()
+    
+    # Generate financing options for the new property
+    try:
+        from ..financing_utils import create_financing_options_for_property, regenerate_qualification_matches_for_all_clients
+        create_financing_options_for_property(prop)
+        # Regenerate matches for all clients so they can see this new property
+        regenerate_qualification_matches_for_all_clients()
+    except Exception as e:
+        current_app.logger.error(f"Error generating financing options: {e}")
+    
     return jsonify({
         "success": True,
         "id": prop.id,
@@ -3226,7 +3348,7 @@ def client_request_full_property_details(prop_id):
                      .order_by(QualificationResult.created_at.desc())
                      .first())
     if not latest_result or latest_result.status not in ("Qualified", "Conditionally Qualified"):
-        return jsonify(ok=False, error="You must be Qualified or Conditionally Qualified to request full details."), 403
+        return jsonify(ok=False, error="You must be Qualified or Conditionally Qualified to request full pricing breakdown."), 403
 
     now_utc = datetime.now(timezone.utc)
     existing = PropertyPricingDetailRequest.query.filter_by(

@@ -228,7 +228,43 @@ CREATE TABLE IF NOT EXISTS properties (
 -- before barangay fields were introduced in the ORM model.
 ALTER TABLE properties
     ADD COLUMN IF NOT EXISTS barangay_code VARCHAR(15) NULL AFTER citymun_name,
-    ADD COLUMN IF NOT EXISTS barangay_name VARCHAR(120) NULL AFTER barangay_code;
+    ADD COLUMN IF NOT EXISTS barangay_name VARCHAR(120) NULL AFTER barangay_code,
+    ADD COLUMN IF NOT EXISTS interest_rate DECIMAL(5,2) DEFAULT 7.50 AFTER lmf_rate,
+    ADD COLUMN IF NOT EXISTS financing_years_json VARCHAR(50) DEFAULT '[5,10,15,20]' AFTER interest_rate;
+
+-- Property financing options (pre-calculated payment scenarios)
+CREATE TABLE IF NOT EXISTS property_financing_options (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    property_id     INT NOT NULL,
+    financing_years SMALLINT NOT NULL COMMENT '5, 10, 15, etc.',
+    loan_amount     DECIMAL(14,2) NOT NULL COMMENT 'After downpayment',
+    monthly_payment DECIMAL(12,2) NOT NULL COMMENT 'Calculated monthly payment',
+    total_interest  DECIMAL(14,2) NOT NULL COMMENT 'Total interest over life',
+    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_property_financing_term (property_id, financing_years),
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Property qualification matches (client eligibility per property/term)
+CREATE TABLE IF NOT EXISTS property_qualification_matches (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    user_id             INT NOT NULL,
+    property_id         INT NOT NULL,
+    financing_years     SMALLINT NOT NULL COMMENT '5, 10, 15, etc.',
+    client_gross_income DECIMAL(12,2) NOT NULL,
+    client_monthly_debt DECIMAL(12,2) NOT NULL,
+    client_dti_ratio    FLOAT NOT NULL COMMENT 'Client DTI percentage',
+    required_dti_ratio  FLOAT NOT NULL COMMENT 'Required DTI for property/term',
+    monthly_payment     DECIMAL(12,2) NOT NULL COMMENT 'Monthly payment for term',
+    qualification_status VARCHAR(30) NOT NULL COMMENT 'Qualified / Conditional / Not Qualified',
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_client_property_term (user_id, property_id, financing_years),
+    INDEX idx_user_property_status (user_id, property_id, qualification_status),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
 -- Tripping requests
 CREATE TABLE IF NOT EXISTS tripping_requests (
@@ -530,3 +566,10 @@ ALTER TABLE tripping_requests
     ADD COLUMN IF NOT EXISTS purchase_form_submitted BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS purchase_form_submitted_at DATETIME NULL,
     ADD COLUMN IF NOT EXISTS purchase_form_data LONGTEXT NULL;
+
+-- ============================================================
+-- Migration: Custom Availability Notes
+-- Allow admins to override auto-calculated "X houses left" text
+-- ============================================================
+ALTER TABLE properties
+    ADD COLUMN IF NOT EXISTS custom_availability_note VARCHAR(255) NULL AFTER approval_status;

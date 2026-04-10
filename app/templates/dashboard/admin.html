@@ -2565,6 +2565,8 @@
                  data-prop-added="{{ p.created_at.strftime('%b %d, %Y') }}"
                  data-prop-status="{{ p.approval_status or 'approved' }}"
                  data-prop-listing-status="{{ p.status or 'available' }}"
+                 data-prop-model-key="{{ model_key_by_prop_id.get(p.id, '') }}"
+                 data-prop-available-left="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
                  data-prop-images="{{ p.images or '' }}">
               <div class="prop-card-img-wrap">
                 {% if first_img %}
@@ -2589,13 +2591,24 @@
                 <div class="prop-card-header">
                   <div class="prop-card-name">{{ p.name }}</div>
                   {% if p.status == 'sold' %}
-                    <span class="sqh-badge badge-sold">Sold</span>
+                    <span class="sqh-badge badge-sold prop-status-toggle" role="button" tabindex="0" data-prop-id="{{ p.id }}" data-current-status="sold" title="Change listing status">Sold <i class="fas fa-caret-down ms-1"></i></span>
                   {% elif p.status == 'reserved' %}
-                    <span class="sqh-badge badge-conditional">Reserved</span>
+                    <span class="sqh-badge badge-conditional prop-status-toggle" role="button" tabindex="0" data-prop-id="{{ p.id }}" data-current-status="reserved" title="Change listing status">Reserved <i class="fas fa-caret-down ms-1"></i></span>
                   {% else %}
-                    <span class="sqh-badge badge-qualified">Available</span>
+                    <span class="sqh-badge badge-qualified prop-status-toggle" role="button" tabindex="0" data-prop-id="{{ p.id }}" data-current-status="available" title="Change listing status">Available <i class="fas fa-caret-down ms-1"></i></span>
                   {% endif %}
                 </div>
+                {% if p.status == 'available' and available_units_left_by_prop_id.get(p.id, 0) > 0 %}
+                <div class="prop-availability-note editable-note" 
+                     role="button" 
+                     tabindex="0"
+                     data-prop-id="{{ p.id }}" 
+                     data-auto-count="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
+                     title="Click to edit availability note">
+                  <span class="note-display">{% if p.custom_availability_note %}{{ p.custom_availability_note }}{% else %}{{ available_units_left_by_prop_id.get(p.id, 0) }} house{{ '' if available_units_left_by_prop_id.get(p.id, 0) == 1 else 's' }} left{% endif %}</span>
+                  <i class="fas fa-edit edit-icon ms-1" style="opacity: 0; transition: opacity 0.2s;"></i>
+                </div>
+                {% endif %}
                 <div class="prop-card-header">
                   <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ full_loc }}</div>
                   <div class="prop-card-icons">

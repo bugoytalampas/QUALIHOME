@@ -14,6 +14,7 @@ from ..models import db, UserProfile, QualificationResult, ActivityLog, Tripping
 from flask import jsonify
 import datetime as dt
 from ..ml import c50_engine
+from ..financing_utils import regenerate_qualification_matches_for_client, get_qualified_properties_for_client
 
 # --- Session key prefix -------------------------------------------------------
 _SESSION_PREFIX = "qualify_"
@@ -128,6 +129,9 @@ def qualify():
         db.session.add(result)
         log_activity("assessment", f"Assessment submitted — {status} (DTI: {dti:.1f}%)")
         db.session.commit()
+
+        # Regenerate property qualification matches for this client
+        regenerate_qualification_matches_for_client(current_user)
 
         session["last_result_id"] = result.id
         for key in ("step1", "step2", "step3"):

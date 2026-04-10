@@ -210,6 +210,100 @@
   opacity: 1;
 }
 
+#page-properties .prop-status-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+#page-properties .prop-status-toggle:focus {
+  outline: 2px solid rgba(26, 38, 153, .35);
+  outline-offset: 2px;
+}
+
+#page-properties .prop-availability-note {
+  margin: .15rem 0 .45rem;
+  font-size: .78rem;
+  font-weight: 700;
+  color: #4f7400;
+  background: rgba(170, 221, 42, .16);
+  border: 1px solid rgba(170, 221, 42, .45);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  padding: .18rem .55rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#page-properties .prop-availability-note:hover {
+  background: rgba(170, 221, 42, .25);
+  border-color: rgba(170, 221, 42, .65);
+}
+
+#page-properties .prop-availability-note:hover .edit-icon {
+  opacity: 0.6 !important;
+}
+
+#page-properties .prop-availability-note.editing {
+  padding: 0;
+  border: 2px solid rgba(170, 221, 42, .8);
+}
+
+#page-properties .prop-availability-note .note-display {
+  display: inline;
+  flex: 1;
+  padding: .18rem .55rem;
+}
+
+#page-properties .prop-availability-note .edit-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: .78rem;
+  font-weight: 700;
+  color: #4f7400;
+  padding: .18rem .55rem;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+}
+
+.prop-status-menu {
+  position: absolute;
+  z-index: 3000;
+  min-width: 170px;
+  background: #fff;
+  border: 1px solid var(--clr-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  padding: .35rem;
+}
+
+.prop-status-menu-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: .45rem .6rem;
+  border-radius: 8px;
+  font-size: var(--fs-sm);
+  color: var(--clr-text);
+}
+
+.prop-status-menu-item:hover,
+.prop-status-menu-item:focus {
+  background: #f4f6f9;
+  color: var(--clr-primary);
+  outline: none;
+}
+
+.prop-status-menu-item.is-active {
+  background: rgba(26, 38, 153, .10);
+  color: var(--clr-blue);
+  font-weight: 700;
+}
+
 #purchaseFormViewModal .buyer-form-section {
   background: var(--clr-card);
   border-radius: var(--radius-md);
