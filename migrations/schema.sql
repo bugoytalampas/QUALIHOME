@@ -206,6 +206,8 @@ CREATE TABLE IF NOT EXISTS properties (
     loanable_percentage DECIMAL(5,2),
     vat_rate        DECIMAL(5,2),
     lmf_rate        DECIMAL(5,2),
+    interest_rate   DECIMAL(5,2) DEFAULT 7.50,
+    financing_years_json VARCHAR(50) DEFAULT '[5,10,15,20]',
     bedrooms        TINYINT UNSIGNED,
     bathrooms       TINYINT UNSIGNED,
     storeys         TINYINT UNSIGNED,
@@ -226,11 +228,10 @@ CREATE TABLE IF NOT EXISTS properties (
 
 -- Alignment patch for existing databases where properties table already existed
 -- before barangay fields were introduced in the ORM model.
-ALTER TABLE properties
-    ADD COLUMN IF NOT EXISTS barangay_code VARCHAR(15) NULL AFTER citymun_name,
-    ADD COLUMN IF NOT EXISTS barangay_name VARCHAR(120) NULL AFTER barangay_code,
-    ADD COLUMN IF NOT EXISTS interest_rate DECIMAL(5,2) DEFAULT 7.50 AFTER lmf_rate,
-    ADD COLUMN IF NOT EXISTS financing_years_json VARCHAR(50) DEFAULT '[5,10,15,20]' AFTER interest_rate;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS barangay_code VARCHAR(15) NULL AFTER citymun_name;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS barangay_name VARCHAR(120) NULL AFTER barangay_code;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS interest_rate DECIMAL(5,2) DEFAULT 7.50 AFTER lmf_rate;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS financing_years_json VARCHAR(50) DEFAULT '[5,10,15,20]' AFTER interest_rate;
 
 -- Property financing options (pre-calculated payment scenarios)
 CREATE TABLE IF NOT EXISTS property_financing_options (

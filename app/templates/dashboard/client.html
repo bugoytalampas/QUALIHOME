@@ -2779,10 +2779,10 @@
         <label class="dash-fb-label"><i class="fas fa-check-circle me-1"></i>Qualification</label>
           <select id="browseQualifiedFilter" class="form-select dash-fb-select">
           <option value="">All</option>
-          <option value="qualified_5">Qualified at 5 Years</option>
-          <option value="qualified_10">Qualified at 10 Years</option>
-          <option value="qualified_15">Qualified at 15 Years</option>
-          <option value="qualified_20">Qualified at 20 Years</option>
+          <option value="qualified_5">5 Years</option>
+          <option value="qualified_10">10 Years</option>
+          <option value="qualified_15">15 Years</option>
+          <option value="qualified_20">20 Years</option>
         </select>
       </div>
       <div class="dash-fb-group">
@@ -3265,8 +3265,8 @@
           </div>
           <div class="cd-result-metric-divider"></div>
           <div class="cd-result-metric">
-            <div class="cd-result-metric-lbl">Similarity Score</div>
-            <div class="cd-result-metric-val">{{ '%.1f%%'|format(qual_result.similarity_score * 100) if qual_result.similarity_score is not none else '' }}</div>
+            <div class="cd-result-metric-lbl">Similarity Level</div>
+            <div class="cd-result-metric-val">{% if qual_result.similarity_score is not none %}{% if qual_result.similarity_score >= 0.75 %}High Similarity{% elif qual_result.similarity_score >= 0.50 %}Moderate Similarity{% else %}Low Similarity{% endif %}{% endif %}</div>
           </div>
         </div>
       </div>
@@ -3282,7 +3282,7 @@
         </div>
         <div class="dti-zones">
           <span class="dti-label-safe"><i class="fas fa-check me-1"></i>&le;30% Safe</span>
-          <span class="dti-label-caution"><i class="fas fa-exclamation me-1"></i>3140% Caution</span>
+          <span class="dti-label-caution"><i class="fas fa-exclamation me-1"></i>31–40% Caution</span>
           <span class="dti-label-danger"><i class="fas fa-times me-1"></i>&gt;40% High Risk</span>
         </div>
         <p class="text-muted small mt-2 mb-0">
@@ -3320,7 +3320,7 @@
         <div class="table-responsive">
           <table class="table sqh-table mb-0 cp-mobile-card-table" id="assessmentHistoryTable">
             <thead>
-              <tr><th class="hide-mobile">#</th><th>Date</th><th>Assessment Type</th><th>DTI</th><th>Max Loanable</th><th>Score</th></tr>
+              <tr><th class="hide-mobile">#</th><th>Date</th><th>Assessment Type</th><th>DTI</th><th>Max Loanable</th><th>Similarity Level</th></tr>
             </thead>
             <tbody>
               {% for r in all_results %}
@@ -3338,7 +3338,7 @@
                 </td>
                 <td data-label="DTI">{{ '%.1f%%'|format(r.dti_ratio) if r.dti_ratio is not none else '' }}</td>
                 <td data-label="Max Loanable">&#8369;{{ '{:,.0f}'.format(r.max_loanable|float) if r.max_loanable else '' }}</td>
-                <td data-label="Score">{{ '%.1f%%'|format(r.similarity_score * 100) if r.similarity_score is not none else '' }}</td>
+                <td data-label="Similarity Level">{% if r.similarity_score is not none %}{% if r.similarity_score >= 0.75 %}High Similarity{% elif r.similarity_score >= 0.50 %}Moderate Similarity{% else %}Low Similarity{% endif %}{% endif %}</td>
               </tr>
               {% endfor %}
             </tbody>

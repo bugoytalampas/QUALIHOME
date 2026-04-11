@@ -8,7 +8,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, jsonif
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
-from ..models import db, Property, User, UserProfile, QualificationResult, TrippingRequest, PropertySale, Project, Subdivision, ActivityLog, AgentNotification, HistoricalBuyer, HistoricalBuyerRecord, PropertyPricingDetailRequest, PropertyPricingDetailRequestHistory, SystemConfig, AgentAvailability, log_activity
+from ..models import db, Property, User, UserProfile, QualificationResult, TrippingRequest, PropertySale, Project, Subdivision, ActivityLog, AgentNotification, HistoricalBuyer, HistoricalBuyerRecord, PropertyPricingDetailRequest, PropertyPricingDetailRequestHistory, PropertyFinancingOption, SystemConfig, AgentAvailability, log_activity
 from ..ml import c50_engine
 from .psgc import list_regions, list_provinces, list_cities, list_barangays
 
@@ -28,6 +28,21 @@ def _normalize_outcome_label(value: str | None) -> str:
     if raw in {"not qualified", "not-qualified", "disqualified"}:
         return "Not Qualified"
     return "Conditionally Qualified"
+
+
+def _similarity_band(score: float | None) -> str:
+    """Map raw similarity score to a user-friendly qualitative label."""
+    if score is None:
+        return "—"
+    try:
+        value = float(score)
+    except (TypeError, ValueError):
+        return "—"
+    if value >= 0.75:
+        return "High Similarity"
+    if value >= 0.50:
+        return "Moderate Similarity"
+    return "Low Similarity"
 
 
 def _build_auto_sync_note(sale_id: int, extra_note: str | None = None) -> str:
@@ -740,11 +755,9 @@ def client_dashboard():
     qualify_form.preferred_type.choices = model_name_choices
     qualify_form.preferred_type.data = selected_model_name
 
-    # Matched properties — filtered by max loanable + preferred model + budget.
-    # max_loanable can legitimately be Decimal("0.00") (high-debt / not-qualified
-    # clients) which is falsy, so we check > 0 explicitly rather than relying on
-    # bool(max_loanable). Fall back to all available props when the strict filters
-    # return nothing so the Recommended section is never silently empty.
+    # Matched properties — enforce thesis affordability rule first:
+    # monthly amortization must be <= client's NDI.
+    # Preference filters (model/budget) are applied after affordability.
     matched_props = []
     if qual_result:
         q = (Property.query
@@ -753,15 +766,50 @@ def client_dashboard():
                             Property.approval_status.is_(None))))
         if qual_result.max_loanable and float(qual_result.max_loanable) > 0:
             q = q.filter(Property.price <= float(qual_result.max_loanable))
+
+        base_candidates = q.order_by(Property.price.asc()).all()
+
+        gross_income = float(profile.gross_income or 0) if profile else 0.0
+        monthly_debt = float(profile.monthly_loans or 0) if profile else 0.0
+        ndi = max(0.0, gross_income * 0.72 - monthly_debt)
+
+        affordable_props = []
+        if ndi > 0:
+            prop_ids = [int(p.id) for p in base_candidates if p and p.id]
+            financing_rows = []
+            if prop_ids:
+                financing_rows = (PropertyFinancingOption.query
+                                  .filter(PropertyFinancingOption.property_id.in_(prop_ids))
+                                  .all())
+
+            min_monthly_by_prop = {}
+            for row in financing_rows:
+                pid = int(row.property_id)
+                monthly = float(row.monthly_payment or 0)
+                if pid not in min_monthly_by_prop or monthly < min_monthly_by_prop[pid]:
+                    min_monthly_by_prop[pid] = monthly
+
+            for prop in base_candidates:
+                min_monthly = min_monthly_by_prop.get(int(prop.id))
+                if min_monthly is None:
+                    pricing = _compute_property_pricing(prop)
+                    amort_map = pricing.get("amortization") or {}
+                    if amort_map:
+                        min_monthly = min(float(v) for v in amort_map.values())
+                if min_monthly is not None and float(min_monthly) <= ndi:
+                    affordable_props.append(prop)
+
+        preferred_props = list(affordable_props)
         if selected_model_name:
-            q = q.filter(Property.name == selected_model_name)
+            preferred_props = [p for p in preferred_props if (p.name or "") == selected_model_name]
         if profile and profile.budget_min and float(profile.budget_min) > 0:
-            q = q.filter(Property.price >= float(profile.budget_min))
+            preferred_props = [p for p in preferred_props if float(p.price or 0) >= float(profile.budget_min)]
         if profile and profile.budget_max and float(profile.budget_max) > 0:
-            q = q.filter(Property.price <= float(profile.budget_max))
-        matched_props = q.order_by(Property.price.asc()).all()
-        if not matched_props:
-            matched_props = all_props  # preferences/budget too restrictive — show all
+            preferred_props = [p for p in preferred_props if float(p.price or 0) <= float(profile.budget_max)]
+
+        # Keep recommendations thesis-compliant: if preferences are too strict,
+        # show other affordable properties instead of non-affordable ones.
+        matched_props = preferred_props if preferred_props else affordable_props
 
     # Client's tripping requests
     my_trips = (TrippingRequest.query
@@ -1351,6 +1399,8 @@ def admin_dashboard():
     for prop_id, count in purchase_form_rows:
         purchase_form_counts[int(prop_id)] = count
 
+    model_request_indicator_count = int(sum(pending_detail_request_counts.values()) + sum(purchase_form_counts.values()))
+
     return render_template("dashboard/admin.html", title="Admin Dashboard",
                            total_users=total_users, total_agents=total_agents,
                            total_props=total_props, total_sold=total_sold,
@@ -1385,6 +1435,7 @@ def admin_dashboard():
                                        if current_user.profile and current_user.profile.banner_data else None),
                            pending_detail_request_counts=pending_detail_request_counts,
                            purchase_form_counts=purchase_form_counts,
+                           model_request_indicator_count=model_request_indicator_count,
                            model_key_by_prop_id=model_key_by_prop_id,
                            available_units_left_by_prop_id=available_units_left_by_prop_id)
 
@@ -1493,7 +1544,7 @@ def admin_user_profile(user_id):
             "status": latest_result.status if latest_result else "—",
             "dti": f"{latest_result.dti_ratio:.1f}%" if latest_result and latest_result.dti_ratio is not None else "—",
             "max_loanable": f"₱{float(latest_result.max_loanable):,.0f}" if latest_result and latest_result.max_loanable else "—",
-            "similarity": f"{latest_result.similarity_score * 100:.0f}%" if latest_result and latest_result.similarity_score is not None else "—",
+            "similarity": _similarity_band(latest_result.similarity_score if latest_result else None),
         } if latest_result else None
 
         assessment_rows = sorted(user.qualification_results, key=lambda x: x.created_at, reverse=True)[:5]
@@ -1507,7 +1558,7 @@ def admin_user_profile(user_id):
                 "assessment_mode": _normalize_assessment_mode(r.assessment_mode, fallback_mode),
                 "dti": f"{r.dti_ratio:.1f}%" if r.dti_ratio is not None else "—",
                 "max_loanable": f"₱{float(r.max_loanable):,.0f}" if r.max_loanable else "—",
-                "similarity": f"{r.similarity_score * 100:.0f}%" if r.similarity_score is not None else "—",
+                "similarity": _similarity_band(r.similarity_score),
             })
 
         data["documents"] = {
@@ -4545,7 +4596,7 @@ def agent_client_profile(user_id):
             "assessment_mode": _normalize_assessment_mode(result.assessment_mode, "reassess") if result else "reassess",
             "dti":          f"{result.dti_ratio:.1f}%" if result.dti_ratio is not None else "—",
             "max_loanable": f"₱{float(result.max_loanable):,.0f}" if result.max_loanable else "—",
-            "similarity":   f"{result.similarity_score * 100:.0f}%" if result.similarity_score is not None else "—",
+            "similarity":   _similarity_band(result.similarity_score),
         } if result else None,
         "assessments": [
             {
@@ -4557,7 +4608,7 @@ def agent_client_profile(user_id):
                 ),
                 "dti": f"{qr.dti_ratio:.1f}%" if qr.dti_ratio is not None else "—",
                 "max_loanable": f"₱{float(qr.max_loanable):,.0f}" if qr.max_loanable else "—",
-                "similarity": f"{qr.similarity_score * 100:.0f}%" if qr.similarity_score is not None else "—",
+                "similarity": _similarity_band(qr.similarity_score),
             }
             for idx, qr in enumerate(assessment_history)
         ],

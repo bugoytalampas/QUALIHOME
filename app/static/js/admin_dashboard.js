@@ -1516,7 +1516,11 @@ function _syncEditSubdivisionLocation() {
   var provinceName = txt(provinceSel);
   var cityName = txt(citySel);
   var brgyName = txt(brgySel);
-  var line = ((document.getElementById('editSubSiteNotes') || {}).value || '').trim();
+  var streetVal = ((document.getElementById('editSubStreet') || {}).value || '').trim();
+  var blockVal = ((document.getElementById('editSubBlock') || {}).value || '').trim();
+  var lotVal = ((document.getElementById('editSubLotNo') || {}).value || '').trim();
+  var legacyLine = ((document.getElementById('editSubSiteNotes') || {}).value || '').trim();
+  var line = [streetVal, blockVal, lotVal].filter(Boolean).join(', ') || legacyLine;
   var tail = [brgyName, cityName, provinceName, regionName].filter(Boolean).join(', ');
   var loc = [line, tail].filter(Boolean).join(', ');
   var setVal = function(id, val){ var el = document.getElementById(id); if (el) el.value = val || ''; };
@@ -1579,6 +1583,9 @@ function initEditSubdivisionPsgc() {
 
   brgySel.addEventListener('change', _syncEditSubdivisionLocation);
   _bind('editSubSiteNotes', 'input', _syncEditSubdivisionLocation);
+  _bind('editSubStreet', 'input', _syncEditSubdivisionLocation);
+  _bind('editSubBlock', 'input', _syncEditSubdivisionLocation);
+  _bind('editSubLotNo', 'input', _syncEditSubdivisionLocation);
 }
 initEditSubdivisionPsgc();
 
@@ -2076,12 +2083,10 @@ var _editSubId = null;
 var _editDeleteQueue = []; // image IDs staged for deletion on Save
 var _pendingEditSubFiles = [];
 
-document.addEventListener('click', function(e) {
-  var btn = e.target.closest('.sub-edit-btn');
-  if (!btn) return;
-  var card = btn.closest('.sub-card');
-  _editSubId = btn.dataset.subId;
-  _editDeleteQueue = []; // reset on each open
+function openSubdivisionEditor(card) {
+  if (!card) return;
+  _editSubId = card.dataset.subId;
+  _editDeleteQueue = [];
   _pendingEditSubFiles = [];
 
   function populateSubdivisionEditForm(data) {
@@ -2118,17 +2123,24 @@ document.addEventListener('click', function(e) {
         }
       }
     }
-    document.getElementById('editSubSiteNotes').value = lineOnly;
-    document.getElementById('editSubLocation').value = fullLoc;
-    document.getElementById('editSubDescription').value = data.description || '';
-    document.getElementById('editSubRegionCode').value = data.region_code || '';
-    document.getElementById('editSubRegionName').value = data.region_name || '';
-    document.getElementById('editSubProvinceCode').value = data.province_code || '';
-    document.getElementById('editSubProvinceName').value = data.province_name || '';
-    document.getElementById('editSubCitymunCode').value = data.citymun_code || '';
-    document.getElementById('editSubCitymunName').value = data.citymun_name || '';
-    document.getElementById('editSubBarangayCode').value = data.barangay_code || '';
-    document.getElementById('editSubBarangayName').value = data.barangay_name || '';
+    var setVal = function(id, val) {
+      var el = document.getElementById(id);
+      if (el) el.value = val || '';
+    };
+    setVal('editSubStreet', data.street || '');
+    setVal('editSubBlock', data.block || '');
+    setVal('editSubLotNo', data.lot_no || '');
+    setVal('editSubSiteNotes', lineOnly);
+    setVal('editSubLocation', fullLoc);
+    setVal('editSubDescription', data.description || '');
+    setVal('editSubRegionCode', data.region_code || '');
+    setVal('editSubRegionName', data.region_name || '');
+    setVal('editSubProvinceCode', data.province_code || '');
+    setVal('editSubProvinceName', data.province_name || '');
+    setVal('editSubCitymunCode', data.citymun_code || '');
+    setVal('editSubCitymunName', data.citymun_name || '');
+    setVal('editSubBarangayCode', data.barangay_code || '');
+    setVal('editSubBarangayName', data.barangay_name || '');
     var imageIds = data.image_ids || [];
     var wrap = document.getElementById('editSubImagesWrap');
     wrap.innerHTML = '';
@@ -2161,7 +2173,7 @@ document.addEventListener('click', function(e) {
   ['editSubProject','editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.selectedIndex = 0;
   });
-  document.getElementById('editSubImages').value      = '';
+  document.getElementById('editSubImages').value = '';
   var editFnEl = document.getElementById('editSubImagesFilenames');
   if (editFnEl) editFnEl.value = '';
   document.getElementById('editSubError').classList.add('d-none');
@@ -2179,6 +2191,9 @@ document.addEventListener('click', function(e) {
       populateSubdivisionEditForm({
         name: card.dataset.subName || '',
         project_id: card.dataset.subProjectId || '',
+        street: card.dataset.subStreet || '',
+        block: card.dataset.subBlock || '',
+        lot_no: card.dataset.subLotNo || '',
         location: card.dataset.subLocation || '',
         region_code: card.dataset.subRegionCode || '',
         region_name: card.dataset.subRegionName || '',
@@ -2194,6 +2209,13 @@ document.addEventListener('click', function(e) {
       bootstrap.Modal.getOrCreateInstance(document.getElementById('editSubdivisionModal')).show();
       showToast('Loaded project details from card cache.', 'warning');
     });
+}
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.sub-edit-btn');
+  if (!btn) return;
+  var card = btn.closest('.sub-card');
+  openSubdivisionEditor(card);
 });
 
 // X button: stage for deletion (no network call yet)
@@ -2246,7 +2268,7 @@ _bind('editSubImages', 'change', function() {
 _bind('editSubdivisionModal', 'hidden.bs.modal', function() {
   _editDeleteQueue = [];
   _pendingEditSubFiles = [];
-  ['editSubSiteNotes','editSubLocation','editSubRegionCode','editSubRegionName','editSubProvinceCode','editSubProvinceName','editSubCitymunCode','editSubCitymunName','editSubBarangayCode','editSubBarangayName'].forEach(function(id){
+  ['editSubSiteNotes','editSubStreet','editSubBlock','editSubLotNo','editSubLocation','editSubRegionCode','editSubRegionName','editSubProvinceCode','editSubProvinceName','editSubCitymunCode','editSubCitymunName','editSubBarangayCode','editSubBarangayName'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
   ['editSubProject','editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
@@ -2282,6 +2304,9 @@ _bind('editSubSubmitBtn', 'click', function() {
     fd.append('project_id',  (document.getElementById('editSubProject').value || '').trim());
     fd.append('name',        _savedName);
     fd.append('location',    _savedLoc);
+    fd.append('street',      (document.getElementById('editSubStreet').value || '').trim());
+    fd.append('block',       (document.getElementById('editSubBlock').value || '').trim());
+    fd.append('lot_no',      (document.getElementById('editSubLotNo').value || '').trim());
     fd.append('region_code', document.getElementById('editSubRegionCode').value.trim());
     fd.append('region_name', document.getElementById('editSubRegionName').value.trim());
     fd.append('province_code', document.getElementById('editSubProvinceCode').value.trim());
@@ -2410,6 +2435,22 @@ _bind('editSubSubmitBtn', 'click', function() {
 /* ── Project Preview Modal ───────────────────────────────────── */
 var _previewImages = [];
 var _previewIdx    = 0;
+var _previewSubId  = null;
+var _previewSubCard = null;
+
+function _openSubdivisionEditorFromPreview(subId) {
+  var card = _previewSubCard || document.querySelector('.sub-card[data-sub-id="' + subId + '"]');
+  if (!card) return;
+  var previewModalEl = document.getElementById('subPreviewModal');
+  if (previewModalEl && previewModalEl.classList.contains('show')) {
+    previewModalEl.addEventListener('hidden.bs.modal', function onHidden() {
+      openSubdivisionEditor(card);
+    }, { once: true });
+    bootstrap.Modal.getOrCreateInstance(previewModalEl).hide();
+    return;
+  }
+  openSubdivisionEditor(card);
+}
 
 function _showPreviewSlide(idx) {
   _previewIdx = idx;
@@ -2469,6 +2510,8 @@ document.addEventListener('click', function(e) {
   var desc  = card.dataset.subDescription || '';
   var props = card.dataset.subProps       || '0';
   var subId = card.dataset.subId;
+  _previewSubId = subId;
+  _previewSubCard = card;
 
   _previewImages = JSON.parse(card.dataset.subImages || '[]');
   _previewIdx    = 0;
@@ -2490,11 +2533,13 @@ document.addEventListener('click', function(e) {
 
   _showPreviewSlide(0);
 
-  document.getElementById('subPreviewEditBtn').onclick = function() {
-    bootstrap.Modal.getInstance(document.getElementById('subPreviewModal')).hide();
-    var editCardBtn = document.querySelector('.sub-edit-btn[data-sub-id="' + subId + '"]');
-    if (editCardBtn) editCardBtn.click();
-  };
+  var previewEditBtn = document.getElementById('subPreviewEditBtn');
+  if (previewEditBtn) {
+    previewEditBtn.dataset.subId = subId;
+    previewEditBtn.onclick = function() {
+      _openSubdivisionEditorFromPreview(subId);
+    };
+  }
   document.getElementById('subPreviewDeleteBtn').onclick = function() {
     bootstrap.Modal.getInstance(document.getElementById('subPreviewModal')).hide();
     var delCardBtn = document.querySelector('.sub-delete-btn[data-sub-id="' + subId + '"]');
@@ -2508,6 +2553,15 @@ document.addEventListener('click', function(e) {
   };
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById('subPreviewModal')).show();
+});
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('#subPreviewEditBtn');
+  if (!btn) return;
+  var subId = btn.dataset.subId || _previewSubId;
+  if (!subId) return;
+  e.preventDefault();
+  _openSubdivisionEditorFromPreview(subId);
 });
 
 /* ── Project cards: preview modal handlers ──────────────────── */
@@ -2606,10 +2660,7 @@ document.addEventListener('click', function(e) {
   var editBtn = document.getElementById('projPreviewEditBtn');
   if (editBtn) {
     editBtn.classList.remove('d-none');
-    editBtn.onclick = function() {
-      bootstrap.Modal.getInstance(document.getElementById('projectPreviewModal'))?.hide();
-      _openProjectEditModal(projectId);
-    };
+    editBtn.dataset.projectId = projectId;
   }
 
   var deleteBtn = document.getElementById('projPreviewDeleteBtn');
@@ -2631,6 +2682,16 @@ document.addEventListener('click', function(e) {
   }
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById('projectPreviewModal')).show();
+});
+
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('#projPreviewEditBtn');
+  if (!btn) return;
+  var projectId = btn.dataset.projectId;
+  if (!projectId) return;
+  e.preventDefault();
+  bootstrap.Modal.getInstance(document.getElementById('projectPreviewModal'))?.hide();
+  _openProjectEditModal(projectId);
 });
 
 /* ── Property Approval / Rejection ───────────────────────────── */
@@ -5190,12 +5251,12 @@ function _doSaveCriteria() {
   if (confirmBtn) { confirmBtn.disabled = true; }
   fetch('/admin/criteria/save', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
     body: JSON.stringify(payload)
   })
-  .then(function (r) { return r.json(); })
-  .then(function (data) {
-    if (data.success) {
+  .then(parseApiResponse)
+  .then(function (res) {
+    if (res.ok && res.data && res.data.success) {
       msg.className = '';
       msg.textContent = '';
       window._criteriaDirty = false;
@@ -5205,7 +5266,7 @@ function _doSaveCriteria() {
       if (notQEl) notQEl.value = payload.dti_conditional_max;
     } else {
       msg.className = 'small text-danger';
-      msg.textContent = data.error || 'Save failed.';
+      msg.textContent = getApiErrorMessage(res, 'Save failed.');
     }
   })
   .catch(function () { msg.className = 'small text-danger'; msg.textContent = 'Network error.'; })
@@ -5232,6 +5293,14 @@ document.getElementById('saveCriteriaBtn') && document.getElementById('saveCrite
 
 document.getElementById('saveCriteriaConfirmBtn') && document.getElementById('saveCriteriaConfirmBtn').addEventListener('click', function () {
   _doSaveCriteria();
+});
+
+// Sync "Not Qualified" derived field when Conditional max changes
+document.getElementById('crit_dti_conditional_max') && document.getElementById('crit_dti_conditional_max').addEventListener('input', function (e) {
+  var nqField = document.getElementById('crit_dti_not_qualified_min');
+  if (nqField) {
+    nqField.value = e.target.value;
+  }
 });
 
 /* ── C5.0 Assessments Page ──────────────────────────────────── */
@@ -6041,10 +6110,14 @@ document.getElementById('adminAvatarFileInput') && document.getElementById('admi
   if (!file) return;
   var fd = new FormData();
   fd.append('avatar', file);
-  fetch('/admin/profile/upload-avatar', { method: 'POST', body: fd })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+  fetch('/admin/profile/upload-avatar', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrfToken() },
+    body: fd
+  })
+    .then(parseApiResponse)
     .then(function (res) {
-      if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
+      if (!res.ok) { showToast(getApiErrorMessage(res, 'Upload failed.'), 'danger'); return; }
       var wrap = document.getElementById('adminProfAvatarLg');
       if (!wrap) return;
       var existingIcon = document.getElementById('adminProfAvatarIcon');
@@ -6077,10 +6150,14 @@ document.getElementById('adminBannerFileInput') && document.getElementById('admi
   if (!file) return;
   var fd = new FormData();
   fd.append('banner', file);
-  fetch('/admin/profile/upload-banner', { method: 'POST', body: fd })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+  fetch('/admin/profile/upload-banner', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrfToken() },
+    body: fd
+  })
+    .then(parseApiResponse)
     .then(function (res) {
-      if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
+      if (!res.ok) { showToast(getApiErrorMessage(res, 'Upload failed.'), 'danger'); return; }
       var banner = document.getElementById('adminProfHeroBanner');
       if (banner) {
         var freshBannerUrl = res.data.url + '?t=' + Date.now();
@@ -6370,10 +6447,14 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
       var fd       = new FormData();
       var endpoint = _adminPreviewType === 'avatar' ? '/admin/profile/upload-avatar' : '/admin/profile/upload-banner';
       fd.append(_adminPreviewType === 'avatar' ? 'avatar' : 'banner', file);
-      fetch(endpoint, { method: 'POST', body: fd })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken() },
+        body: fd
+      })
+        .then(parseApiResponse)
         .then(function (res) {
-          if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
+          if (!res.ok) { showToast(getApiErrorMessage(res, 'Upload failed.'), 'danger'); return; }
           var freshUrl = res.data.url + '?t=' + Date.now();
           var modalImg = document.getElementById('adminImgPreviewSrc');
           if (modalImg) modalImg.src = freshUrl;
@@ -6418,10 +6499,10 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
     deleteBtn.addEventListener('click', function () {
       if (!_adminPreviewType) return;
       var url = _adminPreviewType === 'avatar' ? '/admin/profile/delete-avatar' : '/admin/profile/delete-banner';
-      fetch(url, { method: 'POST' })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (!data.success) { showToast(data.error || 'Delete failed.', 'danger'); return; }
+      fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
+        .then(parseApiResponse)
+        .then(function (res) {
+          if (!res.ok || !res.data || !res.data.success) { showToast(getApiErrorMessage(res, 'Delete failed.'), 'danger'); return; }
           bootstrap.Modal.getInstance(document.getElementById('adminImgPreviewModal')).hide();
           if (_adminPreviewType === 'avatar') {
             var img = document.getElementById('adminProfAvatarImg');

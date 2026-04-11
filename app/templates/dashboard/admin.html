@@ -35,10 +35,18 @@
 
     <span class="sidebar-panel-label mt-3">Manage</span>
     <a href="#" class="sidebar-link" data-page="properties">
-      <i class="fas fa-building"></i> Models
+      <i class="fas fa-building"></i>
+      <span>Models</span>
+      {% if model_request_indicator_count and model_request_indicator_count > 0 %}
+      <span class="sidebar-badge-blue ms-auto">{{ model_request_indicator_count }}</span>
+      {% endif %}
     </a>
     <a href="#" class="sidebar-link" data-page="trips">
-      <i class="fas fa-calendar-check"></i> Tripping Requests
+      <i class="fas fa-calendar-check"></i>
+      <span>Tripping Requests</span>
+      {% if pending_trip_count and pending_trip_count > 0 %}
+      <span class="sidebar-badge-blue ms-auto">{{ pending_trip_count }}</span>
+      {% endif %}
     </a>
     <a href="#" class="sidebar-link" data-page="projects">
       <i class="fas fa-map-marked-alt"></i> Projects
@@ -2458,7 +2466,7 @@
                   {% for p in recent_props %}
                   <tr>
                     <td data-label="Property">{{ p.name }}</td><td data-label="Location">{{ p.location }}</td>
-                    <td data-label="Price">?{{ '{:,.0f}'.format(p.price) }}</td>
+                    <td data-label="Price">&#8369;{{ '{:,.0f}'.format(p.price) }}</td>
                     <td data-label="Status"><span class="sqh-badge badge-{{ 'qualified' if p.status == 'available' else 'not-qualified' }}">{{ p.status.title() }}</span></td>
                   </tr>
                   {% else %}
@@ -2619,7 +2627,7 @@
                 </div>
                 <div class="prop-card-footer">
                   <span class="prop-card-type {% if p.unit_type == 'pre-selling' %}prop-type-badge-pre-selling{% elif p.unit_type == 'ready-for-occupancy' %}prop-type-badge-ready-for-occupancy{% elif p.unit_type == 'resale' %}prop-type-badge-resale{% endif %}">{{ p.unit_type.replace('-',' ').title() if p.unit_type else (p.prop_type.replace('-',' ').title() if p.prop_type else '—') }}</span>
-                  <span class="prop-card-price">?{{ '{:,.0f}'.format(p.price) }}</span>
+                  <span class="prop-card-price">₱{{ '{:,.0f}'.format(p.price) }}</span>
                 </div>
                 <!-- bedroom / bathroom / storey icon row -->
                 <div class="prop-card-meta">
@@ -3342,7 +3350,7 @@
                 <!-- Action icons overlay -->
                 <div class="sub-card-actions">
                   <button type="button" class="sub-card-action-btn sub-edit-btn" data-sub-id="{{ s.id }}" title="Edit">
-                    <i class="fas fa-eye"></i>
+                    <i class="fas fa-pencil-alt"></i>
                   </button>
                   <button type="button" class="sub-card-action-btn sub-card-action-delete sub-delete-btn"
                           data-sub-id="{{ s.id }}" data-sub-name="{{ s.name }}"
@@ -3461,7 +3469,7 @@
             <div class="table-responsive">
               <table class="table sqh-table mb-0" id="reportsTable">
                 <thead>
-                  <tr><th class="hide-tablet">#</th><th>Client</th><th>Date</th><th>DTI Ratio</th><th>Max Loanable</th><th class="hide-tablet">Similarity</th><th>Result</th><th>Actions</th></tr>
+                  <tr><th class="hide-tablet">#</th><th>Client</th><th>Date</th><th>DTI Ratio</th><th>Max Loanable</th><th class="hide-tablet">Similarity Level</th><th>Result</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {% for r in all_results %}
@@ -3474,8 +3482,8 @@
                         <span class="fw-semibold {% if r.dti_ratio < 35 %}text-success{% elif r.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %}">{{ '%.1f'|format(r.dti_ratio) }}%</span>
                       {% else %}—{% endif %}
                     </td>
-                    <td data-label="Max Loanable">?{{ '{:,.0f}'.format(r.max_loanable) if r.max_loanable else '—' }}</td>
-                    <td class="hide-tablet" data-label="Similarity">{% if r.similarity_score is not none %}{{ '%.1f'|format(r.similarity_score * 100) }}%{% else %}—{% endif %}</td>
+                    <td data-label="Max Loanable">&#8369;{{ '{:,.0f}'.format(r.max_loanable) if r.max_loanable else '—' }}</td>
+                    <td class="hide-tablet" data-label="Similarity Level">{% if r.similarity_score is not none %}{% if r.similarity_score >= 0.75 %}High Similarity{% elif r.similarity_score >= 0.50 %}Moderate Similarity{% else %}Low Similarity{% endif %}{% else %}—{% endif %}</td>
                     <td data-label="Result">
                       {% if r.status == 'Qualified' %}<span class="sqh-badge badge-qualified">Qualified</span>
                       {% elif r.status == 'Conditionally Qualified' %}<span class="sqh-badge badge-conditional">Conditional</span>
@@ -3520,15 +3528,18 @@
               <div class="flex-grow-1">
                 <div class="title-question d-flex align-items-center gap-2">
                   <div class="prof-section-title">DTI Qualification Thresholds</div>
-                  <button type="button" class="btn sqh-info-toggle" data-bs-toggle="collapse" data-bs-target="#infoCollapseDTI" aria-expanded="false" aria-controls="infoCollapseDTI" title="About this section">
-                    <i class="fas fa-question-circle"></i>
-                  </button>
                 </div>
                 <div class="prof-section-sub">Debt-to-Income ratio bands for client eligibility classification</div>
               </div>
             </div>
-            <div class="collapse mb-3" id="infoCollapseDTI">
-              <div class="sqh-info-box">Debt-to-Income ratio bands used by the C5.0 classification engine to determine client eligibility.</div>
+            <div class="sqh-info-box mb-3">
+              Debt-to-Income ratio bands are used by the C5.0 classification engine to determine client eligibility.
+              Lower DTI means less debt pressure and a stronger chance of passing the screening.
+              <div class="mt-2 small">
+                <div><strong>Example:</strong> 35% and below = Qualified</div>
+                <div><strong>Example:</strong> 36% to 42% = Conditionally Qualified</div>
+                <div><strong>Example:</strong> above 42% = Not Qualified</div>
+              </div>
             </div>
             <div class="row g-3">
               {% set q_crit = criteria_config | selectattr('key','equalto','dti_qualified_max')   | list | first | default(none) %}
@@ -3553,7 +3564,7 @@
                 <label class="sqh-form-label fw-semibold">Not Qualified — Above (%)</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-times-circle"></i></span>
-                  <input type="number" class="form-control sqh-form-control" value="{{ c_crit.value if c_crit else '42' }}" disabled>
+                  <input type="number" id="crit_dti_not_qualified_min" class="form-control sqh-form-control" value="{{ c_crit.value if c_crit else '42' }}" disabled>
                 </div>
                 <div class="form-text">DTI &gt; Conditional max &rarr; <span class="fw-semibold" style="color: var(--clr-primary);">Not Qualified</span> (derived)</div>
               </div>
@@ -3569,15 +3580,20 @@
               <div class="flex-grow-1">
                 <div class="title-question d-flex align-items-center gap-2">
                   <div class="prof-section-title">Algorithm &amp; Risk Settings</div>
-                  <button type="button" class="btn sqh-info-toggle" data-bs-toggle="collapse" data-bs-target="#infoCollapseAlgo" aria-expanded="false" aria-controls="infoCollapseAlgo" title="About this section">
-                    <i class="fas fa-question-circle"></i>
-                  </button>
                 </div>
                 <div class="prof-section-sub">C5.0 decision tree and similarity measure interaction controls</div>
               </div>
             </div>
-            <div class="collapse mb-3" id="infoCollapseAlgo">
-              <div class="sqh-info-box">Controls how the C5.0 decision tree and the Similarity Measure interact for borderline applicants.</div>
+            <div class="sqh-info-box mb-3">
+              These settings control how strict the qualification engine behaves.
+              The confidence threshold decides when the tree prediction is strong enough to use on its own.
+              If the case is borderline, the similarity measure checks historical buyer patterns to help finalize the result.
+              The minimum tenure and minimum income values act as extra risk filters before the final status is shown.
+              <div class="mt-2 small">
+                <div><strong>Example:</strong> confidence 72% or higher = use the tree result directly</div>
+                <div><strong>Example:</strong> confidence below 72% = treat as borderline and compare historical similarity</div>
+                <div><strong>Example:</strong> 6 months tenure and PHP 15,000 income are the default minimums</div>
+              </div>
             </div>
             <div class="row g-3">
               {% set conf_crit = criteria_config | selectattr('key','equalto','confidence_threshold') | list | first | default(none) %}
@@ -3598,7 +3614,7 @@
                 </div>
               </div>
               <div class="col-md-4">
-                <label class="sqh-form-label fw-semibold">Min. Monthly Gross Income (?)</label>
+                <label class="sqh-form-label fw-semibold">Min. Monthly Gross Income</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-coins"></i></span>
                   <input type="number" id="crit_min_gross_income" class="form-control sqh-form-control" value="{{ inc_crit.value if inc_crit else '15000' }}" min="1000" step="500">
@@ -3623,15 +3639,22 @@
               <div class="flex-grow-1">
                 <div class="title-question d-flex align-items-center gap-2">
                   <div class="prof-section-title">Employment Stability Scores</div>
-                  <button type="button" class="btn sqh-info-toggle" data-bs-toggle="collapse" data-bs-target="#infoCollapseStability" aria-expanded="false" aria-controls="infoCollapseStability" title="About this section">
-                    <i class="fas fa-question-circle"></i>
-                  </button>
                 </div>
                 <div class="prof-section-sub">Stability weights per employment type used by the C5.0 feature encoder</div>
               </div>
             </div>
-            <div class="collapse mb-3" id="infoCollapseStability">
-              <div class="sqh-info-box">Relative stability weights assigned to each employment type by the C5.0 feature encoder. Higher score = more stable for lenders.</div>
+            <div class="sqh-info-box mb-3">
+              These values are stability weights, not approval rules.
+              The C5.0 feature encoder converts employment type into a score so the engine can compare how stable each applicant looks.
+              Higher scores mean the system sees that employment type as more stable for lending purposes.
+              <div class="mt-2 small">
+                <div><strong>Scale:</strong> minimum is 1, maximum is 5</div>
+                <div><strong>Example:</strong> 5 = strongest impact on the model</div>
+                <div><strong>Example:</strong> 4 = high stability, slightly lower than 5</div>
+                <div><strong>Example:</strong> 3 = moderate stability</div>
+                <div><strong>Example:</strong> 2 = low stability</div>
+                <div><strong>Example:</strong> 1 = weakest stability signal</div>
+              </div>
             </div>
             <div class="row g-3">
               <div class="col-md-4">
@@ -3835,8 +3858,8 @@
                     <td class="hide-tablet" data-label="Civil">{{ (b.civil_status or '—').title() }}</td>
                     <td data-label="Age">{{ b.age or '—' }}</td>
                     <td data-label="Tenure">{{ b.tenure_months or 0 }} mo</td>
-                    <td data-label="Income">?{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
-                    <td data-label="Loans">?{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
+                    <td data-label="Income">&#8369;{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
+                    <td data-label="Loans">&#8369;{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
                     <td data-label="DTI">
                       {% if b.dti_ratio is not none %}
                         <span class="{% if b.dti_ratio < 35 %}text-success{% elif b.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %} fw-semibold">{{ '%.1f'|format(b.dti_ratio) }}%</span>
@@ -3895,8 +3918,8 @@
                     <td data-label="Civil">{{ (b.civil_status or '—').title() }}</td>
                     <td data-label="Age">{{ b.age or '—' }}</td>
                     <td data-label="Tenure">{{ b.tenure_months or 0 }} mo</td>
-                    <td data-label="Income">?{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
-                    <td data-label="Loans">?{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
+                    <td data-label="Income">&#8369;{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
+                    <td data-label="Loans">&#8369;{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
                     <td data-label="DTI">
                       {% if b.dti_ratio is not none %}
                         <span class="{% if b.dti_ratio < 35 %}text-success{% elif b.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %} fw-semibold">{{ '%.1f'|format(b.dti_ratio) }}%</span>
