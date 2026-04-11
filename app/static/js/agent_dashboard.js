@@ -2873,6 +2873,19 @@ document.addEventListener('click', function (e) {
     return y + '-' + m + '-' + day;
   }
 
+  function _isBeforeCurrentMonth(year, month) {
+    var today = new Date();
+    return year < today.getFullYear() || (year === today.getFullYear() && month < today.getMonth());
+  }
+
+  function _clampViewToCurrentMonth() {
+    if (_isBeforeCurrentMonth(state.year, state.month)) {
+      var today = new Date();
+      state.year = today.getFullYear();
+      state.month = today.getMonth();
+    }
+  }
+
   function formatDate(isoDate) {
     var d = new Date(isoDate + 'T00:00:00');
     if (Number.isNaN(d.getTime())) return isoDate;
@@ -3023,6 +3036,8 @@ document.addEventListener('click', function (e) {
   }
 
   function renderCalendar() {
+    _clampViewToCurrentMonth();
+
     var first = new Date(state.year, state.month, 1);
     var startDay = first.getDay();
     var daysInMonth = new Date(state.year, state.month + 1, 0).getDate();
@@ -3030,6 +3045,8 @@ document.addEventListener('click', function (e) {
     var monthDate = new Date(state.year, state.month, 1);
 
     monthLabel.textContent = monthDate.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+    prevBtn.disabled = _isBeforeCurrentMonth(state.year, state.month) ||
+      (state.year === new Date().getFullYear() && state.month === new Date().getMonth());
     calendarGrid.innerHTML = '';
 
     for (var i = startDay - 1; i >= 0; i--) {
@@ -3053,11 +3070,13 @@ document.addEventListener('click', function (e) {
       if (iso === todayIso) cls += ' is-today';
       if (status === 'available') cls += ' has-available';
       if (status === 'not_available') cls += ' has-not-available';
+      if (iso < todayIso) cls += ' is-muted';
 
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = cls;
       btn.setAttribute('data-date', iso);
+      btn.disabled = iso < todayIso;
       btn.innerHTML = ''
         + '<span class="avail-day-number">' + day + '</span>'
         + '<span class="avail-day-dot"></span>';
@@ -3195,11 +3214,16 @@ document.addEventListener('click', function (e) {
   }
 
   prevBtn.addEventListener('click', function () {
+    if (_isBeforeCurrentMonth(state.year, state.month) ||
+      (state.year === new Date().getFullYear() && state.month === new Date().getMonth())) {
+      return;
+    }
     state.month -= 1;
     if (state.month < 0) {
       state.month = 11;
       state.year -= 1;
     }
+    _clampViewToCurrentMonth();
     renderCalendar();
   });
 
@@ -3215,6 +3239,7 @@ document.addEventListener('click', function (e) {
   calendarGrid.addEventListener('click', function (e) {
     var cell = e.target.closest('.avail-day-cell[data-date]');
     if (!cell) return;
+    if (cell.disabled) return;
     var isoDate = cell.getAttribute('data-date');
     if (!isoDate) return;
 

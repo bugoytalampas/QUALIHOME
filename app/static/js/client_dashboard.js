@@ -2957,9 +2957,29 @@
   });
 
   /* ── Tripping Request Modal ──────────────────────────────── */
+  function _todayIsoDateLocal() {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var d = String(now.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+
+  function _enforceTripDateMin() {
+    var dateInput = document.getElementById('tripDate');
+    if (!dateInput) return;
+    var todayIso = _todayIsoDateLocal();
+    dateInput.min = todayIso;
+    if (dateInput.value && dateInput.value < todayIso) {
+      dateInput.value = '';
+    }
+  }
+
   function openTripModal(card) {
     const modal = document.getElementById("requestTripModal");
     if (!modal) return;
+
+    _enforceTripDateMin();
 
     document.getElementById("tripModalPropId").value = card.dataset.propId || "";
     document.getElementById("tripModalPropName").textContent  = card.dataset.propName || "";
@@ -2987,6 +3007,27 @@
     if (errEl) errEl.classList.add("d-none");
 
     bootstrap.Modal.getOrCreateInstance(modal).show();
+  }
+
+  var tripDateInput = document.getElementById('tripDate');
+  if (tripDateInput) {
+    _enforceTripDateMin();
+    tripDateInput.addEventListener('focus', _enforceTripDateMin);
+    tripDateInput.addEventListener('change', function () {
+      var errEl = document.getElementById('tripModalError');
+      var todayIso = _todayIsoDateLocal();
+      if (tripDateInput.value && tripDateInput.value < todayIso) {
+        tripDateInput.value = '';
+        if (errEl) {
+          errEl.textContent = 'Preferred date cannot be in the past.';
+          errEl.classList.remove('d-none');
+        }
+        return;
+      }
+      if (errEl && !errEl.classList.contains('d-none')) {
+        errEl.classList.add('d-none');
+      }
+    });
   }
 
   // "New Request" / "Request Visit" cards that go directly to trip modal
@@ -3111,9 +3152,17 @@
       const date   = document.getElementById("tripDate").value;
       const time   = document.getElementById("tripTime").value;
       const errEl  = document.getElementById("tripModalError");
+      const todayIso = _todayIsoDateLocal();
+
+      _enforceTripDateMin();
 
       if (!propId || !date) {
         if (errEl) { errEl.textContent = "Please select a preferred date."; errEl.classList.remove("d-none"); }
+        return;
+      }
+
+      if (date < todayIso) {
+        if (errEl) { errEl.textContent = "Preferred date cannot be in the past."; errEl.classList.remove("d-none"); }
         return;
       }
 
