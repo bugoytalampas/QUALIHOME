@@ -339,6 +339,9 @@ Fill in your details and receive an instant AI-powered evaluation of your mortga
                   <div class="invalid-feedback">{{ err }}</div>
                 {% endfor %}
                 <div class="sqh-live-error" id="username_error"></div>
+                <div class="small text-danger mt-1" id="username_exists_note" style="display:none;">
+                  <i class="fas fa-info-circle me-1"></i>Username already exists. Please choose another username.
+                </div>
               </div>
 
               <!-- Email -->
@@ -355,6 +358,9 @@ Fill in your details and receive an instant AI-powered evaluation of your mortga
                   <div class="invalid-feedback">{{ err }}</div>
                 {% endfor %}
                 <div class="sqh-live-error" id="email_error"></div>
+                <div class="small text-danger mt-1" id="email_exists_note" style="display:none;">
+                  <i class="fas fa-info-circle me-1"></i>Email already exists. Please use another email or sign in.
+                </div>
               </div>
 
               <!-- Contact Number -->
@@ -907,6 +913,18 @@ Fill in your details and receive an instant AI-powered evaluation of your mortga
     if (errEl) { errEl.textContent = ''; errEl.classList.remove('sqh-err-visible'); }
   }
 
+  function toggleEmailExistsNote(show) {
+    var noteEl = document.getElementById('email_exists_note');
+    if (!noteEl) return;
+    noteEl.style.display = show ? '' : 'none';
+  }
+
+  function toggleUsernameExistsNote(show) {
+    var noteEl = document.getElementById('username_exists_note');
+    if (!noteEl) return;
+    noteEl.style.display = show ? '' : 'none';
+  }
+
   /* ── Element refs ────────────────────────────────────────────── */
   var firstNameEl = document.getElementById('first_name');
   var middleNameEl = document.getElementById('middle_name');
@@ -1111,22 +1129,24 @@ Fill in your details and receive an instant AI-powered evaluation of your mortga
   }
   function vUsername(force) {
     var v = usernameEl.value.trim();
-    if (!v) { if (force) setInvalid(usernameEl, usernameErr, 'Username is required.'); else clearState(usernameEl, usernameErr); return false; }
-    if (v.length < 3) { setInvalid(usernameEl, usernameErr, 'Username must be at least 3 characters.'); return false; }
-    if (!usernameRe.test(v)) { setInvalid(usernameEl, usernameErr, 'Only letters, numbers, dots and underscores.'); return false; }
-    if (liveUniq.usernameTaken) { setInvalid(usernameEl, usernameErr, 'This username is already taken.'); return false; }
+    if (!v) { toggleUsernameExistsNote(false); if (force) setInvalid(usernameEl, usernameErr, 'Username is required.'); else clearState(usernameEl, usernameErr); return false; }
+    if (v.length < 3) { toggleUsernameExistsNote(false); setInvalid(usernameEl, usernameErr, 'Username must be at least 3 characters.'); return false; }
+    if (!usernameRe.test(v)) { toggleUsernameExistsNote(false); setInvalid(usernameEl, usernameErr, 'Only letters, numbers, dots and underscores.'); return false; }
+    if (liveUniq.usernameTaken) { toggleUsernameExistsNote(true); setInvalid(usernameEl, usernameErr, 'This username is already taken.'); return false; }
+    toggleUsernameExistsNote(false);
     setValid(usernameEl, usernameErr); return true;
   }
   function vEmail(force) {
     var v = emailEl.value.trim();
-    if (!v) { if (force) setInvalid(emailEl, emailErr, 'Email is required.'); else clearState(emailEl, emailErr); return false; }
-    if (!emailRe.test(v)) { setInvalid(emailEl, emailErr, 'Enter a valid email (e.g. name@example.com).'); return false; }
-    if (liveUniq.emailTaken) { setInvalid(emailEl, emailErr, 'This email is already registered.'); return false; }
+    if (!v) { toggleEmailExistsNote(false); if (force) setInvalid(emailEl, emailErr, 'Email is required.'); else clearState(emailEl, emailErr); return false; }
+    if (!emailRe.test(v)) { toggleEmailExistsNote(false); setInvalid(emailEl, emailErr, 'Enter a valid email (e.g. name@example.com).'); return false; }
+    if (liveUniq.emailTaken) { toggleEmailExistsNote(true); setInvalid(emailEl, emailErr, 'This email is already registered.'); return false; }
+    toggleEmailExistsNote(false);
     setValid(emailEl, emailErr); return true;
   }
 
   async function checkAvailability(field, value, reqId) {
-    var url = '/auth/register/check-field?field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value);
+    var url = '{{ url_for("auth.register_check_field") }}?field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value);
     var res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     var data = await res.json();
     if (!res.ok || !data || !data.ok) {
@@ -1142,6 +1162,7 @@ Fill in your details and receive an instant AI-powered evaluation of your mortga
 
     if (!value || value.length < 3 || !usernameRe.test(value)) {
       liveUniq.usernameTaken = false;
+      toggleUsernameExistsNote(false);
       return;
     }
 
@@ -1167,6 +1188,7 @@ Fill in your details and receive an instant AI-powered evaluation of your mortga
 
     if (!value || !emailRe.test(value)) {
       liveUniq.emailTaken = false;
+      toggleEmailExistsNote(false);
       return;
     }
 
@@ -1403,7 +1425,7 @@ Fill in your details and receive an instant AI-powered evaluation of your mortga
     });
   }
   if (usernameEl) {
-    usernameEl.addEventListener('input', function () { liveUniq.usernameTaken = false; scheduleUsernameCheck(); });
+    usernameEl.addEventListener('input', function () { liveUniq.usernameTaken = false; toggleUsernameExistsNote(false); scheduleUsernameCheck(); });
     usernameEl.addEventListener('blur', function () { scheduleUsernameCheck(); });
   }
   if (emailEl) {

@@ -37,6 +37,106 @@ function _escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function _formatPeso(amount) {
+  var value = Number(amount);
+  if (!isFinite(value)) value = 0;
+  return '₱' + value.toLocaleString('en-PH', { maximumFractionDigits: 2 });
+}
+
+function _readNumberInput(id) {
+  var el = document.getElementById(id);
+  if (!el) return 0;
+  var value = parseFloat(String(el.value || '').replace(/,/g, ''));
+  return isFinite(value) ? value : 0;
+}
+
+function _setPreviewText(id, text) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function _syncPropertyPricingPreview(prefix) {
+  var price = _readNumberInput(prefix + '_price');
+  var promo = _readNumberInput(prefix + '_promo_discount_rate');
+  var downpayment = _readNumberInput(prefix + '_downpayment_rate');
+  var vat = _readNumberInput(prefix + '_vat_rate');
+  var lmf = _readNumberInput(prefix + '_lmf_rate');
+
+  var promoAmount = price * (promo / 100);
+  var netSellingPrice = Math.max(price - promoAmount, 0);
+  var vatAmount = netSellingPrice * (vat / 100);
+  var lmfAmount = netSellingPrice * (lmf / 100);
+  var totalContractPrice = netSellingPrice + vatAmount + lmfAmount;
+  var downpaymentAmount = totalContractPrice * (downpayment / 100);
+
+  _setPreviewText(prefix + '_promo_discount_preview', price > 0 || promo > 0 ? 'Approx. discount: ' + _formatPeso(promoAmount) : 'Enter TCP to preview the amount.');
+  _setPreviewText(prefix + '_downpayment_preview', price > 0 || downpayment > 0 ? 'Approx. downpayment: ' + _formatPeso(downpaymentAmount) : 'Based on the net contract price.');
+  _setPreviewText(prefix + '_vat_preview', price > 0 || vat > 0 ? 'Approx. VAT: ' + _formatPeso(vatAmount) : 'Based on the net selling price.');
+  _setPreviewText(prefix + '_lmf_preview', price > 0 || lmf > 0 ? 'Approx. LMF: ' + _formatPeso(lmfAmount) : 'Based on the net selling price.');
+
+  // Update full breakdown as well
+  _updateFullPricingBreakdown(prefix);
+}
+
+function _updateFullPricingBreakdown(prefix) {
+  var price = _readNumberInput(prefix + '_price');
+  var promo = _readNumberInput(prefix + '_promo_discount_rate');
+  var downpaymentRate = _readNumberInput(prefix + '_downpayment_rate');
+  var vat = _readNumberInput(prefix + '_vat_rate');
+  var lmf = _readNumberInput(prefix + '_lmf_rate');
+  var interestRate = _readNumberInput(prefix + '_interest_rate');
+  var reservationFee = _readNumberInput(prefix + '_reservation_fee');
+  var dpTermsMonths = _readNumberInput(prefix + '_downpayment_terms_months') || 24;
+  var loanablePercent = _readNumberInput(prefix + '_loanable_percentage') || 80;
+  if (!isFinite(interestRate) || interestRate <= 0) interestRate = 8.5;
+
+  // Calculate amounts
+  var promoAmount = price * (promo / 100);
+  var netSellingPrice = Math.max(price - promoAmount, 0);
+  var vatAmount = netSellingPrice * (vat / 100);
+  var lmfAmount = netSellingPrice * (lmf / 100);
+  var totalContractPrice = netSellingPrice + vatAmount + lmfAmount;
+  var downpaymentAmount = totalContractPrice * (downpaymentRate / 100);
+  var monthlyDownpayment = downpaymentAmount / dpTermsMonths;
+  var loanableAmount = totalContractPrice * (loanablePercent / 100);
+
+  // Update SELLING PRICES
+  _setPreviewText(prefix + '_bd_tsp', _formatPeso(price));
+  _setPreviewText(prefix + '_bd_promo', _formatPeso(promoAmount));
+  _setPreviewText(prefix + '_bd_vat', _formatPeso(vatAmount));
+  _setPreviewText(prefix + '_bd_lmf', _formatPeso(lmfAmount));
+  _setPreviewText(prefix + '_bd_vat_rate', '(' + vat.toFixed(2) + '%)');
+  _setPreviewText(prefix + '_bd_lmf_rate', '(' + lmf.toFixed(2) + '%)');
+
+  // Update MISCELLANEOUS
+  _setPreviewText(prefix + '_bd_tcp', _formatPeso(totalContractPrice));
+  _setPreviewText(prefix + '_bd_resv', _formatPeso(reservationFee));
+  _setPreviewText(prefix + '_bd_dp_total', _formatPeso(downpaymentAmount));
+  _setPreviewText(prefix + '_bd_dp_monthly', _formatPeso(monthlyDownpayment));
+  _setPreviewText(prefix + '_bd_dp_months', '(' + Math.round(dpTermsMonths) + ' mos)');
+  _setPreviewText(prefix + '_bd_loanable', _formatPeso(loanableAmount));
+  _setPreviewText(prefix + '_bd_annual_int', interestRate.toFixed(2) + '%');
+  _setPreviewText(prefix + '_bd_interest_rate_label', '(' + interestRate.toFixed(2) + '%)');
+
+  // Update AMORTIZATION (monthly payments using simple amortization formula)
+  var annualRate = interestRate / 100;
+  var monthlyRate = annualRate / 12;
+  var terms = [5, 10, 15, 20];
+  terms.forEach(function(years) {
+    var months = years * 12;
+    var monthlyPayment = loanableAmount > 0 ? (loanableAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1) : 0;
+    _setPreviewText(prefix + '_bd_amort_' + years, _formatPeso(monthlyPayment));
+  });
+
+  // Update REQUIRED INCOME (typically monthly payment * 3 for DTI of 35%)
+  terms.forEach(function(years) {
+    var months = years * 12;
+    var monthlyPayment = loanableAmount > 0 ? (loanableAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1) : 0;
+    var requiredIncome = monthlyPayment * 3; // Assuming 35% DTI threshold
+    _setPreviewText(prefix + '_bd_income_' + years, _formatPeso(requiredIncome));
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
   function hardenAddressAutofill(ids) {
@@ -73,6 +173,42 @@ document.addEventListener('DOMContentLoaded', function () {
     'ep_region_select', 'ep_province_select', 'ep_citymun_select', 'ep_barangay_select'
   ]);
 
+  ['acp', 'ep'].forEach(function (prefix) {
+    var interestInput = document.getElementById(prefix + '_interest_rate');
+    if (interestInput && !String(interestInput.value || '').trim()) {
+      interestInput.value = '8.5';
+    }
+    ['price', 'promo_discount_rate', 'downpayment_rate', 'vat_rate', 'lmf_rate', 'interest_rate'].forEach(function (field) {
+      _bind(prefix + '_' + field, 'input', function () {
+        _syncPropertyPricingPreview(prefix);
+      });
+    });
+    // Also bind additional fields for full breakdown updates
+    ['reservation_fee', 'downpayment_terms_months', 'loanable_percentage'].forEach(function (field) {
+      _bind(prefix + '_' + field, 'input', function () {
+        _updateFullPricingBreakdown(prefix);
+      });
+    });
+    _syncPropertyPricingPreview(prefix);
+  });
+
+  // Pricing Breakdown Toggle Buttons
+  ['acp', 'ep'].forEach(function (prefix) {
+    var toggleBtn = document.getElementById(prefix + 'BreakdownToggle');
+    var toggleIcon = document.getElementById(prefix + 'BreakdownToggleIcon');
+    var contentDiv = document.getElementById(prefix + 'BreakdownContent');
+    if (toggleBtn && contentDiv) {
+      toggleBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        contentDiv.classList.toggle('d-none');
+        if (toggleIcon) {
+          var isHidden = contentDiv.classList.contains('d-none');
+          toggleIcon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+      });
+    }
+  });
+
   // ══════════════════════════════════════════════════════════════
   // 1. ADMIN — Single-page section switching via data-page links
   // ══════════════════════════════════════════════════════════════
@@ -82,6 +218,15 @@ document.addEventListener('DOMContentLoaded', function () {
   var gotoLinks    = document.querySelectorAll('[data-goto]');
 
   function showPage(pageId) {
+    // Clear project filter when navigating away from subdivisions
+    if (pageId !== 'subdivisions') {
+      _selectedProjectIdForSubdivisions = null;
+      _selectedProjectLocationForSubdivisions = null;
+    }
+    if (pageId !== 'properties') {
+      _selectedSubdivisionNameForModels = '';
+    }
+    
     // Hide all pages (fetch dynamically to ensure all are included)
     var allPages = document.querySelectorAll('.dash-page');
     allPages.forEach(function (p) { p.classList.add('d-none'); });
@@ -290,6 +435,7 @@ document.addEventListener('DOMContentLoaded', function () {
     input.addEventListener('input', apply);
     if (sel)    sel.addEventListener('change', apply);
     if (selSub) selSub.addEventListener('change', apply);
+    window._applyPropertyFilters = apply;
   })();
 
 
@@ -670,21 +816,49 @@ entriesEl.innerHTML = rows.map(function (row) {
     function apply() {
       var term = input ? input.value.trim().toLowerCase() : '';
       var loc  = sel   ? sel.value.toLowerCase() : '';
+      var projectId = _selectedProjectIdForSubdivisions;
       var visibleCount = 0;
       grid.querySelectorAll('.sub-card-col').forEach(function (col) {
         var name   = (col.getAttribute('data-sub-name') || '').toLowerCase();
         var rowLoc = (col.getAttribute('data-location') || '').toLowerCase();
+        var subCard = col.querySelector('.sub-card');
+        var rowProjId = subCard ? (subCard.getAttribute('data-sub-project-id') || '') : '';
         var textMatch = !term || name.includes(term);
         var locMatch  = !loc  || rowLoc === loc;
-        var show = textMatch && locMatch;
+        var projMatch = !projectId || rowProjId === projectId;
+        var show = textMatch && locMatch && projMatch;
         col.style.display = show ? '' : 'none';
         if (show) visibleCount++;
       });
-      if (noRes) noRes.classList.toggle('d-none', visibleCount > 0 || (!term && !loc));
+      if (noRes) noRes.classList.toggle('d-none', visibleCount > 0 || (!term && !loc && !projectId));
     }
     if (input) input.addEventListener('input', apply);
     if (sel)   sel.addEventListener('change', apply);
+    window._applySubdivisionFilters = apply;
   })();
+
+  // Helper function to set the location filter
+  window._setLocationFilter = function(location) {
+    var sel = document.getElementById('subLocationFilter');
+    if (!sel) return;
+    sel.value = location || '';
+    // Trigger the change event to apply filtering
+    var event = new Event('change', { bubbles: true });
+    sel.dispatchEvent(event);
+  };
+
+  window._setPropertySubdivisionFilter = function(subdivisionName) {
+    var sel = document.getElementById('propSubdivisionFilter');
+    if (!sel) return;
+    sel.value = subdivisionName || '';
+  };
+
+  window._openModelsWithFilters = function(projectName, subdivisionName) {
+    _selectedSubdivisionNameForModels = subdivisionName || '';
+    if (typeof showPage === 'function') showPage('properties');
+    _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels);
+    if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
+  };
 
   // Restore the last active page after a reload (e.g. after saving a project)
   try {
@@ -1292,7 +1466,7 @@ function _buildSubCard(subId, name, loc, desc, imageIds, propCount, locMeta, pro
         (loc ? '<div class="sub-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escHtml(loc) + '</div>' : '') +
         '<div class="sub-card-footer">' +
           '<span class="sub-card-badge">' + propLabel + '</span>' +
-          '<a href="#" class="sub-card-manage" data-goto="properties">Manage <i class="fas fa-arrow-right ms-1"></i></a>' +
+          '<a href="#" class="sub-card-manage" data-goto="properties" data-model-subdivision="' + _escAttr(name) + '">Manage <i class="fas fa-arrow-right ms-1"></i></a>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -2155,7 +2329,7 @@ function openSubdivisionEditor(card) {
         '</button>';
       wrap.appendChild(tile);
     });
-    ['editSubProject','editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
+    ['editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
       var el = document.getElementById(id); if (el) el.selectedIndex = 0;
     });
     _preselectEditSubdivisionPsgc({
@@ -2170,7 +2344,7 @@ function openSubdivisionEditor(card) {
     });
   }
 
-  ['editSubProject','editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
+  ['editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.selectedIndex = 0;
   });
   document.getElementById('editSubImages').value = '';
@@ -2271,7 +2445,7 @@ _bind('editSubdivisionModal', 'hidden.bs.modal', function() {
   ['editSubSiteNotes','editSubStreet','editSubBlock','editSubLotNo','editSubLocation','editSubRegionCode','editSubRegionName','editSubProvinceCode','editSubProvinceName','editSubCitymunCode','editSubCitymunName','editSubBarangayCode','editSubBarangayName'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
-  ['editSubProject','editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
+  ['editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.selectedIndex = 0;
   });
   var inputEl = document.getElementById('editSubImages');
@@ -2501,6 +2675,7 @@ document.addEventListener('click', function(e) {
   if (!trigger) return;
   if (e.target.closest('.sub-card-actions')) return;
   if (e.target.closest('.sub-card-manage')) return;
+  if (e.target.closest('.sub-card-body')) return;
 
   var card = trigger.closest('.sub-card');
   if (!card) return;
@@ -2548,7 +2723,7 @@ document.addEventListener('click', function(e) {
   document.getElementById('subPreviewManageLink').onclick = function(ev) {
     ev.preventDefault();
     bootstrap.Modal.getInstance(document.getElementById('subPreviewModal')).hide();
-    var manageLink = document.querySelector('.sub-card-manage[data-goto]');
+    var manageLink = document.querySelector('.sub-card[data-sub-id="' + subId + '"] .sub-card-manage[data-goto]');
     if (manageLink) manageLink.click();
   };
 
@@ -2564,9 +2739,37 @@ document.addEventListener('click', function(e) {
   _openSubdivisionEditorFromPreview(subId);
 });
 
+document.addEventListener('click', function(e) {
+  var navBody = e.target.closest('.sub-card-body.sub-card-preview-trigger');
+  if (navBody) {
+    var navCard = navBody.closest('.sub-card');
+    if (!navCard) return;
+    if (e.target.closest('.sub-card-actions')) return;
+    if (e.target.closest('.sub-card-manage')) return;
+    e.preventDefault();
+    _selectedSubdivisionNameForModels = navCard.dataset.subName || '';
+    _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels);
+    if (typeof showPage === 'function') showPage('properties');
+    if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
+    return;
+  }
+
+  var manage = e.target.closest('.sub-card-manage[data-goto="properties"]');
+  if (!manage) return;
+  var subdivisionName = manage.getAttribute('data-model-subdivision') || '';
+  _selectedSubdivisionNameForModels = subdivisionName;
+  setTimeout(function() {
+    _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels);
+    if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
+  }, 60);
+});
+
 /* ── Project cards: preview modal handlers ──────────────────── */
 var _projectPreviewImages = [];
 var _projectPreviewIdx = 0;
+var _selectedProjectIdForSubdivisions = null;
+var _selectedProjectLocationForSubdivisions = null;
+var _selectedSubdivisionNameForModels = '';
 
 function _showProjectPreviewSlide(idx) {
   _projectPreviewIdx = idx;
@@ -2615,10 +2818,33 @@ _bind('projectPreviewDots', 'click', function(e) {
   _showProjectPreviewSlide(parseInt(dot.dataset.idx, 10));
 });
 
+// Navigate to subdivisions when clicking on project card body/name
+document.addEventListener('click', function(e) {
+  var bodyTrigger = e.target.closest('.sub-card-body.project-card-preview-trigger');
+  if (!bodyTrigger) return;
+  
+  var card = bodyTrigger.closest('.sub-card');
+  if (!card || !card.dataset.projectId) return;
+  
+  e.preventDefault();
+  _selectedProjectIdForSubdivisions = card.dataset.projectId;
+  _selectedProjectLocationForSubdivisions = card.dataset.projectLocation || '';
+  if (typeof showPage === 'function') {
+    showPage('subdivisions');
+    setTimeout(function() { 
+      _applySubdivisionFilters();
+      _setLocationFilter(_selectedProjectLocationForSubdivisions);
+    }, 100);
+  }
+});
+
 document.addEventListener('click', function(e) {
   var trigger = e.target.closest('.project-card-preview-trigger, .project-preview-btn');
   if (!trigger) return;
   if (e.target.closest('.sub-card-action-delete')) return;
+  
+  // Skip if clicking on card body - that's handled by the navigation handler above
+  if (e.target.closest('.sub-card-body')) return;
 
   var card = trigger.closest('.sub-card');
   if (!card || !card.dataset.projectId) return;
@@ -2677,7 +2903,13 @@ document.addEventListener('click', function(e) {
     manageLink.onclick = function(ev) {
       ev.preventDefault();
       bootstrap.Modal.getInstance(document.getElementById('projectPreviewModal'))?.hide();
+      _selectedProjectIdForSubdivisions = projectId;
+      _selectedProjectLocationForSubdivisions = loc || '';
       if (typeof showPage === 'function') showPage('subdivisions');
+      setTimeout(function() { 
+        _applySubdivisionFilters();
+        _setLocationFilter(_selectedProjectLocationForSubdivisions);
+      }, 100);
     };
   }
 
@@ -2998,7 +3230,7 @@ function _renderPropertyDetailsModal(prop) {
   var downpay_months = parseInt(prop.downpayment_terms_months) || 24;
   var loanable = parseFloat(prop.loanable_percentage) || 80;
   var resv_fee = parseFloat(prop.reservation_fee) || 0;
-  var interest_rate = 8.5; // Standard 8.5% annual
+  var interest_rate = parseFloat(prop.interest_rate) || parseFloat(prop.annual_interest_rate) || 8.5;
   
   // Calculate pricing
   var promo_amount = tcp * (promo / 100);
@@ -3891,6 +4123,7 @@ function _openAdminEditPropertyModal(d) {
   document.getElementById('ep_downpayment_rate').value = cleanNumericText(d.propDownpaymentRate, '0');
   document.getElementById('ep_downpayment_terms_months').value = cleanNumericText(d.propDownpaymentTermsMonths, '0');
   document.getElementById('ep_loanable_percentage').value = cleanNumericText(d.propLoanablePercentage, '0');
+  document.getElementById('ep_interest_rate').value = cleanNumericText(d.propInterestRate, '8.5');
   document.getElementById('ep_vat_rate').value = cleanNumericText(d.propVatRate, '0');
   document.getElementById('ep_lmf_rate').value = cleanNumericText(d.propLmfRate, '0');
   document.getElementById('ep_bedrooms').value = d.propBedrooms || '0';
@@ -3901,6 +4134,8 @@ function _openAdminEditPropertyModal(d) {
   document.getElementById('ep_description').value = d.propDescription || '';
   document.getElementById('ep_subdivision').value = d.propSubdivisionId || '';
   document.getElementById('ep_unit_id').value = d.propUnitId || '';
+  _syncPropertyPricingPreview('ep');
+  _updateFullPricingBreakdown('ep');
 
   var listing = (d.propListingStatus || '').toLowerCase();
   var listingBadge = listing === 'sold'
@@ -4185,7 +4420,7 @@ function _editAvailabilityNote(noteEl) {
   if (!displaySpan) return;
   
   var currentText = displaySpan.textContent || '';
-  var autoCount = String(noteEl.dataset.autoCount || '0').trim();
+  var isEmptyState = !String(noteEl.dataset.customNote || '').trim();
   
   // Enter edit mode
   noteEl.classList.add('editing');
@@ -4194,9 +4429,9 @@ function _editAvailabilityNote(noteEl) {
   var input = document.createElement('input');
   input.type = 'text';
   input.className = 'edit-input';
-  input.value = currentText;
+  input.value = currentText === 'Add note' ? '' : currentText;
   input.maxLength = '255';
-  input.placeholder = autoCount + ' house' + (autoCount !== '1' ? 's' : '') + ' left';
+  input.placeholder = isEmptyState ? 'Add availability note' : 'Edit availability note';
   
   // Replace display span with input, hide edit icon
   displaySpan.style.display = 'none';
@@ -4247,7 +4482,8 @@ function _editAvailabilityNote(noteEl) {
         }
         // Exit edit mode successfully
         noteEl.classList.remove('editing');
-        var newText = res.data.custom_note || (autoCount + ' house' + (autoCount !== '1' ? 's' : '') + ' left');
+        var newText = res.data.custom_note || 'Add note';
+        noteEl.dataset.customNote = res.data.custom_note || '';
         displaySpan.textContent = newText;
         displaySpan.style.display = '';
         if (editIcon) editIcon.style.display = '';
@@ -4347,33 +4583,30 @@ function _refreshAvailabilityNotes() {
   var cards = Array.prototype.slice.call(document.querySelectorAll('#page-properties .prop-card-clickable'));
   if (!cards.length) return;
 
-  var counts = {};
   cards.forEach(function(card) {
-    if (String(card.dataset.propListingStatus || 'available').toLowerCase() !== 'available') return;
-    var key = _propModelKeyFromCard(card);
-    if (!key) return;
-    counts[key] = (counts[key] || 0) + 1;
-  });
-
-  cards.forEach(function(card) {
-    var key = _propModelKeyFromCard(card);
     var status = String(card.dataset.propListingStatus || 'available').toLowerCase();
-    var count = key ? Number(counts[key] || 0) : 0;
-    card.dataset.propAvailableLeft = String(count);
+    var customNote = String(card.dataset.propCustomAvailabilityNote || '').trim();
 
     var body = card.querySelector('.prop-card-body');
     if (!body) return;
     var noteEl = body.querySelector('.prop-availability-note');
 
-    if (status === 'available' && count > 0) {
-      var text = count + ' house' + (count === 1 ? '' : 's') + ' left';
-      if (noteEl) {
-        noteEl.textContent = text;
-      } else {
+    if (status === 'available') {
+      if (!noteEl) {
         var header = body.querySelector('.prop-card-header');
         if (header) {
-          header.insertAdjacentHTML('afterend', '<div class="prop-availability-note">' + _escapeHtml(text) + '</div>');
+          header.insertAdjacentHTML('afterend', '<div class="prop-availability-note editable-note" role="button" tabindex="0" data-prop-id="' + _escapeHtml(card.dataset.propId || '') + '" data-custom-note=""><span class="note-display">Add note</span><i class="fas fa-edit edit-icon ms-1" style="opacity: 0; transition: opacity 0.2s;"></i></div>');
+          noteEl = body.querySelector('.prop-availability-note');
         }
+      }
+      if (noteEl) {
+        var displaySpan = noteEl.querySelector('.note-display');
+        if (displaySpan) displaySpan.textContent = customNote || 'Add note';
+        noteEl.dataset.customNote = customNote;
+        noteEl.classList.toggle('empty-note', !customNote);
+        noteEl.title = customNote ? 'Click to edit availability note' : 'Click to add availability note';
+        var editIcon = noteEl.querySelector('.edit-icon');
+        if (editIcon) editIcon.style.display = '';
       }
     } else if (noteEl) {
       noteEl.remove();
@@ -4607,6 +4840,14 @@ _bind('editPropBtn', 'click', function() {
   fd.append('lot_no', (document.getElementById('ep_lot_no').value || '').trim());
   fd.append('unit_type', unitType);
   fd.append('price', price);
+  fd.append('promo_discount_rate', document.getElementById('ep_promo_discount_rate').value || '0');
+  fd.append('reservation_fee', document.getElementById('ep_reservation_fee').value || '0');
+  fd.append('downpayment_rate', document.getElementById('ep_downpayment_rate').value || '0');
+  fd.append('downpayment_terms_months', document.getElementById('ep_downpayment_terms_months').value || '0');
+  fd.append('loanable_percentage', document.getElementById('ep_loanable_percentage').value || '0');
+  fd.append('interest_rate', document.getElementById('ep_interest_rate').value || '8.5');
+  fd.append('vat_rate', document.getElementById('ep_vat_rate').value || '0');
+  fd.append('lmf_rate', document.getElementById('ep_lmf_rate').value || '0');
   fd.append('bedrooms', document.getElementById('ep_bedrooms').value || '0');
   fd.append('bathrooms', document.getElementById('ep_bathrooms').value || '0');
   fd.append('storeys', document.getElementById('ep_storeys').value || '1');
@@ -7272,6 +7513,7 @@ var _pendingAcpFiles = [];
     if (fInput) fInput.value = '';
     var fnEl = document.getElementById('acp_images_filenames');
     if (fnEl) fnEl.value = '';
+    _syncPropertyPricingPreview('acp');
   }
 
   function _escapeHtml(str) {
@@ -7345,13 +7587,23 @@ var _pendingAcpFiles = [];
       + ' data-prop-barangay-name="' + _escapeHtml(prop.barangay_name || '') + '"'
       + ' data-prop-unit-id="' + _escapeHtml(prop.unit_id || '') + '"'
       + ' data-prop-type="' + _escapeHtml(propType) + '"'
+      + ' data-prop-unit-type="' + _escapeHtml(prop.unit_type || '') + '"'
       + ' data-prop-price="' + _escapeHtml(priceNum ? priceNum.toLocaleString('en-PH', { maximumFractionDigits: 0 }) : '0') + '"'
+      + ' data-prop-promo-discount-rate="' + _escapeHtml(prop.promo_discount_rate || 0) + '"'
+      + ' data-prop-reservation-fee="' + _escapeHtml(prop.reservation_fee || 0) + '"'
+      + ' data-prop-downpayment-rate="' + _escapeHtml(prop.downpayment_rate || 0) + '"'
+      + ' data-prop-downpayment-terms-months="' + _escapeHtml(prop.downpayment_terms_months || 0) + '"'
+      + ' data-prop-loanable-percentage="' + _escapeHtml(prop.loanable_percentage || 0) + '"'
+      + ' data-prop-interest-rate="' + _escapeHtml(prop.interest_rate || 8.5) + '"'
+      + ' data-prop-vat-rate="' + _escapeHtml(prop.vat_rate || 0) + '"'
+      + ' data-prop-lmf-rate="' + _escapeHtml(prop.lmf_rate || 0) + '"'
       + ' data-prop-bedrooms="' + _escapeHtml(prop.bedrooms || '') + '"'
       + ' data-prop-bathrooms="' + _escapeHtml(prop.bathrooms || '') + '"'
       + ' data-prop-storeys="' + _escapeHtml(prop.storeys || '') + '"'
       + ' data-prop-floor-area="' + _escapeHtml(prop.floor_area || '') + '"'
       + ' data-prop-lot-area="' + _escapeHtml(prop.lot_area || '') + '"'
       + ' data-prop-description="' + _escapeHtml(prop.description || '') + '"'
+      + ' data-prop-custom-availability-note="' + _escapeHtml(prop.custom_availability_note || '') + '"'
       + ' data-prop-subdivision-id="' + _escapeHtml(prop.subdivision_id || '') + '"'
       + ' data-prop-agent="' + _escapeHtml(prop.agent_name || '') + '"'
       + ' data-prop-added="' + _escapeHtml(prop.created_at || '') + '"'
@@ -7377,6 +7629,9 @@ var _pendingAcpFiles = [];
       + '      <div class="prop-card-name">' + _escapeHtml(name) + '</div>'
       + '      ' + _statusToggleHtml(prop.id, listingStatus)
       + '    </div>'
+        + (listingStatus === 'available'
+          ? '    <div class="prop-availability-note editable-note' + (prop.custom_availability_note ? '' : ' empty-note') + '" role="button" tabindex="0" data-prop-id="' + _escapeHtml(prop.id) + '" data-custom-note="' + _escapeHtml(prop.custom_availability_note || '') + '" title="' + _escapeHtml(prop.custom_availability_note ? 'Click to edit availability note' : 'Click to add availability note') + '"><span class="note-display">' + _escapeHtml(prop.custom_availability_note || 'Add note') + '</span><i class="fas fa-edit edit-icon ms-1" style="opacity: 0; transition: opacity 0.2s;"></i></div>'
+          : '')
       + '    <div class="prop-card-header">'
       + '      <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escapeHtml(location) + '</div>'
       + '      <div class="prop-card-icons">'
@@ -7501,6 +7756,7 @@ var _pendingAcpFiles = [];
     fd.append('downpayment_rate', val('acp_downpayment_rate') || '0');
     fd.append('downpayment_terms_months', val('acp_downpayment_terms_months') || '0');
     fd.append('loanable_percentage', val('acp_loanable_percentage') || '0');
+    fd.append('interest_rate', val('acp_interest_rate') || '8.5');
     fd.append('vat_rate', val('acp_vat_rate') || '0');
     fd.append('lmf_rate', val('acp_lmf_rate') || '0');
     fd.append('bedrooms', val('acp_bedrooms') || '0');
@@ -7563,7 +7819,16 @@ var _pendingAcpFiles = [];
           name: name,
           location: location,
           prop_type: propType,
+          unit_type: unitType,
           price: parseFloat(price || '0') || 0,
+          promo_discount_rate: parseFloat(val('acp_promo_discount_rate') || '0') || 0,
+          reservation_fee: parseFloat(val('acp_reservation_fee') || '0') || 0,
+          downpayment_rate: parseFloat(val('acp_downpayment_rate') || '0') || 0,
+          downpayment_terms_months: parseInt(val('acp_downpayment_terms_months') || '0', 10) || 0,
+          loanable_percentage: parseFloat(val('acp_loanable_percentage') || '0') || 0,
+          interest_rate: parseFloat(val('acp_interest_rate') || '8.5') || 8.5,
+          vat_rate: parseFloat(val('acp_vat_rate') || '0') || 0,
+          lmf_rate: parseFloat(val('acp_lmf_rate') || '0') || 0,
           bedrooms: val('acp_bedrooms') || '',
           bathrooms: val('acp_bathrooms') || '',
           storeys: val('acp_storeys') || '',

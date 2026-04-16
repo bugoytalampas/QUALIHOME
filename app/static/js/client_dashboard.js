@@ -83,10 +83,10 @@
     if (res.ok && data && data.ok) {
       var proxyItems = Array.isArray(data.items) ? data.items : [];
       psgcLog('info', 'Proxy PSGC response received', { path: path, count: proxyItems.length });
-      if (proxyItems.length > 0 || path.indexOf('/api/psgc/regions') !== 0) {
+      if (proxyItems.length > 0) {
         return proxyItems;
       }
-      psgcLog('warn', 'Proxy returned empty regions; attempting direct PSGC fallback', { path: path });
+      psgcLog('warn', 'Proxy returned empty PSGC items; attempting direct PSGC fallback', { path: path });
     }
 
     var apiBase = 'https://psgc.gitlab.io/api';
@@ -2412,15 +2412,15 @@
       var threshold = 0.7;
 
       if (!(income > 0) || !(req > 0)) {
-        return '<span style="color:#6c757d;">Unavailable</span>';
+        return '<span class="pvm-req-status pvm-req-status-unavailable">Unavailable</span>';
       }
       if (income >= req) {
-        return '<span style="color:#28a745;">Qualified</span>';
+        return '<span class="pvm-req-status pvm-req-status-qualified">Qualified</span>';
       }
       if (income >= (req * threshold) && income < req) {
-        return '<span style="color:#ffc107;">Conditional</span>';
+        return '<span class="pvm-req-status pvm-req-status-conditional">Conditional</span>';
       }
-      return '<span style="color:#dc3545;">Not Qualified</span>';
+      return '<span class="pvm-req-status pvm-req-status-not-qualified">Not Qualified</span>';
     }
 
     setText('pvmTotalSellingPrice', formatPhp(pricingData.total_selling_price || pricingData.tcp));
@@ -2677,60 +2677,63 @@
 
     // Handle Conditional Requirements button
     var condReqBtn = document.getElementById('pvmConditionalReqsBtn');
-    
-    // Get current qualification filter value
     var qualFilterEl = document.getElementById('browseQualifiedFilter');
-    var qualFilterValue = qualFilterEl ? qualFilterEl.value : '';
-    
-    // Only show button if a SPECIFIC filter is selected (not "All")
-    var hasSpecificFilter = qualFilterValue && qualFilterValue !== '';
-    
-    var isConditional = false;
-    var statusText = 'No filter selected';
-    
-    if (hasSpecificFilter) {
-      // Extract loan term from filter (e.g., "qualified_5" → "5")
-      var selectedTerm = '5'; // fallback
-      if (qualFilterValue.includes('_')) {
-        selectedTerm = qualFilterValue.split('_')[1] || '5';
-      }
-      
-      // Calculate qualification using the SAME logic as the browse filter
+    var qualYearEl = document.getElementById('pvmQualYearSelect');
+    var qualStatusEl = document.getElementById('pvmQualStatusText');
+    var qualIndicatorEl = document.getElementById('pvmQualStatusIndicator');
+
+    function getSelectedTermFromBrowseFilter() {
+      var qVal = qualFilterEl ? String(qualFilterEl.value || '') : '';
+      var match = qVal.match(/(5|10|15|20)/);
+      return match ? match[1] : '';
+    }
+
+    function getClientIncomeFromBrowsePage() {
       var browsePage = document.getElementById('page-browse');
-      var clientIncome = 0;
-      if (browsePage) {
-        clientIncome = parseFloat(browsePage.dataset.userGrossIncome || browsePage.getAttribute('data-user-gross-income') || '0');
-      }
-      
-      // Prefer browse wrapper data because filters are computed from .browse-card-col.
+      if (!browsePage) return 0;
+      var income = parseFloat(browsePage.dataset.userGrossIncome || browsePage.getAttribute('data-user-gross-income') || '0');
+      return isNaN(income) ? 0 : income;
+    }
+
+    function getRequiredIncomeForTerm(term) {
+      var requiredIncome = 0;
       var sourceCol = card;
       if (card && typeof card.closest === 'function') {
         sourceCol = card.closest('.browse-card-col') || card;
       }
 
-      // Get required income for this term from card data, with fallback to pricing JSON.
-      var requiredIncome = 0;
       if (sourceCol) {
-        var camelKey = 'reqIncome' + selectedTerm;
+        var camelKey = 'reqIncome' + term;
         requiredIncome = parseFloat(sourceCol.dataset[camelKey] || 0);
         if (!requiredIncome || requiredIncome <= 0) {
-          requiredIncome = parseFloat(sourceCol.getAttribute('data-req-income-' + selectedTerm) || 0);
+          requiredIncome = parseFloat(sourceCol.getAttribute('data-req-income-' + term) || 0);
         }
-      }
-      if ((!requiredIncome || requiredIncome <= 0) && card && card !== sourceCol) {
-        var altCamelKey = 'reqIncome' + selectedTerm;
-        requiredIncome = parseFloat(card.dataset[altCamelKey] || 0);
-        if (!requiredIncome || requiredIncome <= 0) {
-          requiredIncome = parseFloat(card.getAttribute('data-req-income-' + selectedTerm) || 0);
-        }
-      }
-      if ((!requiredIncome || requiredIncome <= 0) && pricingData && pricingData.required_monthly_income) {
-        var reqMap = pricingData.required_monthly_income;
-        requiredIncome = parseFloat(reqMap[selectedTerm] || reqMap[String(selectedTerm)] || 0);
       }
 
-      // Same thresholds as browse filter.
+      if ((!requiredIncome || requiredIncome <= 0) && card && card !== sourceCol) {
+        var altCamelKey = 'reqIncome' + term;
+        requiredIncome = parseFloat(card.dataset[altCamelKey] || 0);
+        if (!requiredIncome || requiredIncome <= 0) {
+          requiredIncome = parseFloat(card.getAttribute('data-req-income-' + term) || 0);
+        }
+      }
+
+      if ((!requiredIncome || requiredIncome <= 0) && pricingData && pricingData.required_monthly_income) {
+        var reqMap = pricingData.required_monthly_income;
+        requiredIncome = parseFloat(reqMap[term] || reqMap[String(term)] || 0);
+      }
+
+      return requiredIncome;
+    }
+
+    function renderModalQualificationStatus(selectedTerm) {
+      var term = String(selectedTerm || '').trim();
+      if (!term) term = '5';
+
+      var clientIncome = getClientIncomeFromBrowsePage();
+      var requiredIncome = getRequiredIncomeForTerm(term);
       var conditionalThreshold = 0.7;
+
       var isQualifiedForTerm = (clientIncome > 0 && requiredIncome > 0 && clientIncome >= requiredIncome);
       var isConditionalForTerm = (
         clientIncome > 0 &&
@@ -2740,46 +2743,59 @@
       );
       var isNotQualifiedForTerm = !isQualifiedForTerm && !isConditionalForTerm;
 
-      // Show button only for true Conditional status.
-      isConditional = isConditionalForTerm;
-
+      var statusText = '<span class="pvm-req-status pvm-req-status-unavailable"><i class="fas fa-info-circle me-1"></i>Qualification unavailable for ' + term + ' Years</span>';
+      var indicatorStateClass = 'pvm-qual-indicator-unavailable';
       if (isQualifiedForTerm) {
-        statusText = '<span style="color:#28a745;"><i class="fas fa-check-circle me-1"></i>Qualified at ' + selectedTerm + ' Years</span>';
+        statusText = '<span class="pvm-req-status pvm-req-status-qualified"><i class="fas fa-check-circle me-1"></i>Qualified at ' + term + ' Years</span>';
+        indicatorStateClass = 'pvm-qual-indicator-qualified';
       } else if (isConditionalForTerm) {
-        statusText = '<span style="color:#ffc107;"><i class="fas fa-exclamation-circle me-1"></i>Conditional at ' + selectedTerm + ' Years</span>';
+        statusText = '<span class="pvm-req-status pvm-req-status-conditional"><i class="fas fa-exclamation-circle me-1"></i>Conditional at ' + term + ' Years</span>';
+        indicatorStateClass = 'pvm-qual-indicator-conditional';
       } else if (isNotQualifiedForTerm) {
-        statusText = '<span style="color:#dc3545;"><i class="fas fa-times-circle me-1"></i>Not Qualified at ' + selectedTerm + ' Years</span>';
-      } else {
-        statusText = '<span style="color:#6c757d;"><i class="fas fa-info-circle me-1"></i>Qualification unavailable for ' + selectedTerm + ' Years</span>';
+        statusText = '<span class="pvm-req-status pvm-req-status-not-qualified"><i class="fas fa-times-circle me-1"></i>Not Qualified at ' + term + ' Years</span>';
+        indicatorStateClass = 'pvm-qual-indicator-not-qualified';
       }
 
-      console.log('[DEBUG] Modal Qual Calc:', {
-        clientIncome: clientIncome,
-        requiredIncome: requiredIncome,
-        selectedTerm: selectedTerm,
-        isQualifiedForTerm: isQualifiedForTerm,
-        isConditionalForTerm: isConditionalForTerm,
-        isNotQualifiedForTerm: isNotQualifiedForTerm,
-        buttonVisible: isConditional,
-        sourceHasReqIncome: !!(sourceCol && (sourceCol.dataset['reqIncome' + selectedTerm] || sourceCol.getAttribute('data-req-income-' + selectedTerm))),
-        usingPricingFallback: (!sourceCol || (!sourceCol.dataset['reqIncome' + selectedTerm] && !sourceCol.getAttribute('data-req-income-' + selectedTerm)))
-      });
-    }
-    
-    // Update the qualification status indicator in the modal
-    var qualStatusEl = document.getElementById('pvmQualStatusText');
-    if (qualStatusEl) {
-      qualStatusEl.innerHTML = statusText;
-    }
-    
-    if (condReqBtn) {
-      if (isConditional && !isBoughtModel) {
-        condReqBtn.classList.remove('d-none');
-        condReqBtn.dataset.propName = name;
-        condReqBtn.dataset.propId = _pdmPropId;
-      } else {
-        condReqBtn.classList.add('d-none');
+      if (qualStatusEl) qualStatusEl.innerHTML = statusText;
+      if (qualIndicatorEl) {
+        qualIndicatorEl.classList.remove(
+          'pvm-qual-indicator-qualified',
+          'pvm-qual-indicator-conditional',
+          'pvm-qual-indicator-not-qualified',
+          'pvm-qual-indicator-unavailable'
+        );
+        qualIndicatorEl.classList.add(indicatorStateClass);
       }
+
+      if (condReqBtn) {
+        if (isConditionalForTerm && !isBoughtModel) {
+          condReqBtn.classList.remove('d-none');
+          condReqBtn.dataset.propName = name;
+          condReqBtn.dataset.propId = _pdmPropId;
+        } else {
+          condReqBtn.classList.add('d-none');
+        }
+      }
+    }
+
+    var initialTerm = getSelectedTermFromBrowseFilter() || (qualYearEl ? String(qualYearEl.value || '') : '') || '5';
+    if (qualYearEl) qualYearEl.value = initialTerm;
+    renderModalQualificationStatus(initialTerm);
+
+    if (qualYearEl) {
+      qualYearEl.onchange = function () {
+        var pickedTerm = String(this.value || '5');
+        renderModalQualificationStatus(pickedTerm);
+
+        if (qualFilterEl) {
+          var targetFilterValue = 'qualified_' + pickedTerm;
+          if (qualFilterEl.value !== targetFilterValue) {
+            qualFilterEl.value = targetFilterValue;
+            qualFilterEl.dispatchEvent(new Event('change', { bubbles: true }));
+            qualFilterEl.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+      };
     }
 
     renderPricingBreakdown(effectiveDetailStatus, pricingData);
@@ -3500,7 +3516,19 @@
 
   function _fetchJson(url, options) {
     return fetch(url, options || {}).then(function (r) {
-      return r.json().then(function (d) { return { ok: r.ok, data: d || {} }; });
+      var ct = String((r.headers && r.headers.get && r.headers.get('content-type')) || '').toLowerCase();
+      if (ct.indexOf('application/json') !== -1) {
+        return r.json().then(function (d) { return { ok: r.ok, status: r.status, data: d || {} }; });
+      }
+      return r.text().then(function (t) {
+        return {
+          ok: r.ok,
+          status: r.status,
+          data: {
+            error: t ? ('Server returned non-JSON response (HTTP ' + r.status + ').') : ('Request failed (HTTP ' + r.status + ').')
+          }
+        };
+      });
     });
   }
 

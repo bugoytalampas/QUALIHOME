@@ -643,24 +643,33 @@ def _normalize_doc_kind(raw_kind: str | None) -> str | None:
 
 
 # ── Client: upload profile avatar ─────────────────────────────────────────────
-@client_bp.route("/profile/upload-avatar", methods=["POST"])
+@client_bp.route("/profile/upload-avatar", methods=["GET", "POST"])
 @login_required
 @client_required
 def upload_client_avatar():
+    if request.method != "POST":
+        return jsonify({"error": "Method not allowed. Use POST to upload avatar."}), 405
+
     file = request.files.get("avatar")
     if not file or not file.filename:
         return jsonify({"error": "No file provided"}), 400
     ext = os.path.splitext(secure_filename(file.filename))[1].lower()
     if ext not in _ALLOWED_IMG_EXTS:
         return jsonify({"error": "Unsupported file type. Use JPG, PNG, WEBP, or GIF."}), 400
-    profile = current_user.profile
-    if not profile:
-        profile = UserProfile(user_id=current_user.id)
-        db.session.add(profile)
-    profile.avatar_data     = file.read()
-    profile.avatar_mimetype = file.mimetype or "image/jpeg"
-    db.session.commit()
-    return jsonify({"success": True, "url": url_for("main.serve_client_avatar", user_id=current_user.id)})
+
+    try:
+        profile = current_user.profile
+        if not profile:
+            profile = UserProfile(user_id=current_user.id)
+            db.session.add(profile)
+        profile.avatar_data     = file.read()
+        profile.avatar_mimetype = file.mimetype or "image/jpeg"
+        db.session.commit()
+        return jsonify({"success": True, "url": url_for("main.serve_client_avatar", user_id=current_user.id)})
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Failed to upload client avatar")
+        return jsonify({"error": "Failed to upload profile photo. Please try a smaller JPG/PNG/WEBP file."}), 500
 
 
 # ── Client: upload profile banner ─────────────────────────────────────────────

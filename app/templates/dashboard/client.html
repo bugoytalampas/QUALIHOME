@@ -620,9 +620,23 @@
         </div>
 
         <!-- Qualification Status Indicator -->
-        <div id="pvmQualStatusIndicator" class="mb-3 p-2 rounded" style="background-color: #f8f9fa; border-left: 3px solid #6c757d;">
-          <small class="text-muted">Qualification Status (Filter):</small>
-          <div id="pvmQualStatusText" class="fw-bold" style="font-size:0.95rem; margin-top:4px;">—</div>
+        <div id="pvmQualStatusIndicator" class="pvm-qual-indicator pvm-qual-indicator-unavailable mb-3">
+          <div class="pvm-qual-head">
+            <div class="pvm-qual-title-wrap">
+              <span class="pvm-qual-title">Qualification Status</span>
+              <span class="pvm-qual-subtitle">Income fit by loan term</span>
+            </div>
+            <div class="pvm-qual-year-wrap">
+              <small class="pvm-qual-year-label mb-0">Year</small>
+              <select id="pvmQualYearSelect" class="form-select form-select-sm pvm-qual-year-select">
+                <option value="5">5 Years</option>
+                <option value="10">10 Years</option>
+                <option value="15">15 Years</option>
+                <option value="20">20 Years</option>
+              </select>
+            </div>
+          </div>
+          <div id="pvmQualStatusText" class="pvm-qual-status-text">—</div>
         </div>
 
         <!-- Icon chips (beds / baths / storeys / areas) -->
@@ -2462,8 +2476,8 @@
                 <span><i class="fas fa-city me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
-              {% if (p.status or '').lower() == 'available' and available_units_left_by_prop_id.get(p.id, 0) > 0 %}
-              <div class="prop-availability-note">{% if p.custom_availability_note %}{{ p.custom_availability_note }}{% else %}{{ available_units_left_by_prop_id.get(p.id, 0) }} house{{ '' if available_units_left_by_prop_id.get(p.id, 0) == 1 else 's' }} left{% endif %}</div>
+              {% if (p.status or '').lower() == 'available' and p.custom_availability_note %}
+              <div class="prop-availability-note">{{ p.custom_availability_note }}</div>
               {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-lime' if detail_status == 'approved' else ('btn-outline-crimson' if detail_status == 'pending' else 'btn-outline-blue') }} w-100 mt-2 prop-card-details-btn"
@@ -2592,8 +2606,8 @@
                 <span><i class="fas fa-city me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
-              {% if (p.status or '').lower() == 'available' and available_units_left_by_prop_id.get(p.id, 0) > 0 %}
-              <div class="prop-availability-note">{% if p.custom_availability_note %}{{ p.custom_availability_note }}{% else %}{{ available_units_left_by_prop_id.get(p.id, 0) }} house{{ '' if available_units_left_by_prop_id.get(p.id, 0) == 1 else 's' }} left{% endif %}</div>
+              {% if (p.status or '').lower() == 'available' and p.custom_availability_note %}
+              <div class="prop-availability-note">{{ p.custom_availability_note }}</div>
               {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-lime' if detail_status == 'approved' else ('btn-outline-crimson' if detail_status == 'pending' else 'btn-outline-blue') }} w-100 mt-2 prop-card-details-btn"
@@ -2920,8 +2934,8 @@
                 <span><i class="fas fa-map-pin me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
-              {% if (p.status or '').lower() == 'available' and available_units_left_by_prop_id.get(p.id, 0) > 0 %}
-              <div class="prop-availability-note">{% if p.custom_availability_note %}{{ p.custom_availability_note }}{% else %}{{ available_units_left_by_prop_id.get(p.id, 0) }} house{{ '' if available_units_left_by_prop_id.get(p.id, 0) == 1 else 's' }} left{% endif %}</div>
+              {% if (p.status or '').lower() == 'available' and p.custom_availability_note %}
+              <div class="prop-availability-note">{{ p.custom_availability_note }}</div>
               {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-blue' if p.id in visited_prop_ids else ('btn-outline-crimson' if has_request else 'btn-lime') }} w-100 mt-2 prop-card-request-btn"
