@@ -988,7 +988,7 @@
               <label class="sqh-form-label">Unit ID</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
-                <input type="text" id="ep_unit_id" class="form-control sqh-form-control sqh-disabled-field" disabled placeholder="Auto-generated" readonly>
+                <input type="text" id="ep_unit_id" class="form-control sqh-form-control" placeholder="e.g. CAMELLA-UNIT-001" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
               </div>
             </div>
             <div class="col-md-6">
@@ -2177,7 +2177,7 @@
               <label class="sqh-form-label">Unit ID</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
-                <input type="text" id="acp_unit_id" class="form-control sqh-form-control sqh-disabled-field" placeholder="Auto-generated after save" readonly disabled>
+                <input type="text" id="acp_unit_id" class="form-control sqh-form-control" placeholder="e.g. CAMELLA-UNIT-001" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
               </div>
             </div>
           </div>
@@ -2697,7 +2697,7 @@
           <select id="propSubdivisionFilter" class="form-select dash-fb-select">
             <option value="">All Project / Subdivisions</option>
             {% for sub in all_subdivisions %}
-            <option value="{{ sub.name }}">{{ (sub.project.name ~ ' / ') if sub.project else '' }}{{ sub.name }}</option>
+            <option value="{{ sub.name }}" data-sub-id="{{ sub.id }}">{{ (sub.project.name ~ ' / ') if sub.project else '' }}{{ sub.name }}</option>
             {% endfor %}
             <option value="__none__">— No Subdivision —</option>
           </select>
@@ -2721,7 +2721,8 @@
               data-status="{{ p.status or 'available' }}"
               data-prop-name="{{ p.name }}"
               data-prop-loc="{{ full_loc }}"
-              data-prop-subdiv="{{ p.subdivision.name if p.subdivision else '' }}">
+              data-prop-subdiv="{{ p.subdivision.name if p.subdivision else '' }}"
+              data-prop-subdiv-id="{{ p.subdivision_id or '' }}">
             <div class="prop-card prop-card-clickable"
                  data-prop-id="{{ p.id }}"
                  data-prop-name="{{ p.name }}"
@@ -3567,7 +3568,7 @@
                 {% endif %}
                 <div class="sub-card-footer">
                   <span class="sub-card-badge">{{ s.properties|length }} Model{{ 's' if s.properties|length != 1 else 'y' }}</span>
-                  <a href="#" class="sub-card-manage" data-goto="properties" data-model-subdivision="{{ s.name }}">Manage <i class="fas fa-arrow-right ms-1"></i></a>
+                  <a href="#" class="sub-card-manage" data-goto="properties" data-model-subdivision="{{ s.name }}" data-model-subdivision-id="{{ s.id }}">Manage <i class="fas fa-arrow-right ms-1"></i></a>
                 </div>
               </div>
             </div>

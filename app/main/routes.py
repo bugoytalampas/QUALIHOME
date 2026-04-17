@@ -3050,11 +3050,18 @@ def agent_submit_property():
     barangay_code = (request.form.get("barangay_code") or "").strip()
     barangay_name = (request.form.get("barangay_name") or "").strip()
     prop_type = "house-and-lot"
+    unit_id = (request.form.get("unit_id") or "").strip()
     unit_type = (request.form.get("unit_type") or "").strip()
     price_str = (request.form.get("price") or "").strip()
 
-    if not name or not unit_type or not price_str:
-        return jsonify({"error": "Name, unit type, and total selling price are required."}), 400
+    if not name or not unit_id or not unit_type or not price_str:
+        return jsonify({"error": "Name, unit ID, unit type, and total selling price are required."}), 400
+
+    existing_unit = (Property.query
+                     .filter(db.func.lower(Property.unit_id) == unit_id.lower())
+                     .first())
+    if existing_unit:
+        return jsonify({"error": f"Unit ID '{unit_id}' is already in use. Please use a unique Unit ID."}), 409
 
     sub_id_raw = request.form.get("subdivision_id")
     try:
@@ -3129,6 +3136,7 @@ def agent_submit_property():
         barangay_code=barangay_code or None,
         barangay_name=barangay_name or None,
         prop_type=prop_type, price=price,
+        unit_id=unit_id,
         unit_type=unit_type,
         promo_discount_rate=promo_discount_rate,
         reservation_fee=reservation_fee,
@@ -3148,8 +3156,6 @@ def agent_submit_property():
     )
     db.session.add(prop)
     db.session.flush()
-    if not prop.unit_id:
-        prop.unit_id = _generate_property_unit_id(prop.id)
     log_activity("prop_submit", f"Property created by admin: \"{name}\"")
     db.session.commit()
     
@@ -3236,11 +3242,18 @@ def agent_edit_property(prop_id):
     barangay_code = (request.form.get("barangay_code") or "").strip()
     barangay_name = (request.form.get("barangay_name") or "").strip()
     prop_type = "house-and-lot"
+    unit_id = (request.form.get("unit_id") or "").strip()
     unit_type = (request.form.get("unit_type") or "").strip()
     price_str = (request.form.get("price") or "").strip()
 
-    if not name or not unit_type or not price_str:
-        return jsonify({"error": "Name, unit type, and total selling price are required."}), 400
+    if not name or not unit_id or not unit_type or not price_str:
+        return jsonify({"error": "Name, unit ID, unit type, and total selling price are required."}), 400
+
+    duplicate_unit = (Property.query
+                      .filter(db.func.lower(Property.unit_id) == unit_id.lower(), Property.id != prop.id)
+                      .first())
+    if duplicate_unit:
+        return jsonify({"error": f"Unit ID '{unit_id}' is already in use. Please use a unique Unit ID."}), 409
 
     sub_id_raw = request.form.get("subdivision_id")
     try:
@@ -3304,6 +3317,7 @@ def agent_edit_property(prop_id):
         prop.barangay_code = barangay_code or None
         prop.barangay_name = barangay_name or None
     prop.prop_type    = prop_type
+    prop.unit_id      = unit_id
     prop.unit_type    = unit_type
     prop.price        = price
     prop.promo_discount_rate = promo_discount_rate
@@ -3331,8 +3345,6 @@ def agent_edit_property(prop_id):
             pass
 
     prop.approval_status = "approved"
-    if not prop.unit_id:
-        prop.unit_id = _generate_property_unit_id(prop.id)
 
     # Handle image removals
     upload_dir = current_app.config["UPLOAD_FOLDER"]

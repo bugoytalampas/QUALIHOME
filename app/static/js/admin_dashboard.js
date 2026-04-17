@@ -416,15 +416,24 @@ document.addEventListener('DOMContentLoaded', function () {
       var term   = input.value.trim().toLowerCase();
       var status = sel    ? sel.value.toLowerCase()    : '';
       var subdiv = selSub ? selSub.value               : '';
+      var selSubOpt = (selSub && selSub.selectedOptions && selSub.selectedOptions.length)
+        ? selSub.selectedOptions[0]
+        : null;
+      var subdivId = selSubOpt ? String(selSubOpt.getAttribute('data-sub-id') || '') : '';
       var visibleCount = 0;
       grid.querySelectorAll('.prop-card-col').forEach(function (col) {
         var name  = (col.getAttribute('data-prop-name')   || '').toLowerCase();
         var loc   = (col.getAttribute('data-prop-loc')    || '').toLowerCase();
         var st    = (col.getAttribute('data-status')      || '').toLowerCase();
         var sub   = (col.getAttribute('data-prop-subdiv') || '');
+        var subId = String(col.getAttribute('data-prop-subdiv-id') || '');
         var textMatch   = !term   || name.includes(term) || loc.includes(term);
         var statusMatch = !status || st === status;
-        var subdivMatch = !subdiv || (subdiv === '__none__' ? sub === '' : sub === subdiv);
+        var subdivMatch = !subdiv || (
+          subdiv === '__none__'
+            ? sub === ''
+            : (sub === subdiv || (subdivId && subId && subId === subdivId))
+        );
         var show = textMatch && statusMatch && subdivMatch;
         col.style.display = show ? '' : 'none';
         if (show) visibleCount++;
@@ -847,10 +856,24 @@ entriesEl.innerHTML = rows.map(function (row) {
     sel.dispatchEvent(event);
   };
 
-  window._setPropertySubdivisionFilter = function(subdivisionName) {
+  window._setPropertySubdivisionFilter = function(subdivisionName, subdivisionId) {
     var sel = document.getElementById('propSubdivisionFilter');
     if (!sel) return;
-    sel.value = subdivisionName || '';
+
+    var targetName = String(subdivisionName || '').trim();
+    var targetId = String(subdivisionId || '').trim();
+
+    if (targetId) {
+      var optById = Array.prototype.find.call(sel.options, function(opt) {
+        return String(opt.getAttribute('data-sub-id') || '') === targetId;
+      });
+      if (optById) {
+        sel.value = optById.value;
+        return;
+      }
+    }
+
+    sel.value = targetName;
   };
 
   window._openModelsWithFilters = function(projectName, subdivisionName) {
@@ -1466,7 +1489,7 @@ function _buildSubCard(subId, name, loc, desc, imageIds, propCount, locMeta, pro
         (loc ? '<div class="sub-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escHtml(loc) + '</div>' : '') +
         '<div class="sub-card-footer">' +
           '<span class="sub-card-badge">' + propLabel + '</span>' +
-          '<a href="#" class="sub-card-manage" data-goto="properties" data-model-subdivision="' + _escAttr(name) + '">Manage <i class="fas fa-arrow-right ms-1"></i></a>' +
+          '<a href="#" class="sub-card-manage" data-goto="properties" data-model-subdivision="' + _escAttr(name) + '" data-model-subdivision-id="' + _escAttr(subId) + '">Manage <i class="fas fa-arrow-right ms-1"></i></a>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -2191,59 +2214,89 @@ _bind('addSubSubmitBtn', 'click', function() {
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.sub-delete-btn');
   if (!btn) return;
-  var subId   = btn.dataset.subId;
-  var subName = btn.dataset.subName;
-  var hasProps = btn.dataset.hasProps === 'true';
-  if (hasProps) {
-    alert('Cannot delete "' + subName + '" — it still has properties assigned.');
+  var isProject = !!(btn.dataset.projectId);
+  var targetId = isProject ? btn.dataset.projectId : btn.dataset.subId;
+  var targetName = isProject ? btn.dataset.projectName : btn.dataset.subName;
+  var hasChildren = isProject
+    ? (btn.dataset.hasSubs === 'true')
+    : (btn.dataset.hasProps === 'true');
+
+  if (!targetId) return;
+
+  if (hasChildren) {
+    if (isProject) {
+      alert('Cannot delete "' + targetName + '" — it still has subdivisions assigned.');
+    } else {
+      alert('Cannot delete "' + targetName + '" — it still has properties assigned.');
+    }
     return;
   }
+
   var iconEl    = document.getElementById('toggleModalIcon');
   var titleEl   = document.getElementById('toggleModalTitle');
   var descEl    = document.getElementById('toggleModalDesc');
   var confirmEl = document.getElementById('toggleModalConfirmBtn');
   iconEl.innerHTML = '<i class="fas fa-trash"></i>';
   iconEl.style.color = 'var(--clr-danger)';
-  titleEl.textContent = 'Delete "' + subName + '"?';
-  descEl.textContent  = 'This project will be permanently removed.';
+  titleEl.textContent = 'Delete "' + targetName + '"?';
+  descEl.textContent  = isProject
+    ? 'This project will be permanently removed.'
+    : 'This subdivision will be permanently removed.';
   confirmEl.className = 'btn btn-crimson px-4';
   confirmEl.innerHTML = '<i class="fas fa-trash me-1"></i> Delete';
   _togglePending.userId = null;
-  _togglePending.source = 'subdivision';
-  _togglePending._subId = subId;
+  _togglePending.source = isProject ? 'project' : 'subdivision';
+  _togglePending._deleteId = targetId;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('toggleAccountModal')).show();
 });
 
 _bind('toggleModalConfirmBtn', 'click', function() {
-  if (_togglePending.source !== 'subdivision') return;
-  var subId = _togglePending._subId;
-  if (!subId) return;
-  fetch('/admin/subdivision/' + subId + '/delete', { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
+  var source = _togglePending.source;
+  if (source !== 'subdivision' && source !== 'project') return;
+
+  var isProject = source === 'project';
+  var deleteId = _togglePending._deleteId;
+  if (!deleteId) return;
+
+  var endpoint = isProject
+    ? ('/admin/project/' + encodeURIComponent(deleteId) + '/delete')
+    : ('/admin/subdivision/' + encodeURIComponent(deleteId) + '/delete');
+
+  fetch(endpoint, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       bootstrap.Modal.getInstance(document.getElementById('toggleAccountModal')).hide();
       if (data.success) {
-        // Remove card from DOM without reloading
-        var card = document.querySelector('.sub-card[data-sub-id="' + subId + '"]');
+        var cardSelector = isProject
+          ? ('.sub-card[data-project-id="' + deleteId + '"]')
+          : ('.sub-card[data-sub-id="' + deleteId + '"]');
+        var card = document.querySelector(cardSelector);
         if (card) {
           var colEl = card.closest('.sub-card-col');
           if (colEl) colEl.remove();
         }
-        // If grid is now empty, show empty state
-        var grid = document.getElementById('subdivisionsGrid');
+
+        var grid = isProject
+          ? document.getElementById('projectsGrid')
+          : document.getElementById('subdivisionsGrid');
         if (grid && grid.querySelectorAll('.sub-card-col').length === 0) {
-          var wrap = document.querySelector('#page-subdivisions .sqh-card');
+          var wrap = isProject
+            ? document.querySelector('#page-projects .sqh-card')
+            : document.querySelector('#page-subdivisions .sqh-card');
           grid.remove();
-          var noRes = document.getElementById('subNoResults');
+          var noRes = document.getElementById(isProject ? 'projNoResults' : 'subNoResults');
           if (noRes) noRes.remove();
           var emptyDiv = document.createElement('div');
           emptyDiv.className = 'text-center py-5 text-muted';
-          emptyDiv.innerHTML = '<i class="fas fa-city fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No projects yet.';
+          emptyDiv.innerHTML = isProject
+            ? '<i class="fas fa-building fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No projects yet.'
+            : '<i class="fas fa-city fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No subdivisions yet.';
           if (wrap) wrap.appendChild(emptyDiv);
         }
-        showToast('Project deleted successfully.', 'success');
+
+        showToast(isProject ? 'Project deleted successfully.' : 'Subdivision deleted successfully.', 'success');
       } else {
-        showToast(data.error || 'Failed to delete project.', 'danger');
+        showToast(data.error || (isProject ? 'Failed to delete project.' : 'Failed to delete subdivision.'), 'danger');
       }
     })
     .catch(function() {
@@ -2748,7 +2801,8 @@ document.addEventListener('click', function(e) {
     if (e.target.closest('.sub-card-manage')) return;
     e.preventDefault();
     _selectedSubdivisionNameForModels = navCard.dataset.subName || '';
-    _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels);
+    var subdivisionIdFromCard = navCard.dataset.subId || '';
+    _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels, subdivisionIdFromCard);
     if (typeof showPage === 'function') showPage('properties');
     if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
     return;
@@ -2756,12 +2810,13 @@ document.addEventListener('click', function(e) {
 
   var manage = e.target.closest('.sub-card-manage[data-goto="properties"]');
   if (!manage) return;
+  e.preventDefault();
   var subdivisionName = manage.getAttribute('data-model-subdivision') || '';
+  var subdivisionId = manage.getAttribute('data-model-subdivision-id') || '';
   _selectedSubdivisionNameForModels = subdivisionName;
-  setTimeout(function() {
-    _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels);
-    if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
-  }, 60);
+  if (typeof showPage === 'function') showPage('properties');
+  _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels, subdivisionId);
+  if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
 });
 
 /* ── Project cards: preview modal handlers ──────────────────── */
@@ -4808,14 +4863,15 @@ _bind('editPropBtn', 'click', function() {
   _syncAdminEditPropertyLocation();
 
   var name = (document.getElementById('ep_name').value || '').trim();
+  var unitId = (document.getElementById('ep_unit_id').value || '').trim();
   var siteNotesEl = document.getElementById('ep_site_notes');
   var fallbackLine = siteNotesEl ? (siteNotesEl.value || '').trim() : '';
   var location = (document.getElementById('ep_location').value || '').trim() || fallbackLine;
   var unitType = (document.getElementById('ep_unit_type').value || '').trim();
   var price = (document.getElementById('ep_price').value || '').trim();
-  if (!name || !unitType || !price) {
+  if (!name || !unitId || !unitType || !price) {
     if (errEl) {
-      errEl.textContent = 'Name, unit type, and price are required.';
+      errEl.textContent = 'Name, unit ID, unit type, and price are required.';
       errEl.classList.remove('d-none');
     }
     return;
@@ -7719,12 +7775,13 @@ var _pendingAcpFiles = [];
     var block = val('acp_block');
     var lotNo = val('acp_lot_no');
     var propType = val('acp_type');
+    var unitId = val('acp_unit_id');
     var price = val('acp_price');
     var unitType = val('acp_unit_type');
 
-    if (!name || !location || !propType || !unitType || !price) {
+    if (!name || !unitId || !location || !propType || !unitType || !price) {
       if (errEl) {
-        errEl.textContent = 'Name, unit type, location details, type, and TCP are required.';
+        errEl.textContent = 'Name, unit ID, unit type, location details, type, and TCP are required.';
         errEl.classList.remove('d-none');
       }
       return;
