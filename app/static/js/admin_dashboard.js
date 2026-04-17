@@ -1381,8 +1381,11 @@ function _addSubProjectOption(projectId, projectName, locMeta) {
     var sel = document.getElementById(id);
     if (!sel) return;
     var pid = String(projectId);
-    var exists = Array.prototype.some.call(sel.options, function (o) { return String(o.value) === pid; });
-    if (!exists) {
+    var existing = null;
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (String(o.value) === pid) existing = o;
+    });
+    if (!existing) {
       var opt = document.createElement('option');
       opt.value = pid;
       opt.textContent = String(projectName);
@@ -1396,8 +1399,199 @@ function _addSubProjectOption(projectId, projectName, locMeta) {
       opt.dataset.barangayName = locMeta.barangayName || '';
       opt.dataset.location = locMeta.location || '';
       sel.appendChild(opt);
+      return;
     }
+    existing.textContent = String(projectName);
+    existing.dataset.regionCode = locMeta.regionCode || '';
+    existing.dataset.regionName = locMeta.regionName || '';
+    existing.dataset.provinceCode = locMeta.provinceCode || '';
+    existing.dataset.provinceName = locMeta.provinceName || '';
+    existing.dataset.citymunCode = locMeta.citymunCode || '';
+    existing.dataset.citymunName = locMeta.citymunName || '';
+    existing.dataset.barangayCode = locMeta.barangayCode || '';
+    existing.dataset.barangayName = locMeta.barangayName || '';
+    existing.dataset.location = locMeta.location || '';
   });
+}
+
+function _refreshSubdivisionOptionLabelsFromCards() {
+  ['acp_subdivision', 'ep_subdivision'].forEach(function (id) {
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    Array.prototype.forEach.call(sel.options, function (opt) {
+      var subId = String(opt.value || '').trim();
+      if (!subId) return;
+      var card = document.querySelector('.sub-card[data-sub-id="' + subId + '"]');
+      if (!card) return;
+      var subName = String(card.dataset.subName || '').trim();
+      var projName = String(card.dataset.subProjectName || '').trim();
+      var nextLabel = projName ? (projName + ' / ' + subName) : subName;
+      if (nextLabel) opt.textContent = nextLabel;
+    });
+  });
+}
+
+function _addPropertySubdivisionOption(subId, subName, projectName, locMeta) {
+  if (!subId || !subName) return;
+  locMeta = locMeta || {};
+  var sid = String(subId);
+
+  ['acp_subdivision', 'ep_subdivision'].forEach(function (id) {
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    var opt = null;
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (String(o.value) === sid) opt = o;
+    });
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = sid;
+      sel.appendChild(opt);
+    }
+    opt.textContent = projectName ? (projectName + ' / ' + subName) : subName;
+    opt.dataset.subLocation = locMeta.location || '';
+    opt.dataset.subRegionCode = locMeta.regionCode || '';
+    opt.dataset.subRegionName = locMeta.regionName || '';
+    opt.dataset.subProvinceCode = locMeta.provinceCode || '';
+    opt.dataset.subProvinceName = locMeta.provinceName || '';
+    opt.dataset.subCitymunCode = locMeta.citymunCode || '';
+    opt.dataset.subCitymunName = locMeta.citymunName || '';
+    opt.dataset.subBarangayCode = locMeta.barangayCode || '';
+    opt.dataset.subBarangayName = locMeta.barangayName || '';
+  });
+
+  var filterSel = document.getElementById('propSubdivisionFilter');
+  if (filterSel) {
+    var filterOpt = null;
+    Array.prototype.forEach.call(filterSel.options, function (o) {
+      if ((o.dataset && String(o.dataset.subId || '') === sid) || String(o.value || '') === subName) filterOpt = o;
+    });
+    if (!filterOpt) {
+      filterOpt = document.createElement('option');
+      filterSel.appendChild(filterOpt);
+    }
+    filterOpt.value = subName;
+    filterOpt.textContent = subName;
+    filterOpt.dataset.subId = sid;
+  }
+}
+
+function _ensureProjectGrid() {
+  var grid = document.getElementById('projectsGrid');
+  if (grid) return grid;
+  var wrap = document.querySelector('#page-projects .sqh-card');
+  if (!wrap) return null;
+  var empty = document.getElementById('projectEmptyState');
+  if (empty) empty.remove();
+  grid = document.createElement('div');
+  grid.className = 'row g-4';
+  grid.id = 'projectsGrid';
+  var noRes = document.getElementById('projNoResults');
+  if (noRes && noRes.parentElement === wrap) wrap.insertBefore(grid, noRes);
+  else wrap.appendChild(grid);
+  return grid;
+}
+
+function _buildProjectCard(project) {
+  var id = String((project && project.id) || '');
+  var name = String((project && project.name) || 'Project');
+  var location = String((project && project.location) || '');
+  var description = String((project && project.description) || '');
+  var images = Array.isArray(project && project.image_ids) ? project.image_ids : [];
+  var subs = Number((project && project.sub_count) || 0);
+  if (!isFinite(subs) || subs < 0) subs = 0;
+  var createdLabel = String((project && project.created_at_label) || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }));
+
+  var col = document.createElement('div');
+  col.className = 'col-12 col-sm-6 col-xl-4 sub-card-col project-card-col';
+  col.dataset.projectId = id;
+  col.dataset.projectName = name;
+  col.dataset.projectStreet = String((project && project.street) || '');
+  col.dataset.projectBlock = String((project && project.block) || '');
+  col.dataset.projectLotNo = String((project && project.lot_no) || '');
+  col.dataset.projectLocation = location;
+  col.dataset.projectDescription = description;
+  col.dataset.projectImages = JSON.stringify(images);
+  col.dataset.projectSubs = String(subs);
+
+  var imgHtml = images.length
+    ? '<img src="/admin/subdivision-image/' + encodeURIComponent(images[0]) + '" alt="' + _escAttr(name) + '" class="sub-card-img">'
+    : '<div class="sub-card-img-placeholder"><i class="fas fa-building"></i></div>';
+  var imgCount = images.length > 1
+    ? '<span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + images.length + '</span>'
+    : '';
+
+  col.innerHTML = ''
+    + '<div class="sub-card"'
+    + ' data-project-id="' + _escAttr(id) + '"'
+    + ' data-project-name="' + _escAttr(name) + '"'
+    + ' data-project-street="' + _escAttr((project && project.street) || '') + '"'
+    + ' data-project-block="' + _escAttr((project && project.block) || '') + '"'
+    + ' data-project-lot-no="' + _escAttr((project && project.lot_no) || '') + '"'
+    + ' data-project-location="' + _escAttr(location) + '"'
+    + ' data-project-description="' + _escAttr(description) + '"'
+    + ' data-project-images="' + _escAttr(JSON.stringify(images)) + '"'
+    + ' data-project-subs="' + _escAttr(subs) + '">'
+    + '  <div class="sub-card-img-wrap project-card-preview-trigger" data-project-id="' + _escAttr(id) + '" style="cursor:pointer;">'
+    + imgHtml
+    + imgCount
+    + '    <div class="sub-card-actions">'
+    + '      <button type="button" class="sub-card-action-btn project-preview-btn" data-project-id="' + _escAttr(id) + '" title="Preview"><i class="fas fa-eye"></i></button>'
+    + '      <button type="button" class="sub-card-action-btn sub-card-action-delete sub-delete-btn" data-project-id="' + _escAttr(id) + '" data-project-name="' + _escAttr(name) + '" data-has-subs="' + (subs > 0 ? 'true' : 'false') + '" title="Delete Project"><i class="fas fa-trash"></i></button>'
+    + '    </div>'
+    + '  </div>'
+    + '  <div class="sub-card-body project-card-preview-trigger" data-project-id="' + _escAttr(id) + '" style="cursor:pointer;">'
+    + '    <div class="sub-card-name">' + _escHtml(name) + '</div>'
+    + '    <div class="sub-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escHtml(location || '—') + '</div>'
+    + '    <div class="sub-card-loc"><i class="fas fa-calendar-alt me-1"></i>' + _escHtml(createdLabel || '—') + '</div>'
+    + '    <div class="sub-card-footer">'
+    + '      <span class="sub-card-badge">' + subs + ' Subdivision' + (subs !== 1 ? 's' : '') + '</span>'
+    + '      <a href="#" class="sub-card-manage" data-goto="subdivisions">Manage <i class="fas fa-arrow-right ms-1"></i></a>'
+    + '    </div>'
+    + '  </div>'
+    + '</div>';
+
+  return col;
+}
+
+function _upsertProjectCard(project) {
+  if (!project || !project.id) return;
+  var grid = _ensureProjectGrid();
+  if (!grid) return;
+  var empty = document.getElementById('projectEmptyState');
+  if (empty) empty.remove();
+
+  var id = String(project.id);
+  var existing = document.querySelector('.project-card-col[data-project-id="' + id + '"]');
+  var merged = Object.assign({}, project);
+  if (existing) {
+    if (merged.sub_count === undefined || merged.sub_count === null) {
+      var oldSubs = Number(existing.dataset.projectSubs || 0);
+      merged.sub_count = isFinite(oldSubs) ? oldSubs : 0;
+    }
+    if (!merged.created_at_label) {
+      var createdLine = existing.querySelector('.sub-card-body .sub-card-loc .fa-calendar-alt');
+      merged.created_at_label = createdLine ? String(createdLine.parentElement.textContent || '').trim() : '';
+    }
+  }
+  var replacement = _buildProjectCard(merged);
+  if (existing) {
+    existing.replaceWith(replacement);
+  } else {
+    grid.insertBefore(replacement, grid.firstChild);
+  }
+}
+
+function _syncProjectNameToSubdivisionCards(projectId, projectName) {
+  var pid = String(projectId || '');
+  if (!pid) return;
+  document.querySelectorAll('.sub-card[data-sub-project-id="' + pid + '"]').forEach(function (card) {
+    card.dataset.subProjectName = projectName || '';
+    var iconEl = card.querySelector('.fa-building');
+    var nameLine = iconEl ? iconEl.parentElement : null;
+    if (nameLine) nameLine.innerHTML = '<i class="fas fa-building me-1"></i>' + _escHtml(projectName || '');
+  });
+  _refreshSubdivisionOptionLabelsFromCards();
 }
 
 var _pendingProjFiles = [];
@@ -1570,7 +1764,19 @@ _bind('addSubdivisionModal', 'hidden.bs.modal', function() {
   ['subProject','subRegionSelect','subProvinceSelect','subCitymunSelect','subBarangaySelect'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.selectedIndex = 0;
   });
-  _syncSubdivisionLocationFromProject();
+  var regionSel = document.getElementById('subRegionSelect');
+  var provinceSel = document.getElementById('subProvinceSelect');
+  var citySel = document.getElementById('subCitymunSelect');
+  var brgySel = document.getElementById('subBarangaySelect');
+  _subResetSelect(provinceSel, '-- Select --');
+  _subResetSelect(citySel, '-- Select --');
+  _subResetSelect(brgySel, '-- Select --');
+  _subGetItems('/api/psgc/regions').then(function (items) {
+    _subFillSelect(regionSel, items, '-- Select --');
+    _syncSubdivisionLocation();
+  }).catch(function () {
+    _syncSubdivisionLocation();
+  });
 });
 
 function _subResetSelect(sel, placeholder) {
@@ -1664,39 +1870,58 @@ function _syncSubdivisionLocation() {
   setVal('subBarangayName', brgyName);
 }
 
-function _syncSubdivisionLocationFromProject() {
-  var projectSel = document.getElementById('subProject');
+function initSubdivisionPsgc() {
   var regionSel = document.getElementById('subRegionSelect');
   var provinceSel = document.getElementById('subProvinceSelect');
   var citySel = document.getElementById('subCitymunSelect');
   var brgySel = document.getElementById('subBarangaySelect');
-  var display = document.getElementById('subProjectLocationDisplay');
-  if (!projectSel || !regionSel || !provinceSel || !citySel || !brgySel) return;
+  if (!regionSel || !provinceSel || !citySel || !brgySel) return;
 
-  var opt = projectSel.selectedOptions && projectSel.selectedOptions.length ? projectSel.selectedOptions[0] : null;
-  var regionCode = (opt && opt.dataset.regionCode) || '';
-  var regionName = (opt && opt.dataset.regionName) || '';
-  var provinceCode = (opt && opt.dataset.provinceCode) || '';
-  var provinceName = (opt && opt.dataset.provinceName) || '';
-  var citymunCode = (opt && opt.dataset.citymunCode) || '';
-  var citymunName = (opt && opt.dataset.citymunName) || '';
-  var barangayCode = (opt && opt.dataset.barangayCode) || '';
-  var barangayName = (opt && opt.dataset.barangayName) || '';
-  var location = (opt && opt.dataset.location) || '';
+  regionSel.addEventListener('change', function () {
+    if (!regionSel.value) {
+      _subResetSelect(provinceSel, '-- Select --');
+      _subResetSelect(citySel, '-- Select --');
+      _subResetSelect(brgySel, '-- Select --');
+      _syncSubdivisionLocation();
+      return;
+    }
+    _subGetItems('/api/psgc/provinces?region_code=' + encodeURIComponent(regionSel.value)).then(function (items) {
+      _subFillSelect(provinceSel, items, '-- Select --');
+      _subResetSelect(citySel, '-- Select --');
+      _subResetSelect(brgySel, '-- Select --');
+      _syncSubdivisionLocation();
+    });
+  });
 
-  _subFillSelect(regionSel, regionCode ? [{ code: regionCode, name: regionName || regionCode }] : [], '-- Select --', regionCode);
-  _subFillSelect(provinceSel, provinceCode ? [{ code: provinceCode, name: provinceName || provinceCode }] : [], '-- Select --', provinceCode);
-  _subFillSelect(citySel, citymunCode ? [{ code: citymunCode, name: citymunName || citymunCode }] : [], '-- Select --', citymunCode);
-  _subFillSelect(brgySel, barangayCode ? [{ code: barangayCode, name: barangayName || barangayCode }] : [], '-- Select --', barangayCode);
+  provinceSel.addEventListener('change', function () {
+    if (!provinceSel.value && !regionSel.value) return;
+    var q = provinceSel.value
+      ? ('province_code=' + encodeURIComponent(provinceSel.value))
+      : ('region_code=' + encodeURIComponent(regionSel.value));
+    _subGetItems('/api/psgc/cities?' + q).then(function (items) {
+      _subFillSelect(citySel, items, '-- Select --');
+      _subResetSelect(brgySel, '-- Select --');
+      _syncSubdivisionLocation();
+    });
+  });
 
-  if (display) display.value = location;
-  _syncSubdivisionLocation();
-}
-function initSubdivisionPsgc() {
-  var projectSel = document.getElementById('subProject');
-  if (!projectSel) return;
-  projectSel.addEventListener('change', _syncSubdivisionLocationFromProject);
-  _syncSubdivisionLocationFromProject();
+  citySel.addEventListener('change', function () {
+    if (!citySel.value) {
+      _subResetSelect(brgySel, '-- Select --');
+      _syncSubdivisionLocation();
+      return;
+    }
+    _subGetItems('/api/psgc/barangays?city_mun_code=' + encodeURIComponent(citySel.value)).then(function (items) {
+      _subFillSelect(brgySel, items, '-- Select --');
+      _syncSubdivisionLocation();
+    });
+  });
+
+  brgySel.addEventListener('change', _syncSubdivisionLocation);
+  _bind('subSiteNotes', 'input', _syncSubdivisionLocation);
+  _subGetItems('/api/psgc/regions')
+    .then(function (items) { _subFillSelect(regionSel, items, '-- Select --'); _syncSubdivisionLocation(); })
+    .catch(function () { _syncSubdivisionLocation(); });
 }
 initSubdivisionPsgc();
 
@@ -2054,21 +2279,10 @@ _bind('addProjectModal', 'hidden.bs.modal', function() {
   var projInput = document.getElementById('projImages');
   if (projInput) projInput.value = '';
   [
-    'projectName', 'projDescription', 'projLocation',
-    'projRegionCode', 'projRegionName', 'projProvinceCode', 'projProvinceName',
-    'projCitymunCode', 'projCitymunName', 'projBarangayCode', 'projBarangayName'
+    'projectName', 'projDescription'
   ].forEach(function(id){
     var el = document.getElementById(id);
     if (el) el.value = '';
-  });
-  ['projRegionSelect','projProvinceSelect','projCitymunSelect','projBarangaySelect'].forEach(function(id){
-    var el = document.getElementById(id);
-    if (!el) return;
-    if (id === 'projRegionSelect') {
-      _subGetItems('/api/psgc/regions').then(function (items) { _subFillSelect(el, items, '-- Select --'); });
-    } else {
-      _subResetSelect(el, '-- Select --');
-    }
   });
   var errEl = document.getElementById('addProjectError');
   if (errEl) errEl.classList.add('d-none');
@@ -2093,19 +2307,7 @@ _bind('addProjectSubmitBtn', 'click', function() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating…';
 
   var fd = new FormData();
-  _syncProjectLocation();
   fd.append('name', name);
-  fd.append('street', '');
-  fd.append('block', '');
-  fd.append('lot_no', '');
-  fd.append('region_code', (document.getElementById('projRegionCode').value || '').trim());
-  fd.append('region_name', (document.getElementById('projRegionName').value || '').trim());
-  fd.append('province_code', (document.getElementById('projProvinceCode').value || '').trim());
-  fd.append('province_name', (document.getElementById('projProvinceName').value || '').trim());
-  fd.append('citymun_code', (document.getElementById('projCitymunCode').value || '').trim());
-  fd.append('citymun_name', (document.getElementById('projCitymunName').value || '').trim());
-  fd.append('barangay_code', (document.getElementById('projBarangayCode').value || '').trim());
-  fd.append('barangay_name', (document.getElementById('projBarangayName').value || '').trim());
   fd.append('description', (document.getElementById('projDescription').value || '').trim());
 
   _pendingProjFiles.filter(Boolean).forEach(function(f) { fd.append('image_files', f); });
@@ -2129,14 +2331,38 @@ _bind('addProjectSubmitBtn', 'click', function() {
         }
         return;
       }
+      var projectPayload = {
+        id: res.data.id,
+        name: res.data.name || name,
+        street: res.data.street || '',
+        block: res.data.block || '',
+        lot_no: res.data.lot_no || '',
+        location: res.data.location || '',
+        description: res.data.description || (document.getElementById('projDescription').value || '').trim(),
+        image_ids: Array.isArray(res.data.image_ids) ? res.data.image_ids : [],
+        sub_count: 0
+      };
       if (_activeProjectEditId) {
         bootstrap.Modal.getInstance(document.getElementById('addProjectModal')).hide();
+        _upsertProjectCard(projectPayload);
+        _syncProjectNameToSubdivisionCards(projectPayload.id, projectPayload.name);
+        _addSubProjectOption(projectPayload.id, projectPayload.name, {
+          location: projectPayload.location || '',
+          regionCode: res.data.region_code || '',
+          regionName: res.data.region_name || '',
+          provinceCode: res.data.province_code || '',
+          provinceName: res.data.province_name || '',
+          citymunCode: res.data.citymun_code || '',
+          citymunName: res.data.citymun_name || '',
+          barangayCode: res.data.barangay_code || '',
+          barangayName: res.data.barangay_name || ''
+        });
         showToast('Project updated successfully.', 'success');
-        location.reload();
         return;
       }
-      _addSubProjectOption(res.data.id, res.data.name, {
-        location: res.data.location || '',
+      _upsertProjectCard(projectPayload);
+      _addSubProjectOption(projectPayload.id, projectPayload.name, {
+        location: projectPayload.location || '',
         regionCode: res.data.region_code || '',
         regionName: res.data.region_name || '',
         provinceCode: res.data.province_code || '',
@@ -2229,6 +2455,19 @@ _bind('addSubSubmitBtn', 'click', function() {
       var col = _buildSubCard(res.data.id, newSubName, newSubLoc, newSubDesc, res.data.image_ids || [], 0, newSubMeta, newSubProjectId, newSubProjectName);
       grid.appendChild(col);
       _addSubLocationOption(newSubLoc);
+      _addPropertySubdivisionOption(res.data.id, newSubName, newSubProjectName, {
+        location: newSubLoc,
+        regionCode: newSubMeta.regionCode,
+        regionName: newSubMeta.regionName,
+        provinceCode: newSubMeta.provinceCode,
+        provinceName: newSubMeta.provinceName,
+        citymunCode: newSubMeta.citymunCode,
+        citymunName: newSubMeta.citymunName,
+        barangayCode: newSubMeta.barangayCode,
+        barangayName: newSubMeta.barangayName,
+      });
+      if (typeof _applySubdivisionFilters === 'function') _applySubdivisionFilters();
+      if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
     }
     showToast('Subdivision created successfully.', 'success');
   })
@@ -2322,6 +2561,30 @@ _bind('toggleModalConfirmBtn', 'click', function() {
             ? '<i class="fas fa-building fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No projects yet.'
             : '<i class="fas fa-city fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No subdivisions yet.';
           if (wrap) wrap.appendChild(emptyDiv);
+        }
+
+        if (isProject) {
+          ['subProject', 'editSubProject'].forEach(function (id) {
+            var sel = document.getElementById(id);
+            if (!sel) return;
+            Array.prototype.slice.call(sel.options).forEach(function (opt) {
+              if (String(opt.value) === String(deleteId)) opt.remove();
+            });
+          });
+        } else {
+          ['acp_subdivision', 'ep_subdivision'].forEach(function (id) {
+            var sel = document.getElementById(id);
+            if (!sel) return;
+            Array.prototype.slice.call(sel.options).forEach(function (opt) {
+              if (String(opt.value) === String(deleteId)) opt.remove();
+            });
+          });
+          var propFilter = document.getElementById('propSubdivisionFilter');
+          if (propFilter) {
+            Array.prototype.slice.call(propFilter.options).forEach(function (opt) {
+              if (String((opt.dataset && opt.dataset.subId) || '') === String(deleteId)) opt.remove();
+            });
+          }
         }
 
         showToast(isProject ? 'Project deleted successfully.' : 'Subdivision deleted successfully.', 'success');
@@ -2620,7 +2883,8 @@ _bind('editSubSubmitBtn', 'click', function() {
       if (nameEl) nameEl.textContent = _savedName;
       // Update location line
       var locEl = card.querySelector('.sub-card-loc .fa-map-marker-alt') ? card.querySelector('.sub-card-loc .fa-map-marker-alt').parentElement : null;
-      var projectEl = card.querySelector('.sub-card-loc .fa-building') ? card.querySelector('.sub-card-loc .fa-building').parentElement : null;
+      var projectIcon = card.querySelector('.fa-building');
+      var projectEl = projectIcon ? projectIcon.parentElement : null;
       if (projectName) {
         if (projectEl) {
           projectEl.innerHTML = '<i class="fas fa-building me-1"></i>' + _escHtml(projectName);
@@ -2679,6 +2943,32 @@ _bind('editSubSubmitBtn', 'click', function() {
       if (delBtn) delBtn.dataset.subName = _savedName;
       // Add location to filter dropdown if new
       _addSubLocationOption(_savedLoc);
+      _addPropertySubdivisionOption(_editSubId, _savedName, projectName, {
+        location: _savedLoc,
+        regionCode: document.getElementById('editSubRegionCode').value.trim(),
+        regionName: document.getElementById('editSubRegionName').value.trim(),
+        provinceCode: document.getElementById('editSubProvinceCode').value.trim(),
+        provinceName: document.getElementById('editSubProvinceName').value.trim(),
+        citymunCode: document.getElementById('editSubCitymunCode').value.trim(),
+        citymunName: document.getElementById('editSubCitymunName').value.trim(),
+        barangayCode: document.getElementById('editSubBarangayCode').value.trim(),
+        barangayName: document.getElementById('editSubBarangayName').value.trim(),
+      });
+
+      document.querySelectorAll('.prop-card[data-prop-subdivision-id="' + _editSubId + '"]').forEach(function (propCard) {
+        propCard.dataset.propSubdivision = _savedName;
+        var metaRow = propCard.querySelector('.prop-card-meta');
+        if (metaRow) {
+          var spans = metaRow.querySelectorAll('span');
+          if (spans && spans.length > 0) spans[0].innerHTML = '<i class="fas fa-city me-1"></i>' + _escHtml(_savedName);
+        }
+      });
+      document.querySelectorAll('.prop-card-col[data-prop-subdiv-id="' + _editSubId + '"]').forEach(function (col) {
+        col.dataset.propSubdiv = _savedName;
+      });
+
+      if (typeof _applySubdivisionFilters === 'function') _applySubdivisionFilters();
+      if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
     }
   })
   .catch(function() {
@@ -3350,6 +3640,9 @@ function _renderPropertyDetailsModal(prop) {
   var storeys = prop.storeys || '—';
   var floor_area = prop.floor_area || '—';
   var lot_area = prop.lot_area || '—';
+  var street = (prop.street || '').trim() || '—';
+  var block = (prop.block || '').trim() || '—';
+  var lot_no = (prop.lot_no || '').trim() || '—';
   var unit_type = (prop.unit_type || '').replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
   var project = prop.subdivision || '—';
   
@@ -3390,6 +3683,9 @@ function _renderPropertyDetailsModal(prop) {
     + '  <div class="col-6"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Unit Type</strong><span>' + unit_type + '</span></div></div>'
     + '  <div class="col-6"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">TCP</strong><span>' + fmt(tcp) + '</span></div></div>'
     + '  <div class="col-6"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Project</strong><span>' + project + '</span></div></div>'
+    + '  <div class="col-4"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Street</strong><span>' + street + '</span></div></div>'
+    + '  <div class="col-4"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Block</strong><span>' + block + '</span></div></div>'
+    + '  <div class="col-4"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Lot No.</strong><span>' + lot_no + '</span></div></div>'
     + '</div>'
     
     // Full Pricing Breakdown
@@ -5001,9 +5297,167 @@ _bind('editPropBtn', 'click', function() {
         }
         return;
       }
+
+      function _toUnitTypeLabel(v) {
+        return String(v || '').replace(/-/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      }
+
+      function _toUnitTypeClass(v) {
+        var key = String(v || '').toLowerCase();
+        if (key === 'pre-selling') return 'prop-type-badge-pre-selling';
+        if (key === 'ready-for-occupancy') return 'prop-type-badge-ready-for-occupancy';
+        if (key === 'resale') return 'prop-type-badge-resale';
+        return '';
+      }
+
+      function _applyEditedPropertyCard(apiData) {
+        var card = document.querySelector('.prop-card[data-prop-id="' + _editPropId + '"]');
+        if (!card) return;
+        var col = card.closest('.prop-card-col');
+
+        var nameVal = (document.getElementById('ep_name').value || '').trim();
+        var unitTypeVal = (document.getElementById('ep_unit_type').value || '').trim();
+        var priceVal = parseFloat((document.getElementById('ep_price').value || '0').replace(/,/g, ''));
+        if (!isFinite(priceVal)) priceVal = 0;
+        var unitIdVal = (document.getElementById('ep_unit_id').value || '').trim();
+        var subdivisionIdVal = (document.getElementById('ep_subdivision').value || '').trim();
+        var subdivisionNameVal = (apiData && apiData.subdivision) || '';
+        if (!subdivisionNameVal) {
+          var subSel = document.getElementById('ep_subdivision');
+          if (subSel && subSel.selectedOptions && subSel.selectedOptions.length) {
+            var raw = String(subSel.selectedOptions[0].textContent || '').trim();
+            subdivisionNameVal = raw.indexOf('/') >= 0 ? raw.split('/').pop().trim() : raw;
+          }
+        }
+
+        var locationVal = (apiData && apiData.location) || (document.getElementById('ep_location').value || '').trim();
+        var psgcTail = [
+          (apiData && apiData.psgc_barangay) || (document.getElementById('ep_barangay_name').value || '').trim(),
+          (apiData && apiData.psgc_citymun) || (document.getElementById('ep_citymun_name').value || '').trim(),
+          (apiData && apiData.psgc_province) || (document.getElementById('ep_province_name').value || '').trim(),
+          (apiData && apiData.psgc_region) || (document.getElementById('ep_region_name').value || '').trim()
+        ].filter(Boolean).join(', ');
+        if (psgcTail && locationVal.indexOf(psgcTail) === -1) {
+          locationVal = [locationVal, psgcTail].filter(Boolean).join(', ');
+        }
+
+        var imagesCsv = (apiData && apiData.images) || card.dataset.propImages || '';
+        var imageList = String(imagesCsv || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+
+        card.dataset.propName = nameVal;
+        card.dataset.propSubdivision = subdivisionNameVal;
+        card.dataset.propSubdivisionId = subdivisionIdVal;
+        card.dataset.propLocation = locationVal;
+        card.dataset.propRegion = (document.getElementById('ep_region').value || '').trim();
+        card.dataset.propRegionCode = (document.getElementById('ep_region_code').value || '').trim();
+        card.dataset.propRegionName = (document.getElementById('ep_region_name').value || '').trim();
+        card.dataset.propProvinceCode = (document.getElementById('ep_province_code').value || '').trim();
+        card.dataset.propProvinceName = (document.getElementById('ep_province_name').value || '').trim();
+        card.dataset.propCitymunCode = (document.getElementById('ep_citymun_code').value || '').trim();
+        card.dataset.propCitymunName = (document.getElementById('ep_citymun_name').value || '').trim();
+        card.dataset.propBarangayCode = (document.getElementById('ep_barangay_code').value || '').trim();
+        card.dataset.propBarangayName = (document.getElementById('ep_barangay_name').value || '').trim();
+        card.dataset.propStreet = (document.getElementById('ep_street').value || '').trim();
+        card.dataset.propBlock = (document.getElementById('ep_block').value || '').trim();
+        card.dataset.propLotNo = (document.getElementById('ep_lot_no').value || '').trim();
+        card.dataset.propUnitId = unitIdVal;
+        card.dataset.propUnitType = unitTypeVal;
+        card.dataset.propPrice = priceVal.toLocaleString('en-PH', { maximumFractionDigits: 0 });
+        card.dataset.propBedrooms = (document.getElementById('ep_bedrooms').value || '').trim();
+        card.dataset.propBathrooms = (document.getElementById('ep_bathrooms').value || '').trim();
+        card.dataset.propStoreys = (document.getElementById('ep_storeys').value || '').trim();
+        card.dataset.propFloorArea = (document.getElementById('ep_floor_area').value || '').trim();
+        card.dataset.propLotArea = (document.getElementById('ep_lot_area').value || '').trim();
+        card.dataset.propDescription = (document.getElementById('ep_description').value || '').trim();
+        card.dataset.propImages = imagesCsv;
+
+        if (col) {
+          col.dataset.propName = nameVal;
+          col.dataset.propLoc = locationVal;
+          col.dataset.propSubdiv = subdivisionNameVal;
+          col.dataset.propSubdivId = subdivisionIdVal;
+        }
+
+        var nameEl = card.querySelector('.prop-card-name');
+        if (nameEl) nameEl.textContent = nameVal;
+        var locEl = card.querySelector('.prop-card-loc');
+        if (locEl) locEl.innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>' + _escapeHtml(locationVal || '—');
+        var typeEl = card.querySelector('.prop-card-type');
+        if (typeEl) {
+          typeEl.className = 'prop-card-type ' + _toUnitTypeClass(unitTypeVal);
+          typeEl.textContent = _toUnitTypeLabel(unitTypeVal || card.dataset.propType || '—') || '—';
+        }
+        var priceEl = card.querySelector('.prop-card-price');
+        if (priceEl) priceEl.textContent = '₱' + priceVal.toLocaleString('en-PH', { maximumFractionDigits: 0 });
+
+        var chipsWrap = card.querySelector('.prop-card-icons');
+        if (chipsWrap) {
+          var bedrooms = (document.getElementById('ep_bedrooms').value || '').trim();
+          var bathrooms = (document.getElementById('ep_bathrooms').value || '').trim();
+          var storeys = (document.getElementById('ep_storeys').value || '').trim();
+          var chipsHtml = '';
+          if (bedrooms) chipsHtml += '<span class="prop-card-icon-chip"><i class="fas fa-bed" style="color: var(--clr-accent-dk);"></i> ' + _escapeHtml(bedrooms) + '</span>';
+          if (bathrooms) chipsHtml += '<span class="prop-card-icon-chip"><i class="fas fa-bath" style="color: var(--clr-blue);"></i> ' + _escapeHtml(bathrooms) + '</span>';
+          if (storeys) chipsHtml += '<span class="prop-card-icon-chip"><i class="fas fa-layer-group" style="color: var(--clr-primary);"></i> ' + _escapeHtml(storeys) + '</span>';
+          chipsWrap.innerHTML = chipsHtml;
+        }
+
+        var metaRow = card.querySelector('.prop-card-meta');
+        if (metaRow) {
+          var spans = metaRow.querySelectorAll('span');
+          if (spans.length > 0) spans[0].innerHTML = '<i class="fas fa-city me-1"></i>' + _escapeHtml(subdivisionNameVal || '—');
+          if (spans.length > 1) spans[1].innerHTML = '<i class="fas fa-hashtag me-1"></i>' + _escapeHtml(unitIdVal || 'No Unit ID');
+        }
+
+        var imgWrap = card.querySelector('.prop-card-img-wrap');
+        if (imgWrap) {
+          var countBadge = imgWrap.querySelector('.prop-card-img-count');
+          if (imageList.length > 1) {
+            if (!countBadge) {
+              countBadge = document.createElement('span');
+              countBadge.className = 'prop-card-img-count';
+              imgWrap.insertBefore(countBadge, imgWrap.querySelector('.prop-card-actions'));
+            }
+            countBadge.innerHTML = '<i class="fas fa-images me-1"></i>' + imageList.length;
+          } else if (countBadge) {
+            countBadge.remove();
+          }
+
+          var img = imgWrap.querySelector('.prop-card-img');
+          var ph = imgWrap.querySelector('.prop-card-img-placeholder');
+          if (imageList.length > 0) {
+            if (!img) {
+              if (ph) ph.remove();
+              img = document.createElement('img');
+              img.className = 'prop-card-img';
+              imgWrap.insertBefore(img, imgWrap.firstChild);
+            }
+            img.src = '/uploads/' + _escapeHtml(imageList[0]);
+            img.alt = nameVal || 'Model';
+          } else {
+            if (img) img.remove();
+            if (!ph) {
+              ph = document.createElement('div');
+              ph.className = 'prop-card-img-placeholder';
+              ph.innerHTML = '<i class="fas fa-home"></i>';
+              imgWrap.insertBefore(ph, imgWrap.firstChild);
+            }
+          }
+        }
+
+        _refreshAvailabilityNotes();
+        if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
+      }
+
       bootstrap.Modal.getInstance(document.getElementById('editPropertyModal'))?.hide();
       showToast('Property updated successfully.', 'success');
-      setTimeout(function() { window.location.reload(); }, 250);
+      _applyEditedPropertyCard(null);
+      fetch('/api/admin/property/' + encodeURIComponent(_editPropId))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok && d.data) _applyEditedPropertyCard(d.data);
+        })
+        .catch(function () {});
     })
     .catch(function() {
       btn.disabled = false;
@@ -7690,6 +8144,9 @@ var _pendingAcpFiles = [];
     col.setAttribute('data-prop-name', name);
     col.setAttribute('data-prop-loc', location);
     col.setAttribute('data-prop-subdiv', String(prop.subdivision_name || ''));
+    col.setAttribute('data-prop-street', String(prop.street || ''));
+    col.setAttribute('data-prop-block', String(prop.block || ''));
+    col.setAttribute('data-prop-lot-no', String(prop.lot_no || ''));
 
     col.innerHTML = ''
       + '<div class="prop-card prop-card-clickable"'
@@ -7697,6 +8154,9 @@ var _pendingAcpFiles = [];
       + ' data-prop-name="' + _escapeHtml(name) + '"'
       + ' data-prop-subdivision="' + _escapeHtml(prop.subdivision_name || '') + '"'
       + ' data-prop-location="' + _escapeHtml(location) + '"'
+      + ' data-prop-street="' + _escapeHtml(prop.street || '') + '"'
+      + ' data-prop-block="' + _escapeHtml(prop.block || '') + '"'
+      + ' data-prop-lot-no="' + _escapeHtml(prop.lot_no || '') + '"'
       + ' data-prop-region="' + _escapeHtml(prop.region || '') + '"'
       + ' data-prop-region-code="' + _escapeHtml(prop.region_code || '') + '"'
       + ' data-prop-region-name="' + _escapeHtml(prop.region_name || '') + '"'
@@ -7939,6 +8399,9 @@ var _pendingAcpFiles = [];
         _pushNewPropertyCard((res.data && res.data.property) || {
           id: (res.data && res.data.id) || '',
           name: name,
+          street: street,
+          block: block,
+          lot_no: lotNo,
           location: location,
           prop_type: propType,
           unit_type: unitType,
