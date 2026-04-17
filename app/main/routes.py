@@ -2,6 +2,7 @@
 import uuid
 import re
 import json
+from urllib.parse import unquote
 from threading import Thread, Lock
 from datetime import datetime, timezone, date, time
 from flask import Blueprint, render_template, redirect, url_for, request, jsonify, current_app, send_from_directory, make_response, session
@@ -17,6 +18,38 @@ main_bp = Blueprint("main", __name__)
 _AUTO_SYNC_NOTE_PREFIX = "AUTO_SYNC_SALE_ID="
 _AUTO_SYNC_NOTE_RE = re.compile(r"AUTO_SYNC_SALE_ID=(\d+)")
 _C50_RETRAIN_LOCK = Lock()
+
+
+def _resolve_upload_filename(raw_name: str | None) -> str:
+    """Normalize stored image keys to a safe filename under UPLOAD_FOLDER.
+
+    Handles legacy values such as JSON list strings, comma-separated values,
+    quoted names, URL-encoded names, and accidental full paths/URLs.
+    """
+    raw = unquote(str(raw_name or "")).strip()
+    if not raw:
+        return ""
+
+    candidates = [raw]
+
+    if raw.startswith("[") and raw.endswith("]"):
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list) and parsed:
+                candidates.insert(0, str(parsed[0] or ""))
+            elif isinstance(parsed, str):
+                candidates.insert(0, parsed)
+        except Exception:
+            pass
+
+    if "," in raw:
+        candidates.insert(0, raw.split(",", 1)[0])
+
+    for cand in candidates:
+        clean = os.path.basename(str(cand or "").strip().strip("\"'[]()"))
+        if clean:
+            return clean
+    return ""
 
 
 def _normalize_outcome_label(value: str | None) -> str:
@@ -2199,7 +2232,7 @@ def admin_create_subdivision():
 @main_bp.route("/admin/subdivision-image/<path:image_key>")
 def serve_subdivision_image(image_key):
     upload_dir = current_app.config["UPLOAD_FOLDER"]
-    clean_key = os.path.basename((image_key or "").strip())
+    clean_key = _resolve_upload_filename(image_key)
     if not clean_key:
         return "", 404
     return send_from_directory(upload_dir, clean_key)
@@ -2219,7 +2252,7 @@ def subdivision_image(sub_id):
 def delete_subdivision_image(image_key):
     if current_user.role != "admin":
         return jsonify({"error": "Forbidden"}), 403
-    clean_key = os.path.basename((image_key or "").strip())
+    clean_key = _resolve_upload_filename(image_key)
     if not clean_key:
         return jsonify({"error": "Not found"}), 404
 
@@ -2249,7 +2282,10 @@ def delete_subdivision_image(image_key):
 @main_bp.route("/uploads/<path:filename>")
 def serve_upload(filename):
     upload_dir = current_app.config["UPLOAD_FOLDER"]
-    return send_from_directory(upload_dir, filename)
+    clean_name = _resolve_upload_filename(filename)
+    if not clean_name:
+        return "", 404
+    return send_from_directory(upload_dir, clean_name)
 
 
 @main_bp.route("/admin/subdivision/<int:sub_id>/edit", methods=["POST"])
@@ -2312,6 +2348,26 @@ def admin_edit_subdivision(sub_id):
         if f and f.filename:
             current_images.append(_save_subdivision_image_file(f))
     _set_subdivision_images(sub, current_images)
+
+    # Ensure all models under this subdivision inherit the subdivision PSGC.
+    tail_for_props = _compose_psgc_tail(
+        sub.region_name or "",
+        sub.province_name or "",
+        sub.citymun_name or "",
+        sub.barangay_name or "",
+    )
+    for prop in list(sub.properties or []):
+        prop.region = sub.region_name or None
+        prop.region_code = sub.region_code or None
+        prop.region_name = sub.region_name or None
+        prop.province_code = sub.province_code or None
+        prop.province_name = sub.province_name or None
+        prop.citymun_code = sub.citymun_code or None
+        prop.citymun_name = sub.citymun_name or None
+        prop.barangay_code = sub.barangay_code or None
+        prop.barangay_name = sub.barangay_name or None
+        prop.location = _compose_full_location(prop.street or "", prop.block or "", prop.lot_no or "", tail_for_props)
+
     log_activity("sub_edit", f"Subdivision updated: {name} under {project.name}" + (f" — {location}" if location else ""))
     db.session.commit()
     return jsonify({"success": True, "id": sub.id, "name": sub.name, "project_id": project.id, "project_name": project.name, "image_ids": _subdivision_images_to_list(sub)})
@@ -3029,6 +3085,10 @@ def _compose_full_location(street: str, block: str, lot_no: str, tail: str) -> s
     return prefix or tail
 
 
+def _compose_psgc_tail(region_name: str, province_name: str, citymun_name: str, barangay_name: str) -> str:
+    return ", ".join([p for p in [barangay_name, citymun_name, province_name, region_name] if (p or "").strip()])
+
+
 @main_bp.route("/admin/property/create", methods=["POST"])
 @main_bp.route("/agent/property/submit", methods=["POST"])
 @login_required
@@ -3102,9 +3162,9 @@ def agent_submit_property():
         barangay_code = (subdivision.barangay_code or "").strip()
         barangay_name = (subdivision.barangay_name or "").strip()
         region = region_name
-        tail = (subdivision.location or "").strip()
+        tail = _compose_psgc_tail(region_name, province_name, citymun_name, barangay_name)
     else:
-        tail = ", ".join([p for p in [barangay_name, citymun_name, province_name, region_name] if p])
+        tail = _compose_psgc_tail(region_name, province_name, citymun_name, barangay_name)
         if not region:
             region = region_name
 
@@ -3291,9 +3351,9 @@ def agent_edit_property(prop_id):
         barangay_code = (subdivision.barangay_code or "").strip()
         barangay_name = (subdivision.barangay_name or "").strip()
         region = region_name
-        tail = (subdivision.location or "").strip()
+        tail = _compose_psgc_tail(region_name, province_name, citymun_name, barangay_name)
     else:
-        tail = ", ".join([p for p in [barangay_name, citymun_name, province_name, region_name] if p])
+        tail = _compose_psgc_tail(region_name, province_name, citymun_name, barangay_name)
         if not region:
             region = region_name
 

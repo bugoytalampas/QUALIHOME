@@ -1948,21 +1948,51 @@ function _seedProjectLocationSelects(data) {
   var brgySel = document.getElementById('projBarangaySelect');
   if (!regionSel || !provinceSel || !citySel || !brgySel) return;
 
-  function seed(sel, code, name) {
-    _subResetSelect(sel, '-- Select --');
-    if (!code) return;
-    var opt = document.createElement('option');
-    opt.value = code;
-    opt.textContent = name || code;
-    sel.appendChild(opt);
-    sel.value = code;
-  }
+  var regionCode = (data.region_code || '').trim();
+  var provinceCode = (data.province_code || '').trim();
+  var citymunCode = (data.citymun_code || '').trim();
+  var barangayCode = (data.barangay_code || '').trim();
 
-  seed(regionSel, data.region_code || '', data.region_name || '');
-  seed(provinceSel, data.province_code || '', data.province_name || '');
-  seed(citySel, data.citymun_code || '', data.citymun_name || '');
-  seed(brgySel, data.barangay_code || '', data.barangay_name || '');
-  _syncProjectLocation();
+  _subGetItems('/api/psgc/regions').then(function (regions) {
+    _subFillSelect(regionSel, regions, '-- Select --', regionCode);
+    if (!regionCode) {
+      _subResetSelect(provinceSel, '-- Select --');
+      _subResetSelect(citySel, '-- Select --');
+      _subResetSelect(brgySel, '-- Select --');
+      _syncProjectLocation();
+      return Promise.resolve();
+    }
+
+    return _subGetItems('/api/psgc/provinces?region_code=' + encodeURIComponent(regionCode)).then(function (provinces) {
+      _subFillSelect(provinceSel, provinces, '-- Select --', provinceCode);
+      if (!provinceCode && !citymunCode) {
+        _subResetSelect(citySel, '-- Select --');
+        _subResetSelect(brgySel, '-- Select --');
+        _syncProjectLocation();
+        return Promise.resolve();
+      }
+
+      var cityQ = provinceCode
+        ? ('province_code=' + encodeURIComponent(provinceCode))
+        : ('region_code=' + encodeURIComponent(regionCode));
+
+      return _subGetItems('/api/psgc/cities?' + cityQ).then(function (cities) {
+        _subFillSelect(citySel, cities, '-- Select --', citymunCode);
+        if (!citymunCode) {
+          _subResetSelect(brgySel, '-- Select --');
+          _syncProjectLocation();
+          return Promise.resolve();
+        }
+
+        return _subGetItems('/api/psgc/barangays?city_mun_code=' + encodeURIComponent(citymunCode)).then(function (barangays) {
+          _subFillSelect(brgySel, barangays, '-- Select --', barangayCode);
+          _syncProjectLocation();
+        });
+      });
+    });
+  }).catch(function () {
+    _syncProjectLocation();
+  });
 }
 
 function _openProjectEditModal(projectId) {
@@ -4323,6 +4353,9 @@ function _openAdminEditPropertyModal(d) {
     barangayName: d.propBarangayName || ''
   });
 
+  // Model PSGC should follow the selected subdivision when one is assigned.
+  _applyAdminEditSubdivisionMeta();
+
   bootstrap.Modal.getOrCreateInstance(document.getElementById('editPropertyModal')).show();
 }
 
@@ -4428,6 +4461,35 @@ function _syncAdminEditPropertyLocation() {
   setVal('ep_citymun_name', cityName);
   setVal('ep_barangay_code', brgySel ? brgySel.value : '');
   setVal('ep_barangay_name', brgyName);
+}
+
+function _applyAdminEditSubdivisionMeta() {
+  var subdivisionSel = document.getElementById('ep_subdivision');
+  var regionSel = document.getElementById('ep_region_select');
+  var provinceSel = document.getElementById('ep_province_select');
+  var citySel = document.getElementById('ep_citymun_select');
+  var brgySel = document.getElementById('ep_barangay_select');
+  if (!subdivisionSel || !subdivisionSel.value || !subdivisionSel.selectedOptions || !subdivisionSel.selectedOptions.length) {
+    return false;
+  }
+
+  var opt = subdivisionSel.selectedOptions[0];
+  var regionCode = String(opt.dataset.subRegionCode || '').trim();
+  var regionName = String(opt.dataset.subRegionName || '').trim();
+  var provinceCode = String(opt.dataset.subProvinceCode || '').trim();
+  var provinceName = String(opt.dataset.subProvinceName || '').trim();
+  var cityCode = String(opt.dataset.subCitymunCode || '').trim();
+  var cityName = String(opt.dataset.subCitymunName || '').trim();
+  var brgyCode = String(opt.dataset.subBarangayCode || '').trim();
+  var brgyName = String(opt.dataset.subBarangayName || '').trim();
+
+  if (regionSel) _subFillSelect(regionSel, regionCode || regionName ? [{ code: regionCode, name: regionName || regionCode }] : [], '-- Select --', regionCode);
+  if (provinceSel) _subFillSelect(provinceSel, provinceCode || provinceName ? [{ code: provinceCode, name: provinceName || provinceCode }] : [], '-- Select --', provinceCode);
+  if (citySel) _subFillSelect(citySel, cityCode || cityName ? [{ code: cityCode, name: cityName || cityCode }] : [], '-- Select --', cityCode);
+  if (brgySel) _subFillSelect(brgySel, brgyCode || brgyName ? [{ code: brgyCode, name: brgyName || brgyCode }] : [], '-- Select --', brgyCode);
+
+  _syncAdminEditPropertyLocation();
+  return true;
 }
 
 function _listingStatusMeta(status) {
@@ -4755,6 +4817,9 @@ function initAdminEditPropertyPsgc() {
   _bind('ep_street', 'input', _syncAdminEditPropertyLocation);
   _bind('ep_block', 'input', _syncAdminEditPropertyLocation);
   _bind('ep_lot_no', 'input', _syncAdminEditPropertyLocation);
+  _bind('ep_subdivision', 'change', function () {
+    _applyAdminEditSubdivisionMeta();
+  });
 
   _subGetItems('/api/psgc/regions').then(function (items) {
     _subFillSelect(regionSel, items, '-- Select --');

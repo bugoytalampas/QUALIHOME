@@ -12,6 +12,7 @@
 <script id="buyer-banks-config" type="application/json">{{ (buyer_bank_options or [])|tojson }}</script>
 <script id="buyer-countries-config" type="application/json">{{ (country_options or [])|tojson }}</script>
 <script id="qm-live-config" type="application/json">{{ (live_meter_cfg or {})|tojson }}</script>
+<script>window.SQH_UPLOAD_BASE_URL = "{{ url_for('main.serve_upload', filename='') }}";</script>
 <script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
 <script src="{{ url_for('static', filename='js/client_dashboard.js') }}"></script>
 <script>
