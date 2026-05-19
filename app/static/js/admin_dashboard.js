@@ -28,115 +28,6 @@ function getApiErrorMessage(res, fallback) {
   return fallback;
 }
 
-function _escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function _formatPeso(amount) {
-  var value = Number(amount);
-  if (!isFinite(value)) value = 0;
-  return '₱' + value.toLocaleString('en-PH', { maximumFractionDigits: 2 });
-}
-
-function _readNumberInput(id) {
-  var el = document.getElementById(id);
-  if (!el) return 0;
-  var value = parseFloat(String(el.value || '').replace(/,/g, ''));
-  return isFinite(value) ? value : 0;
-}
-
-function _setPreviewText(id, text) {
-  var el = document.getElementById(id);
-  if (el) el.textContent = text;
-}
-
-function _syncPropertyPricingPreview(prefix) {
-  var price = _readNumberInput(prefix + '_price');
-  var promo = _readNumberInput(prefix + '_promo_discount_rate');
-  var downpayment = _readNumberInput(prefix + '_downpayment_rate');
-  var vat = _readNumberInput(prefix + '_vat_rate');
-  var lmf = _readNumberInput(prefix + '_lmf_rate');
-
-  var promoAmount = price * (promo / 100);
-  var netSellingPrice = Math.max(price - promoAmount, 0);
-  var vatAmount = netSellingPrice * (vat / 100);
-  var lmfAmount = netSellingPrice * (lmf / 100);
-  var totalContractPrice = netSellingPrice + vatAmount + lmfAmount;
-  var downpaymentAmount = totalContractPrice * (downpayment / 100);
-
-  _setPreviewText(prefix + '_promo_discount_preview', price > 0 || promo > 0 ? 'Approx. discount: ' + _formatPeso(promoAmount) : 'Enter TCP to preview the amount.');
-  _setPreviewText(prefix + '_downpayment_preview', price > 0 || downpayment > 0 ? 'Approx. downpayment: ' + _formatPeso(downpaymentAmount) : 'Based on the net contract price.');
-  _setPreviewText(prefix + '_vat_preview', price > 0 || vat > 0 ? 'Approx. VAT: ' + _formatPeso(vatAmount) : 'Based on the net selling price.');
-  _setPreviewText(prefix + '_lmf_preview', price > 0 || lmf > 0 ? 'Approx. LMF: ' + _formatPeso(lmfAmount) : 'Based on the net selling price.');
-
-  // Update full breakdown as well
-  _updateFullPricingBreakdown(prefix);
-}
-
-function _updateFullPricingBreakdown(prefix) {
-  var price = _readNumberInput(prefix + '_price');
-  var promo = _readNumberInput(prefix + '_promo_discount_rate');
-  var downpaymentRate = _readNumberInput(prefix + '_downpayment_rate');
-  var vat = _readNumberInput(prefix + '_vat_rate');
-  var lmf = _readNumberInput(prefix + '_lmf_rate');
-  var interestRate = _readNumberInput(prefix + '_interest_rate');
-  var reservationFee = _readNumberInput(prefix + '_reservation_fee');
-  var dpTermsMonths = _readNumberInput(prefix + '_downpayment_terms_months') || 24;
-  var loanablePercent = _readNumberInput(prefix + '_loanable_percentage') || 80;
-  if (!isFinite(interestRate) || interestRate <= 0) interestRate = 8.5;
-
-  // Calculate amounts
-  var promoAmount = price * (promo / 100);
-  var netSellingPrice = Math.max(price - promoAmount, 0);
-  var vatAmount = netSellingPrice * (vat / 100);
-  var lmfAmount = netSellingPrice * (lmf / 100);
-  var totalContractPrice = netSellingPrice + vatAmount + lmfAmount;
-  var downpaymentAmount = totalContractPrice * (downpaymentRate / 100);
-  var monthlyDownpayment = downpaymentAmount / dpTermsMonths;
-  var loanableAmount = totalContractPrice * (loanablePercent / 100);
-
-  // Update SELLING PRICES
-  _setPreviewText(prefix + '_bd_tsp', _formatPeso(price));
-  _setPreviewText(prefix + '_bd_promo', _formatPeso(promoAmount));
-  _setPreviewText(prefix + '_bd_vat', _formatPeso(vatAmount));
-  _setPreviewText(prefix + '_bd_lmf', _formatPeso(lmfAmount));
-  _setPreviewText(prefix + '_bd_vat_rate', '(' + vat.toFixed(2) + '%)');
-  _setPreviewText(prefix + '_bd_lmf_rate', '(' + lmf.toFixed(2) + '%)');
-
-  // Update MISCELLANEOUS
-  _setPreviewText(prefix + '_bd_tcp', _formatPeso(totalContractPrice));
-  _setPreviewText(prefix + '_bd_resv', _formatPeso(reservationFee));
-  _setPreviewText(prefix + '_bd_dp_total', _formatPeso(downpaymentAmount));
-  _setPreviewText(prefix + '_bd_dp_monthly', _formatPeso(monthlyDownpayment));
-  _setPreviewText(prefix + '_bd_dp_months', '(' + Math.round(dpTermsMonths) + ' mos)');
-  _setPreviewText(prefix + '_bd_loanable', _formatPeso(loanableAmount));
-  _setPreviewText(prefix + '_bd_annual_int', interestRate.toFixed(2) + '%');
-  _setPreviewText(prefix + '_bd_interest_rate_label', '(' + interestRate.toFixed(2) + '%)');
-
-  // Update AMORTIZATION (monthly payments using simple amortization formula)
-  var annualRate = interestRate / 100;
-  var monthlyRate = annualRate / 12;
-  var terms = [5, 10, 15, 20];
-  terms.forEach(function(years) {
-    var months = years * 12;
-    var monthlyPayment = loanableAmount > 0 ? (loanableAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1) : 0;
-    _setPreviewText(prefix + '_bd_amort_' + years, _formatPeso(monthlyPayment));
-  });
-
-  // Update REQUIRED INCOME (typically monthly payment * 3 for DTI of 35%)
-  terms.forEach(function(years) {
-    var months = years * 12;
-    var monthlyPayment = loanableAmount > 0 ? (loanableAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1) : 0;
-    var requiredIncome = monthlyPayment * 3; // Assuming 35% DTI threshold
-    _setPreviewText(prefix + '_bd_income_' + years, _formatPeso(requiredIncome));
-  });
-}
-
 document.addEventListener('DOMContentLoaded', function () {
 
   function hardenAddressAutofill(ids) {
@@ -173,42 +64,6 @@ document.addEventListener('DOMContentLoaded', function () {
     'ep_region_select', 'ep_province_select', 'ep_citymun_select', 'ep_barangay_select'
   ]);
 
-  ['acp', 'ep'].forEach(function (prefix) {
-    var interestInput = document.getElementById(prefix + '_interest_rate');
-    if (interestInput && !String(interestInput.value || '').trim()) {
-      interestInput.value = '8.5';
-    }
-    ['price', 'promo_discount_rate', 'downpayment_rate', 'vat_rate', 'lmf_rate', 'interest_rate'].forEach(function (field) {
-      _bind(prefix + '_' + field, 'input', function () {
-        _syncPropertyPricingPreview(prefix);
-      });
-    });
-    // Also bind additional fields for full breakdown updates
-    ['reservation_fee', 'downpayment_terms_months', 'loanable_percentage'].forEach(function (field) {
-      _bind(prefix + '_' + field, 'input', function () {
-        _updateFullPricingBreakdown(prefix);
-      });
-    });
-    _syncPropertyPricingPreview(prefix);
-  });
-
-  // Pricing Breakdown Toggle Buttons
-  ['acp', 'ep'].forEach(function (prefix) {
-    var toggleBtn = document.getElementById(prefix + 'BreakdownToggle');
-    var toggleIcon = document.getElementById(prefix + 'BreakdownToggleIcon');
-    var contentDiv = document.getElementById(prefix + 'BreakdownContent');
-    if (toggleBtn && contentDiv) {
-      toggleBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        contentDiv.classList.toggle('d-none');
-        if (toggleIcon) {
-          var isHidden = contentDiv.classList.contains('d-none');
-          toggleIcon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
-        }
-      });
-    }
-  });
-
   // ══════════════════════════════════════════════════════════════
   // 1. ADMIN — Single-page section switching via data-page links
   // ══════════════════════════════════════════════════════════════
@@ -218,18 +73,8 @@ document.addEventListener('DOMContentLoaded', function () {
   var gotoLinks    = document.querySelectorAll('[data-goto]');
 
   function showPage(pageId) {
-    // Clear project filter when navigating away from subdivisions
-    if (pageId !== 'subdivisions') {
-      _selectedProjectIdForSubdivisions = null;
-      _selectedProjectLocationForSubdivisions = null;
-    }
-    if (pageId !== 'properties') {
-      _selectedSubdivisionNameForModels = '';
-    }
-    
-    // Hide all pages (fetch dynamically to ensure all are included)
-    var allPages = document.querySelectorAll('.dash-page');
-    allPages.forEach(function (p) { p.classList.add('d-none'); });
+    // Hide all pages
+    pages.forEach(function (p) { p.classList.add('d-none'); });
     var target = document.getElementById('page-' + pageId);
     if (target) {
       target.classList.remove('d-none');
@@ -416,24 +261,15 @@ document.addEventListener('DOMContentLoaded', function () {
       var term   = input.value.trim().toLowerCase();
       var status = sel    ? sel.value.toLowerCase()    : '';
       var subdiv = selSub ? selSub.value               : '';
-      var selSubOpt = (selSub && selSub.selectedOptions && selSub.selectedOptions.length)
-        ? selSub.selectedOptions[0]
-        : null;
-      var subdivId = selSubOpt ? String(selSubOpt.getAttribute('data-sub-id') || '') : '';
       var visibleCount = 0;
       grid.querySelectorAll('.prop-card-col').forEach(function (col) {
         var name  = (col.getAttribute('data-prop-name')   || '').toLowerCase();
         var loc   = (col.getAttribute('data-prop-loc')    || '').toLowerCase();
         var st    = (col.getAttribute('data-status')      || '').toLowerCase();
         var sub   = (col.getAttribute('data-prop-subdiv') || '');
-        var subId = String(col.getAttribute('data-prop-subdiv-id') || '');
         var textMatch   = !term   || name.includes(term) || loc.includes(term);
         var statusMatch = !status || st === status;
-        var subdivMatch = !subdiv || (
-          subdiv === '__none__'
-            ? sub === ''
-            : (sub === subdiv || (subdivId && subId && subId === subdivId))
-        );
+        var subdivMatch = !subdiv || (subdiv === '__none__' ? sub === '' : sub === subdiv);
         var show = textMatch && statusMatch && subdivMatch;
         col.style.display = show ? '' : 'none';
         if (show) visibleCount++;
@@ -444,7 +280,6 @@ document.addEventListener('DOMContentLoaded', function () {
     input.addEventListener('input', apply);
     if (sel)    sel.addEventListener('change', apply);
     if (selSub) selSub.addEventListener('change', apply);
-    window._applyPropertyFilters = apply;
   })();
 
 
@@ -825,77 +660,27 @@ entriesEl.innerHTML = rows.map(function (row) {
     function apply() {
       var term = input ? input.value.trim().toLowerCase() : '';
       var loc  = sel   ? sel.value.toLowerCase() : '';
-      var projectId = _selectedProjectIdForSubdivisions;
       var visibleCount = 0;
       grid.querySelectorAll('.sub-card-col').forEach(function (col) {
         var name   = (col.getAttribute('data-sub-name') || '').toLowerCase();
         var rowLoc = (col.getAttribute('data-location') || '').toLowerCase();
-        var subCard = col.querySelector('.sub-card');
-        var rowProjId = subCard ? (subCard.getAttribute('data-sub-project-id') || '') : '';
         var textMatch = !term || name.includes(term);
         var locMatch  = !loc  || rowLoc === loc;
-        var projMatch = !projectId || rowProjId === projectId;
-        var show = textMatch && locMatch && projMatch;
+        var show = textMatch && locMatch;
         col.style.display = show ? '' : 'none';
         if (show) visibleCount++;
       });
-      if (noRes) noRes.classList.toggle('d-none', visibleCount > 0 || (!term && !loc && !projectId));
+      if (noRes) noRes.classList.toggle('d-none', visibleCount > 0 || (!term && !loc));
     }
     if (input) input.addEventListener('input', apply);
     if (sel)   sel.addEventListener('change', apply);
-    window._applySubdivisionFilters = apply;
   })();
-
-  // Helper function to set the location filter
-  window._setLocationFilter = function(location) {
-    var sel = document.getElementById('subLocationFilter');
-    if (!sel) return;
-    sel.value = location || '';
-    // Trigger the change event to apply filtering
-    var event = new Event('change', { bubbles: true });
-    sel.dispatchEvent(event);
-  };
-
-  window._setPropertySubdivisionFilter = function(subdivisionName, subdivisionId) {
-    var sel = document.getElementById('propSubdivisionFilter');
-    if (!sel) return;
-
-    var targetName = String(subdivisionName || '').trim();
-    var targetId = String(subdivisionId || '').trim();
-
-    if (targetId) {
-      var optById = Array.prototype.find.call(sel.options, function(opt) {
-        return String(opt.getAttribute('data-sub-id') || '') === targetId;
-      });
-      if (optById) {
-        sel.value = optById.value;
-        return;
-      }
-    }
-
-    sel.value = targetName;
-  };
-
-  window._openModelsWithFilters = function(projectName, subdivisionName) {
-    _selectedSubdivisionNameForModels = subdivisionName || '';
-    if (typeof showPage === 'function') showPage('properties');
-    _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels);
-    if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
-  };
 
   // Restore the last active page after a reload (e.g. after saving a project)
   try {
-    // First, check if there's a page query parameter in the URL
-    var urlParams = new URLSearchParams(window.location.search);
-    var pageFromUrl = urlParams.get('page');
-    var pageToShow = pageFromUrl || sessionStorage.getItem('activeDashPage');
-    
-    if (pageToShow && document.getElementById('page-' + pageToShow)) {
-      showPage(pageToShow);
-      // Remove the query parameter from the URL so it doesn't persist on reload
-      if (pageFromUrl) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
+    var savedDashPage = sessionStorage.getItem('activeDashPage');
+    if (savedDashPage && document.getElementById('page-' + savedDashPage)) {
+      showPage(savedDashPage);
     }
   } catch(e) {}
 
@@ -1381,11 +1166,8 @@ function _addSubProjectOption(projectId, projectName, locMeta) {
     var sel = document.getElementById(id);
     if (!sel) return;
     var pid = String(projectId);
-    var existing = null;
-    Array.prototype.forEach.call(sel.options, function (o) {
-      if (String(o.value) === pid) existing = o;
-    });
-    if (!existing) {
+    var exists = Array.prototype.some.call(sel.options, function (o) { return String(o.value) === pid; });
+    if (!exists) {
       var opt = document.createElement('option');
       opt.value = pid;
       opt.textContent = String(projectName);
@@ -1399,199 +1181,8 @@ function _addSubProjectOption(projectId, projectName, locMeta) {
       opt.dataset.barangayName = locMeta.barangayName || '';
       opt.dataset.location = locMeta.location || '';
       sel.appendChild(opt);
-      return;
     }
-    existing.textContent = String(projectName);
-    existing.dataset.regionCode = locMeta.regionCode || '';
-    existing.dataset.regionName = locMeta.regionName || '';
-    existing.dataset.provinceCode = locMeta.provinceCode || '';
-    existing.dataset.provinceName = locMeta.provinceName || '';
-    existing.dataset.citymunCode = locMeta.citymunCode || '';
-    existing.dataset.citymunName = locMeta.citymunName || '';
-    existing.dataset.barangayCode = locMeta.barangayCode || '';
-    existing.dataset.barangayName = locMeta.barangayName || '';
-    existing.dataset.location = locMeta.location || '';
   });
-}
-
-function _refreshSubdivisionOptionLabelsFromCards() {
-  ['acp_subdivision', 'ep_subdivision'].forEach(function (id) {
-    var sel = document.getElementById(id);
-    if (!sel) return;
-    Array.prototype.forEach.call(sel.options, function (opt) {
-      var subId = String(opt.value || '').trim();
-      if (!subId) return;
-      var card = document.querySelector('.sub-card[data-sub-id="' + subId + '"]');
-      if (!card) return;
-      var subName = String(card.dataset.subName || '').trim();
-      var projName = String(card.dataset.subProjectName || '').trim();
-      var nextLabel = projName ? (projName + ' / ' + subName) : subName;
-      if (nextLabel) opt.textContent = nextLabel;
-    });
-  });
-}
-
-function _addPropertySubdivisionOption(subId, subName, projectName, locMeta) {
-  if (!subId || !subName) return;
-  locMeta = locMeta || {};
-  var sid = String(subId);
-
-  ['acp_subdivision', 'ep_subdivision'].forEach(function (id) {
-    var sel = document.getElementById(id);
-    if (!sel) return;
-    var opt = null;
-    Array.prototype.forEach.call(sel.options, function (o) {
-      if (String(o.value) === sid) opt = o;
-    });
-    if (!opt) {
-      opt = document.createElement('option');
-      opt.value = sid;
-      sel.appendChild(opt);
-    }
-    opt.textContent = projectName ? (projectName + ' / ' + subName) : subName;
-    opt.dataset.subLocation = locMeta.location || '';
-    opt.dataset.subRegionCode = locMeta.regionCode || '';
-    opt.dataset.subRegionName = locMeta.regionName || '';
-    opt.dataset.subProvinceCode = locMeta.provinceCode || '';
-    opt.dataset.subProvinceName = locMeta.provinceName || '';
-    opt.dataset.subCitymunCode = locMeta.citymunCode || '';
-    opt.dataset.subCitymunName = locMeta.citymunName || '';
-    opt.dataset.subBarangayCode = locMeta.barangayCode || '';
-    opt.dataset.subBarangayName = locMeta.barangayName || '';
-  });
-
-  var filterSel = document.getElementById('propSubdivisionFilter');
-  if (filterSel) {
-    var filterOpt = null;
-    Array.prototype.forEach.call(filterSel.options, function (o) {
-      if ((o.dataset && String(o.dataset.subId || '') === sid) || String(o.value || '') === subName) filterOpt = o;
-    });
-    if (!filterOpt) {
-      filterOpt = document.createElement('option');
-      filterSel.appendChild(filterOpt);
-    }
-    filterOpt.value = subName;
-    filterOpt.textContent = subName;
-    filterOpt.dataset.subId = sid;
-  }
-}
-
-function _ensureProjectGrid() {
-  var grid = document.getElementById('projectsGrid');
-  if (grid) return grid;
-  var wrap = document.querySelector('#page-projects .sqh-card');
-  if (!wrap) return null;
-  var empty = document.getElementById('projectEmptyState');
-  if (empty) empty.remove();
-  grid = document.createElement('div');
-  grid.className = 'row g-4';
-  grid.id = 'projectsGrid';
-  var noRes = document.getElementById('projNoResults');
-  if (noRes && noRes.parentElement === wrap) wrap.insertBefore(grid, noRes);
-  else wrap.appendChild(grid);
-  return grid;
-}
-
-function _buildProjectCard(project) {
-  var id = String((project && project.id) || '');
-  var name = String((project && project.name) || 'Project');
-  var location = String((project && project.location) || '');
-  var description = String((project && project.description) || '');
-  var images = Array.isArray(project && project.image_ids) ? project.image_ids : [];
-  var subs = Number((project && project.sub_count) || 0);
-  if (!isFinite(subs) || subs < 0) subs = 0;
-  var createdLabel = String((project && project.created_at_label) || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }));
-
-  var col = document.createElement('div');
-  col.className = 'col-12 col-sm-6 col-xl-4 sub-card-col project-card-col';
-  col.dataset.projectId = id;
-  col.dataset.projectName = name;
-  col.dataset.projectStreet = String((project && project.street) || '');
-  col.dataset.projectBlock = String((project && project.block) || '');
-  col.dataset.projectLotNo = String((project && project.lot_no) || '');
-  col.dataset.projectLocation = location;
-  col.dataset.projectDescription = description;
-  col.dataset.projectImages = JSON.stringify(images);
-  col.dataset.projectSubs = String(subs);
-
-  var imgHtml = images.length
-    ? '<img src="/admin/subdivision-image/' + encodeURIComponent(images[0]) + '" alt="' + _escAttr(name) + '" class="sub-card-img">'
-    : '<div class="sub-card-img-placeholder"><i class="fas fa-building"></i></div>';
-  var imgCount = images.length > 1
-    ? '<span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + images.length + '</span>'
-    : '';
-
-  col.innerHTML = ''
-    + '<div class="sub-card"'
-    + ' data-project-id="' + _escAttr(id) + '"'
-    + ' data-project-name="' + _escAttr(name) + '"'
-    + ' data-project-street="' + _escAttr((project && project.street) || '') + '"'
-    + ' data-project-block="' + _escAttr((project && project.block) || '') + '"'
-    + ' data-project-lot-no="' + _escAttr((project && project.lot_no) || '') + '"'
-    + ' data-project-location="' + _escAttr(location) + '"'
-    + ' data-project-description="' + _escAttr(description) + '"'
-    + ' data-project-images="' + _escAttr(JSON.stringify(images)) + '"'
-    + ' data-project-subs="' + _escAttr(subs) + '">'
-    + '  <div class="sub-card-img-wrap project-card-preview-trigger" data-project-id="' + _escAttr(id) + '" style="cursor:pointer;">'
-    + imgHtml
-    + imgCount
-    + '    <div class="sub-card-actions">'
-    + '      <button type="button" class="sub-card-action-btn project-preview-btn" data-project-id="' + _escAttr(id) + '" title="Preview"><i class="fas fa-eye"></i></button>'
-    + '      <button type="button" class="sub-card-action-btn sub-card-action-delete sub-delete-btn" data-project-id="' + _escAttr(id) + '" data-project-name="' + _escAttr(name) + '" data-has-subs="' + (subs > 0 ? 'true' : 'false') + '" title="Delete Project"><i class="fas fa-trash"></i></button>'
-    + '    </div>'
-    + '  </div>'
-    + '  <div class="sub-card-body project-card-preview-trigger" data-project-id="' + _escAttr(id) + '" style="cursor:pointer;">'
-    + '    <div class="sub-card-name">' + _escHtml(name) + '</div>'
-    + '    <div class="sub-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escHtml(location || '—') + '</div>'
-    + '    <div class="sub-card-loc"><i class="fas fa-calendar-alt me-1"></i>' + _escHtml(createdLabel || '—') + '</div>'
-    + '    <div class="sub-card-footer">'
-    + '      <span class="sub-card-badge">' + subs + ' Subdivision' + (subs !== 1 ? 's' : '') + '</span>'
-    + '      <a href="#" class="sub-card-manage" data-goto="subdivisions">Manage <i class="fas fa-arrow-right ms-1"></i></a>'
-    + '    </div>'
-    + '  </div>'
-    + '</div>';
-
-  return col;
-}
-
-function _upsertProjectCard(project) {
-  if (!project || !project.id) return;
-  var grid = _ensureProjectGrid();
-  if (!grid) return;
-  var empty = document.getElementById('projectEmptyState');
-  if (empty) empty.remove();
-
-  var id = String(project.id);
-  var existing = document.querySelector('.project-card-col[data-project-id="' + id + '"]');
-  var merged = Object.assign({}, project);
-  if (existing) {
-    if (merged.sub_count === undefined || merged.sub_count === null) {
-      var oldSubs = Number(existing.dataset.projectSubs || 0);
-      merged.sub_count = isFinite(oldSubs) ? oldSubs : 0;
-    }
-    if (!merged.created_at_label) {
-      var createdLine = existing.querySelector('.sub-card-body .sub-card-loc .fa-calendar-alt');
-      merged.created_at_label = createdLine ? String(createdLine.parentElement.textContent || '').trim() : '';
-    }
-  }
-  var replacement = _buildProjectCard(merged);
-  if (existing) {
-    existing.replaceWith(replacement);
-  } else {
-    grid.insertBefore(replacement, grid.firstChild);
-  }
-}
-
-function _syncProjectNameToSubdivisionCards(projectId, projectName) {
-  var pid = String(projectId || '');
-  if (!pid) return;
-  document.querySelectorAll('.sub-card[data-sub-project-id="' + pid + '"]').forEach(function (card) {
-    card.dataset.subProjectName = projectName || '';
-    var iconEl = card.querySelector('.fa-building');
-    var nameLine = iconEl ? iconEl.parentElement : null;
-    if (nameLine) nameLine.innerHTML = '<i class="fas fa-building me-1"></i>' + _escHtml(projectName || '');
-  });
-  _refreshSubdivisionOptionLabelsFromCards();
 }
 
 var _pendingProjFiles = [];
@@ -1683,7 +1274,7 @@ function _buildSubCard(subId, name, loc, desc, imageIds, propCount, locMeta, pro
         (loc ? '<div class="sub-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escHtml(loc) + '</div>' : '') +
         '<div class="sub-card-footer">' +
           '<span class="sub-card-badge">' + propLabel + '</span>' +
-          '<a href="#" class="sub-card-manage" data-goto="properties" data-model-subdivision="' + _escAttr(name) + '" data-model-subdivision-id="' + _escAttr(subId) + '">Manage <i class="fas fa-arrow-right ms-1"></i></a>' +
+          '<a href="#" class="sub-card-manage" data-goto="properties">Manage <i class="fas fa-arrow-right ms-1"></i></a>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -1764,19 +1355,7 @@ _bind('addSubdivisionModal', 'hidden.bs.modal', function() {
   ['subProject','subRegionSelect','subProvinceSelect','subCitymunSelect','subBarangaySelect'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.selectedIndex = 0;
   });
-  var regionSel = document.getElementById('subRegionSelect');
-  var provinceSel = document.getElementById('subProvinceSelect');
-  var citySel = document.getElementById('subCitymunSelect');
-  var brgySel = document.getElementById('subBarangaySelect');
-  _subResetSelect(provinceSel, '-- Select --');
-  _subResetSelect(citySel, '-- Select --');
-  _subResetSelect(brgySel, '-- Select --');
-  _subGetItems('/api/psgc/regions').then(function (items) {
-    _subFillSelect(regionSel, items, '-- Select --');
-    _syncSubdivisionLocation();
-  }).catch(function () {
-    _syncSubdivisionLocation();
-  });
+  _syncSubdivisionLocationFromProject();
 });
 
 function _subResetSelect(sel, placeholder) {
@@ -1870,58 +1449,39 @@ function _syncSubdivisionLocation() {
   setVal('subBarangayName', brgyName);
 }
 
-function initSubdivisionPsgc() {
+function _syncSubdivisionLocationFromProject() {
+  var projectSel = document.getElementById('subProject');
   var regionSel = document.getElementById('subRegionSelect');
   var provinceSel = document.getElementById('subProvinceSelect');
   var citySel = document.getElementById('subCitymunSelect');
   var brgySel = document.getElementById('subBarangaySelect');
-  if (!regionSel || !provinceSel || !citySel || !brgySel) return;
+  var display = document.getElementById('subProjectLocationDisplay');
+  if (!projectSel || !regionSel || !provinceSel || !citySel || !brgySel) return;
 
-  regionSel.addEventListener('change', function () {
-    if (!regionSel.value) {
-      _subResetSelect(provinceSel, '-- Select --');
-      _subResetSelect(citySel, '-- Select --');
-      _subResetSelect(brgySel, '-- Select --');
-      _syncSubdivisionLocation();
-      return;
-    }
-    _subGetItems('/api/psgc/provinces?region_code=' + encodeURIComponent(regionSel.value)).then(function (items) {
-      _subFillSelect(provinceSel, items, '-- Select --');
-      _subResetSelect(citySel, '-- Select --');
-      _subResetSelect(brgySel, '-- Select --');
-      _syncSubdivisionLocation();
-    });
-  });
+  var opt = projectSel.selectedOptions && projectSel.selectedOptions.length ? projectSel.selectedOptions[0] : null;
+  var regionCode = (opt && opt.dataset.regionCode) || '';
+  var regionName = (opt && opt.dataset.regionName) || '';
+  var provinceCode = (opt && opt.dataset.provinceCode) || '';
+  var provinceName = (opt && opt.dataset.provinceName) || '';
+  var citymunCode = (opt && opt.dataset.citymunCode) || '';
+  var citymunName = (opt && opt.dataset.citymunName) || '';
+  var barangayCode = (opt && opt.dataset.barangayCode) || '';
+  var barangayName = (opt && opt.dataset.barangayName) || '';
+  var location = (opt && opt.dataset.location) || '';
 
-  provinceSel.addEventListener('change', function () {
-    if (!provinceSel.value && !regionSel.value) return;
-    var q = provinceSel.value
-      ? ('province_code=' + encodeURIComponent(provinceSel.value))
-      : ('region_code=' + encodeURIComponent(regionSel.value));
-    _subGetItems('/api/psgc/cities?' + q).then(function (items) {
-      _subFillSelect(citySel, items, '-- Select --');
-      _subResetSelect(brgySel, '-- Select --');
-      _syncSubdivisionLocation();
-    });
-  });
+  _subFillSelect(regionSel, regionCode ? [{ code: regionCode, name: regionName || regionCode }] : [], '-- Select --', regionCode);
+  _subFillSelect(provinceSel, provinceCode ? [{ code: provinceCode, name: provinceName || provinceCode }] : [], '-- Select --', provinceCode);
+  _subFillSelect(citySel, citymunCode ? [{ code: citymunCode, name: citymunName || citymunCode }] : [], '-- Select --', citymunCode);
+  _subFillSelect(brgySel, barangayCode ? [{ code: barangayCode, name: barangayName || barangayCode }] : [], '-- Select --', barangayCode);
 
-  citySel.addEventListener('change', function () {
-    if (!citySel.value) {
-      _subResetSelect(brgySel, '-- Select --');
-      _syncSubdivisionLocation();
-      return;
-    }
-    _subGetItems('/api/psgc/barangays?city_mun_code=' + encodeURIComponent(citySel.value)).then(function (items) {
-      _subFillSelect(brgySel, items, '-- Select --');
-      _syncSubdivisionLocation();
-    });
-  });
-
-  brgySel.addEventListener('change', _syncSubdivisionLocation);
-  _bind('subSiteNotes', 'input', _syncSubdivisionLocation);
-  _subGetItems('/api/psgc/regions')
-    .then(function (items) { _subFillSelect(regionSel, items, '-- Select --'); _syncSubdivisionLocation(); })
-    .catch(function () { _syncSubdivisionLocation(); });
+  if (display) display.value = location;
+  _syncSubdivisionLocation();
+}
+function initSubdivisionPsgc() {
+  var projectSel = document.getElementById('subProject');
+  if (!projectSel) return;
+  projectSel.addEventListener('change', _syncSubdivisionLocationFromProject);
+  _syncSubdivisionLocationFromProject();
 }
 initSubdivisionPsgc();
 
@@ -1938,11 +1498,7 @@ function _syncEditSubdivisionLocation() {
   var provinceName = txt(provinceSel);
   var cityName = txt(citySel);
   var brgyName = txt(brgySel);
-  var streetVal = ((document.getElementById('editSubStreet') || {}).value || '').trim();
-  var blockVal = ((document.getElementById('editSubBlock') || {}).value || '').trim();
-  var lotVal = ((document.getElementById('editSubLotNo') || {}).value || '').trim();
-  var legacyLine = ((document.getElementById('editSubSiteNotes') || {}).value || '').trim();
-  var line = [streetVal, blockVal, lotVal].filter(Boolean).join(', ') || legacyLine;
+  var line = ((document.getElementById('editSubSiteNotes') || {}).value || '').trim();
   var tail = [brgyName, cityName, provinceName, regionName].filter(Boolean).join(', ');
   var loc = [line, tail].filter(Boolean).join(', ');
   var setVal = function(id, val){ var el = document.getElementById(id); if (el) el.value = val || ''; };
@@ -2005,9 +1561,6 @@ function initEditSubdivisionPsgc() {
 
   brgySel.addEventListener('change', _syncEditSubdivisionLocation);
   _bind('editSubSiteNotes', 'input', _syncEditSubdivisionLocation);
-  _bind('editSubStreet', 'input', _syncEditSubdivisionLocation);
-  _bind('editSubBlock', 'input', _syncEditSubdivisionLocation);
-  _bind('editSubLotNo', 'input', _syncEditSubdivisionLocation);
 }
 initEditSubdivisionPsgc();
 
@@ -2173,51 +1726,21 @@ function _seedProjectLocationSelects(data) {
   var brgySel = document.getElementById('projBarangaySelect');
   if (!regionSel || !provinceSel || !citySel || !brgySel) return;
 
-  var regionCode = (data.region_code || '').trim();
-  var provinceCode = (data.province_code || '').trim();
-  var citymunCode = (data.citymun_code || '').trim();
-  var barangayCode = (data.barangay_code || '').trim();
+  function seed(sel, code, name) {
+    _subResetSelect(sel, '-- Select --');
+    if (!code) return;
+    var opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = name || code;
+    sel.appendChild(opt);
+    sel.value = code;
+  }
 
-  _subGetItems('/api/psgc/regions').then(function (regions) {
-    _subFillSelect(regionSel, regions, '-- Select --', regionCode);
-    if (!regionCode) {
-      _subResetSelect(provinceSel, '-- Select --');
-      _subResetSelect(citySel, '-- Select --');
-      _subResetSelect(brgySel, '-- Select --');
-      _syncProjectLocation();
-      return Promise.resolve();
-    }
-
-    return _subGetItems('/api/psgc/provinces?region_code=' + encodeURIComponent(regionCode)).then(function (provinces) {
-      _subFillSelect(provinceSel, provinces, '-- Select --', provinceCode);
-      if (!provinceCode && !citymunCode) {
-        _subResetSelect(citySel, '-- Select --');
-        _subResetSelect(brgySel, '-- Select --');
-        _syncProjectLocation();
-        return Promise.resolve();
-      }
-
-      var cityQ = provinceCode
-        ? ('province_code=' + encodeURIComponent(provinceCode))
-        : ('region_code=' + encodeURIComponent(regionCode));
-
-      return _subGetItems('/api/psgc/cities?' + cityQ).then(function (cities) {
-        _subFillSelect(citySel, cities, '-- Select --', citymunCode);
-        if (!citymunCode) {
-          _subResetSelect(brgySel, '-- Select --');
-          _syncProjectLocation();
-          return Promise.resolve();
-        }
-
-        return _subGetItems('/api/psgc/barangays?city_mun_code=' + encodeURIComponent(citymunCode)).then(function (barangays) {
-          _subFillSelect(brgySel, barangays, '-- Select --', barangayCode);
-          _syncProjectLocation();
-        });
-      });
-    });
-  }).catch(function () {
-    _syncProjectLocation();
-  });
+  seed(regionSel, data.region_code || '', data.region_name || '');
+  seed(provinceSel, data.province_code || '', data.province_name || '');
+  seed(citySel, data.citymun_code || '', data.citymun_name || '');
+  seed(brgySel, data.barangay_code || '', data.barangay_name || '');
+  _syncProjectLocation();
 }
 
 function _openProjectEditModal(projectId) {
@@ -2279,10 +1802,21 @@ _bind('addProjectModal', 'hidden.bs.modal', function() {
   var projInput = document.getElementById('projImages');
   if (projInput) projInput.value = '';
   [
-    'projectName', 'projDescription'
+    'projectName', 'projDescription', 'projLocation',
+    'projRegionCode', 'projRegionName', 'projProvinceCode', 'projProvinceName',
+    'projCitymunCode', 'projCitymunName', 'projBarangayCode', 'projBarangayName'
   ].forEach(function(id){
     var el = document.getElementById(id);
     if (el) el.value = '';
+  });
+  ['projRegionSelect','projProvinceSelect','projCitymunSelect','projBarangaySelect'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (id === 'projRegionSelect') {
+      _subGetItems('/api/psgc/regions').then(function (items) { _subFillSelect(el, items, '-- Select --'); });
+    } else {
+      _subResetSelect(el, '-- Select --');
+    }
   });
   var errEl = document.getElementById('addProjectError');
   if (errEl) errEl.classList.add('d-none');
@@ -2307,7 +1841,19 @@ _bind('addProjectSubmitBtn', 'click', function() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating…';
 
   var fd = new FormData();
+  _syncProjectLocation();
   fd.append('name', name);
+  fd.append('street', '');
+  fd.append('block', '');
+  fd.append('lot_no', '');
+  fd.append('region_code', (document.getElementById('projRegionCode').value || '').trim());
+  fd.append('region_name', (document.getElementById('projRegionName').value || '').trim());
+  fd.append('province_code', (document.getElementById('projProvinceCode').value || '').trim());
+  fd.append('province_name', (document.getElementById('projProvinceName').value || '').trim());
+  fd.append('citymun_code', (document.getElementById('projCitymunCode').value || '').trim());
+  fd.append('citymun_name', (document.getElementById('projCitymunName').value || '').trim());
+  fd.append('barangay_code', (document.getElementById('projBarangayCode').value || '').trim());
+  fd.append('barangay_name', (document.getElementById('projBarangayName').value || '').trim());
   fd.append('description', (document.getElementById('projDescription').value || '').trim());
 
   _pendingProjFiles.filter(Boolean).forEach(function(f) { fd.append('image_files', f); });
@@ -2331,38 +1877,14 @@ _bind('addProjectSubmitBtn', 'click', function() {
         }
         return;
       }
-      var projectPayload = {
-        id: res.data.id,
-        name: res.data.name || name,
-        street: res.data.street || '',
-        block: res.data.block || '',
-        lot_no: res.data.lot_no || '',
-        location: res.data.location || '',
-        description: res.data.description || (document.getElementById('projDescription').value || '').trim(),
-        image_ids: Array.isArray(res.data.image_ids) ? res.data.image_ids : [],
-        sub_count: 0
-      };
       if (_activeProjectEditId) {
         bootstrap.Modal.getInstance(document.getElementById('addProjectModal')).hide();
-        _upsertProjectCard(projectPayload);
-        _syncProjectNameToSubdivisionCards(projectPayload.id, projectPayload.name);
-        _addSubProjectOption(projectPayload.id, projectPayload.name, {
-          location: projectPayload.location || '',
-          regionCode: res.data.region_code || '',
-          regionName: res.data.region_name || '',
-          provinceCode: res.data.province_code || '',
-          provinceName: res.data.province_name || '',
-          citymunCode: res.data.citymun_code || '',
-          citymunName: res.data.citymun_name || '',
-          barangayCode: res.data.barangay_code || '',
-          barangayName: res.data.barangay_name || ''
-        });
         showToast('Project updated successfully.', 'success');
+        location.reload();
         return;
       }
-      _upsertProjectCard(projectPayload);
-      _addSubProjectOption(projectPayload.id, projectPayload.name, {
-        location: projectPayload.location || '',
+      _addSubProjectOption(res.data.id, res.data.name, {
+        location: res.data.location || '',
         regionCode: res.data.region_code || '',
         regionName: res.data.region_name || '',
         provinceCode: res.data.province_code || '',
@@ -2455,19 +1977,6 @@ _bind('addSubSubmitBtn', 'click', function() {
       var col = _buildSubCard(res.data.id, newSubName, newSubLoc, newSubDesc, res.data.image_ids || [], 0, newSubMeta, newSubProjectId, newSubProjectName);
       grid.appendChild(col);
       _addSubLocationOption(newSubLoc);
-      _addPropertySubdivisionOption(res.data.id, newSubName, newSubProjectName, {
-        location: newSubLoc,
-        regionCode: newSubMeta.regionCode,
-        regionName: newSubMeta.regionName,
-        provinceCode: newSubMeta.provinceCode,
-        provinceName: newSubMeta.provinceName,
-        citymunCode: newSubMeta.citymunCode,
-        citymunName: newSubMeta.citymunName,
-        barangayCode: newSubMeta.barangayCode,
-        barangayName: newSubMeta.barangayName,
-      });
-      if (typeof _applySubdivisionFilters === 'function') _applySubdivisionFilters();
-      if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
     }
     showToast('Subdivision created successfully.', 'success');
   })
@@ -2483,113 +1992,59 @@ _bind('addSubSubmitBtn', 'click', function() {
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.sub-delete-btn');
   if (!btn) return;
-  var isProject = !!(btn.dataset.projectId);
-  var targetId = isProject ? btn.dataset.projectId : btn.dataset.subId;
-  var targetName = isProject ? btn.dataset.projectName : btn.dataset.subName;
-  var hasChildren = isProject
-    ? (btn.dataset.hasSubs === 'true')
-    : (btn.dataset.hasProps === 'true');
-
-  if (!targetId) return;
-
-  if (hasChildren) {
-    if (isProject) {
-      alert('Cannot delete "' + targetName + '" — it still has subdivisions assigned.');
-    } else {
-      alert('Cannot delete "' + targetName + '" — it still has properties assigned.');
-    }
+  var subId   = btn.dataset.subId;
+  var subName = btn.dataset.subName;
+  var hasProps = btn.dataset.hasProps === 'true';
+  if (hasProps) {
+    alert('Cannot delete "' + subName + '" — it still has properties assigned.');
     return;
   }
-
   var iconEl    = document.getElementById('toggleModalIcon');
   var titleEl   = document.getElementById('toggleModalTitle');
   var descEl    = document.getElementById('toggleModalDesc');
   var confirmEl = document.getElementById('toggleModalConfirmBtn');
   iconEl.innerHTML = '<i class="fas fa-trash"></i>';
   iconEl.style.color = 'var(--clr-danger)';
-  titleEl.textContent = 'Delete "' + targetName + '"?';
-  descEl.textContent  = isProject
-    ? 'This project will be permanently removed.'
-    : 'This subdivision will be permanently removed.';
+  titleEl.textContent = 'Delete "' + subName + '"?';
+  descEl.textContent  = 'This project will be permanently removed.';
   confirmEl.className = 'btn btn-crimson px-4';
   confirmEl.innerHTML = '<i class="fas fa-trash me-1"></i> Delete';
   _togglePending.userId = null;
-  _togglePending.source = isProject ? 'project' : 'subdivision';
-  _togglePending._deleteId = targetId;
+  _togglePending.source = 'subdivision';
+  _togglePending._subId = subId;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('toggleAccountModal')).show();
 });
 
 _bind('toggleModalConfirmBtn', 'click', function() {
-  var source = _togglePending.source;
-  if (source !== 'subdivision' && source !== 'project') return;
-
-  var isProject = source === 'project';
-  var deleteId = _togglePending._deleteId;
-  if (!deleteId) return;
-
-  var endpoint = isProject
-    ? ('/admin/project/' + encodeURIComponent(deleteId) + '/delete')
-    : ('/admin/subdivision/' + encodeURIComponent(deleteId) + '/delete');
-
-  fetch(endpoint, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
+  if (_togglePending.source !== 'subdivision') return;
+  var subId = _togglePending._subId;
+  if (!subId) return;
+  fetch('/admin/subdivision/' + subId + '/delete', { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       bootstrap.Modal.getInstance(document.getElementById('toggleAccountModal')).hide();
       if (data.success) {
-        var cardSelector = isProject
-          ? ('.sub-card[data-project-id="' + deleteId + '"]')
-          : ('.sub-card[data-sub-id="' + deleteId + '"]');
-        var card = document.querySelector(cardSelector);
+        // Remove card from DOM without reloading
+        var card = document.querySelector('.sub-card[data-sub-id="' + subId + '"]');
         if (card) {
           var colEl = card.closest('.sub-card-col');
           if (colEl) colEl.remove();
         }
-
-        var grid = isProject
-          ? document.getElementById('projectsGrid')
-          : document.getElementById('subdivisionsGrid');
+        // If grid is now empty, show empty state
+        var grid = document.getElementById('subdivisionsGrid');
         if (grid && grid.querySelectorAll('.sub-card-col').length === 0) {
-          var wrap = isProject
-            ? document.querySelector('#page-projects .sqh-card')
-            : document.querySelector('#page-subdivisions .sqh-card');
+          var wrap = document.querySelector('#page-subdivisions .sqh-card');
           grid.remove();
-          var noRes = document.getElementById(isProject ? 'projNoResults' : 'subNoResults');
+          var noRes = document.getElementById('subNoResults');
           if (noRes) noRes.remove();
           var emptyDiv = document.createElement('div');
           emptyDiv.className = 'text-center py-5 text-muted';
-          emptyDiv.innerHTML = isProject
-            ? '<i class="fas fa-building fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No projects yet.'
-            : '<i class="fas fa-city fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No subdivisions yet.';
+          emptyDiv.innerHTML = '<i class="fas fa-city fa-2x mb-2 d-block" style="color:var(--clr-border);"></i>No projects yet.';
           if (wrap) wrap.appendChild(emptyDiv);
         }
-
-        if (isProject) {
-          ['subProject', 'editSubProject'].forEach(function (id) {
-            var sel = document.getElementById(id);
-            if (!sel) return;
-            Array.prototype.slice.call(sel.options).forEach(function (opt) {
-              if (String(opt.value) === String(deleteId)) opt.remove();
-            });
-          });
-        } else {
-          ['acp_subdivision', 'ep_subdivision'].forEach(function (id) {
-            var sel = document.getElementById(id);
-            if (!sel) return;
-            Array.prototype.slice.call(sel.options).forEach(function (opt) {
-              if (String(opt.value) === String(deleteId)) opt.remove();
-            });
-          });
-          var propFilter = document.getElementById('propSubdivisionFilter');
-          if (propFilter) {
-            Array.prototype.slice.call(propFilter.options).forEach(function (opt) {
-              if (String((opt.dataset && opt.dataset.subId) || '') === String(deleteId)) opt.remove();
-            });
-          }
-        }
-
-        showToast(isProject ? 'Project deleted successfully.' : 'Subdivision deleted successfully.', 'success');
+        showToast('Project deleted successfully.', 'success');
       } else {
-        showToast(data.error || (isProject ? 'Failed to delete project.' : 'Failed to delete subdivision.'), 'danger');
+        showToast(data.error || 'Failed to delete project.', 'danger');
       }
     })
     .catch(function() {
@@ -2603,10 +2058,12 @@ var _editSubId = null;
 var _editDeleteQueue = []; // image IDs staged for deletion on Save
 var _pendingEditSubFiles = [];
 
-function openSubdivisionEditor(card) {
-  if (!card) return;
-  _editSubId = card.dataset.subId;
-  _editDeleteQueue = [];
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.sub-edit-btn');
+  if (!btn) return;
+  var card = btn.closest('.sub-card');
+  _editSubId = btn.dataset.subId;
+  _editDeleteQueue = []; // reset on each open
   _pendingEditSubFiles = [];
 
   function populateSubdivisionEditForm(data) {
@@ -2643,24 +2100,17 @@ function openSubdivisionEditor(card) {
         }
       }
     }
-    var setVal = function(id, val) {
-      var el = document.getElementById(id);
-      if (el) el.value = val || '';
-    };
-    setVal('editSubStreet', data.street || '');
-    setVal('editSubBlock', data.block || '');
-    setVal('editSubLotNo', data.lot_no || '');
-    setVal('editSubSiteNotes', lineOnly);
-    setVal('editSubLocation', fullLoc);
-    setVal('editSubDescription', data.description || '');
-    setVal('editSubRegionCode', data.region_code || '');
-    setVal('editSubRegionName', data.region_name || '');
-    setVal('editSubProvinceCode', data.province_code || '');
-    setVal('editSubProvinceName', data.province_name || '');
-    setVal('editSubCitymunCode', data.citymun_code || '');
-    setVal('editSubCitymunName', data.citymun_name || '');
-    setVal('editSubBarangayCode', data.barangay_code || '');
-    setVal('editSubBarangayName', data.barangay_name || '');
+    document.getElementById('editSubSiteNotes').value = lineOnly;
+    document.getElementById('editSubLocation').value = fullLoc;
+    document.getElementById('editSubDescription').value = data.description || '';
+    document.getElementById('editSubRegionCode').value = data.region_code || '';
+    document.getElementById('editSubRegionName').value = data.region_name || '';
+    document.getElementById('editSubProvinceCode').value = data.province_code || '';
+    document.getElementById('editSubProvinceName').value = data.province_name || '';
+    document.getElementById('editSubCitymunCode').value = data.citymun_code || '';
+    document.getElementById('editSubCitymunName').value = data.citymun_name || '';
+    document.getElementById('editSubBarangayCode').value = data.barangay_code || '';
+    document.getElementById('editSubBarangayName').value = data.barangay_name || '';
     var imageIds = data.image_ids || [];
     var wrap = document.getElementById('editSubImagesWrap');
     wrap.innerHTML = '';
@@ -2675,7 +2125,7 @@ function openSubdivisionEditor(card) {
         '</button>';
       wrap.appendChild(tile);
     });
-    ['editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
+    ['editSubProject','editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
       var el = document.getElementById(id); if (el) el.selectedIndex = 0;
     });
     _preselectEditSubdivisionPsgc({
@@ -2690,10 +2140,10 @@ function openSubdivisionEditor(card) {
     });
   }
 
-  ['editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
+  ['editSubProject','editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.selectedIndex = 0;
   });
-  document.getElementById('editSubImages').value = '';
+  document.getElementById('editSubImages').value      = '';
   var editFnEl = document.getElementById('editSubImagesFilenames');
   if (editFnEl) editFnEl.value = '';
   document.getElementById('editSubError').classList.add('d-none');
@@ -2711,9 +2161,6 @@ function openSubdivisionEditor(card) {
       populateSubdivisionEditForm({
         name: card.dataset.subName || '',
         project_id: card.dataset.subProjectId || '',
-        street: card.dataset.subStreet || '',
-        block: card.dataset.subBlock || '',
-        lot_no: card.dataset.subLotNo || '',
         location: card.dataset.subLocation || '',
         region_code: card.dataset.subRegionCode || '',
         region_name: card.dataset.subRegionName || '',
@@ -2729,13 +2176,6 @@ function openSubdivisionEditor(card) {
       bootstrap.Modal.getOrCreateInstance(document.getElementById('editSubdivisionModal')).show();
       showToast('Loaded project details from card cache.', 'warning');
     });
-}
-
-document.addEventListener('click', function(e) {
-  var btn = e.target.closest('.sub-edit-btn');
-  if (!btn) return;
-  var card = btn.closest('.sub-card');
-  openSubdivisionEditor(card);
 });
 
 // X button: stage for deletion (no network call yet)
@@ -2788,10 +2228,10 @@ _bind('editSubImages', 'change', function() {
 _bind('editSubdivisionModal', 'hidden.bs.modal', function() {
   _editDeleteQueue = [];
   _pendingEditSubFiles = [];
-  ['editSubSiteNotes','editSubStreet','editSubBlock','editSubLotNo','editSubLocation','editSubRegionCode','editSubRegionName','editSubProvinceCode','editSubProvinceName','editSubCitymunCode','editSubCitymunName','editSubBarangayCode','editSubBarangayName'].forEach(function(id){
+  ['editSubSiteNotes','editSubLocation','editSubRegionCode','editSubRegionName','editSubProvinceCode','editSubProvinceName','editSubCitymunCode','editSubCitymunName','editSubBarangayCode','editSubBarangayName'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
-  ['editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
+  ['editSubProject','editSubRegionSelect','editSubProvinceSelect','editSubCitymunSelect','editSubBarangaySelect'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.selectedIndex = 0;
   });
   var inputEl = document.getElementById('editSubImages');
@@ -2824,9 +2264,6 @@ _bind('editSubSubmitBtn', 'click', function() {
     fd.append('project_id',  (document.getElementById('editSubProject').value || '').trim());
     fd.append('name',        _savedName);
     fd.append('location',    _savedLoc);
-    fd.append('street',      (document.getElementById('editSubStreet').value || '').trim());
-    fd.append('block',       (document.getElementById('editSubBlock').value || '').trim());
-    fd.append('lot_no',      (document.getElementById('editSubLotNo').value || '').trim());
     fd.append('region_code', document.getElementById('editSubRegionCode').value.trim());
     fd.append('region_name', document.getElementById('editSubRegionName').value.trim());
     fd.append('province_code', document.getElementById('editSubProvinceCode').value.trim());
@@ -2883,8 +2320,7 @@ _bind('editSubSubmitBtn', 'click', function() {
       if (nameEl) nameEl.textContent = _savedName;
       // Update location line
       var locEl = card.querySelector('.sub-card-loc .fa-map-marker-alt') ? card.querySelector('.sub-card-loc .fa-map-marker-alt').parentElement : null;
-      var projectIcon = card.querySelector('.fa-building');
-      var projectEl = projectIcon ? projectIcon.parentElement : null;
+      var projectEl = card.querySelector('.sub-card-loc .fa-building') ? card.querySelector('.sub-card-loc .fa-building').parentElement : null;
       if (projectName) {
         if (projectEl) {
           projectEl.innerHTML = '<i class="fas fa-building me-1"></i>' + _escHtml(projectName);
@@ -2943,32 +2379,6 @@ _bind('editSubSubmitBtn', 'click', function() {
       if (delBtn) delBtn.dataset.subName = _savedName;
       // Add location to filter dropdown if new
       _addSubLocationOption(_savedLoc);
-      _addPropertySubdivisionOption(_editSubId, _savedName, projectName, {
-        location: _savedLoc,
-        regionCode: document.getElementById('editSubRegionCode').value.trim(),
-        regionName: document.getElementById('editSubRegionName').value.trim(),
-        provinceCode: document.getElementById('editSubProvinceCode').value.trim(),
-        provinceName: document.getElementById('editSubProvinceName').value.trim(),
-        citymunCode: document.getElementById('editSubCitymunCode').value.trim(),
-        citymunName: document.getElementById('editSubCitymunName').value.trim(),
-        barangayCode: document.getElementById('editSubBarangayCode').value.trim(),
-        barangayName: document.getElementById('editSubBarangayName').value.trim(),
-      });
-
-      document.querySelectorAll('.prop-card[data-prop-subdivision-id="' + _editSubId + '"]').forEach(function (propCard) {
-        propCard.dataset.propSubdivision = _savedName;
-        var metaRow = propCard.querySelector('.prop-card-meta');
-        if (metaRow) {
-          var spans = metaRow.querySelectorAll('span');
-          if (spans && spans.length > 0) spans[0].innerHTML = '<i class="fas fa-city me-1"></i>' + _escHtml(_savedName);
-        }
-      });
-      document.querySelectorAll('.prop-card-col[data-prop-subdiv-id="' + _editSubId + '"]').forEach(function (col) {
-        col.dataset.propSubdiv = _savedName;
-      });
-
-      if (typeof _applySubdivisionFilters === 'function') _applySubdivisionFilters();
-      if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
     }
   })
   .catch(function() {
@@ -2982,22 +2392,6 @@ _bind('editSubSubmitBtn', 'click', function() {
 /* ── Project Preview Modal ───────────────────────────────────── */
 var _previewImages = [];
 var _previewIdx    = 0;
-var _previewSubId  = null;
-var _previewSubCard = null;
-
-function _openSubdivisionEditorFromPreview(subId) {
-  var card = _previewSubCard || document.querySelector('.sub-card[data-sub-id="' + subId + '"]');
-  if (!card) return;
-  var previewModalEl = document.getElementById('subPreviewModal');
-  if (previewModalEl && previewModalEl.classList.contains('show')) {
-    previewModalEl.addEventListener('hidden.bs.modal', function onHidden() {
-      openSubdivisionEditor(card);
-    }, { once: true });
-    bootstrap.Modal.getOrCreateInstance(previewModalEl).hide();
-    return;
-  }
-  openSubdivisionEditor(card);
-}
 
 function _showPreviewSlide(idx) {
   _previewIdx = idx;
@@ -3048,7 +2442,6 @@ document.addEventListener('click', function(e) {
   if (!trigger) return;
   if (e.target.closest('.sub-card-actions')) return;
   if (e.target.closest('.sub-card-manage')) return;
-  if (e.target.closest('.sub-card-body')) return;
 
   var card = trigger.closest('.sub-card');
   if (!card) return;
@@ -3058,8 +2451,6 @@ document.addEventListener('click', function(e) {
   var desc  = card.dataset.subDescription || '';
   var props = card.dataset.subProps       || '0';
   var subId = card.dataset.subId;
-  _previewSubId = subId;
-  _previewSubCard = card;
 
   _previewImages = JSON.parse(card.dataset.subImages || '[]');
   _previewIdx    = 0;
@@ -3081,13 +2472,11 @@ document.addEventListener('click', function(e) {
 
   _showPreviewSlide(0);
 
-  var previewEditBtn = document.getElementById('subPreviewEditBtn');
-  if (previewEditBtn) {
-    previewEditBtn.dataset.subId = subId;
-    previewEditBtn.onclick = function() {
-      _openSubdivisionEditorFromPreview(subId);
-    };
-  }
+  document.getElementById('subPreviewEditBtn').onclick = function() {
+    bootstrap.Modal.getInstance(document.getElementById('subPreviewModal')).hide();
+    var editCardBtn = document.querySelector('.sub-edit-btn[data-sub-id="' + subId + '"]');
+    if (editCardBtn) editCardBtn.click();
+  };
   document.getElementById('subPreviewDeleteBtn').onclick = function() {
     bootstrap.Modal.getInstance(document.getElementById('subPreviewModal')).hide();
     var delCardBtn = document.querySelector('.sub-delete-btn[data-sub-id="' + subId + '"]');
@@ -3096,55 +2485,16 @@ document.addEventListener('click', function(e) {
   document.getElementById('subPreviewManageLink').onclick = function(ev) {
     ev.preventDefault();
     bootstrap.Modal.getInstance(document.getElementById('subPreviewModal')).hide();
-    var manageLink = document.querySelector('.sub-card[data-sub-id="' + subId + '"] .sub-card-manage[data-goto]');
+    var manageLink = document.querySelector('.sub-card-manage[data-goto]');
     if (manageLink) manageLink.click();
   };
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById('subPreviewModal')).show();
 });
 
-document.addEventListener('click', function(e) {
-  var btn = e.target.closest('#subPreviewEditBtn');
-  if (!btn) return;
-  var subId = btn.dataset.subId || _previewSubId;
-  if (!subId) return;
-  e.preventDefault();
-  _openSubdivisionEditorFromPreview(subId);
-});
-
-document.addEventListener('click', function(e) {
-  var navBody = e.target.closest('.sub-card-body.sub-card-preview-trigger');
-  if (navBody) {
-    var navCard = navBody.closest('.sub-card');
-    if (!navCard) return;
-    if (e.target.closest('.sub-card-actions')) return;
-    if (e.target.closest('.sub-card-manage')) return;
-    e.preventDefault();
-    _selectedSubdivisionNameForModels = navCard.dataset.subName || '';
-    var subdivisionIdFromCard = navCard.dataset.subId || '';
-    _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels, subdivisionIdFromCard);
-    if (typeof showPage === 'function') showPage('properties');
-    if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
-    return;
-  }
-
-  var manage = e.target.closest('.sub-card-manage[data-goto="properties"]');
-  if (!manage) return;
-  e.preventDefault();
-  var subdivisionName = manage.getAttribute('data-model-subdivision') || '';
-  var subdivisionId = manage.getAttribute('data-model-subdivision-id') || '';
-  _selectedSubdivisionNameForModels = subdivisionName;
-  if (typeof showPage === 'function') showPage('properties');
-  _setPropertySubdivisionFilter(_selectedSubdivisionNameForModels, subdivisionId);
-  if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
-});
-
 /* ── Project cards: preview modal handlers ──────────────────── */
 var _projectPreviewImages = [];
 var _projectPreviewIdx = 0;
-var _selectedProjectIdForSubdivisions = null;
-var _selectedProjectLocationForSubdivisions = null;
-var _selectedSubdivisionNameForModels = '';
 
 function _showProjectPreviewSlide(idx) {
   _projectPreviewIdx = idx;
@@ -3193,33 +2543,10 @@ _bind('projectPreviewDots', 'click', function(e) {
   _showProjectPreviewSlide(parseInt(dot.dataset.idx, 10));
 });
 
-// Navigate to subdivisions when clicking on project card body/name
-document.addEventListener('click', function(e) {
-  var bodyTrigger = e.target.closest('.sub-card-body.project-card-preview-trigger');
-  if (!bodyTrigger) return;
-  
-  var card = bodyTrigger.closest('.sub-card');
-  if (!card || !card.dataset.projectId) return;
-  
-  e.preventDefault();
-  _selectedProjectIdForSubdivisions = card.dataset.projectId;
-  _selectedProjectLocationForSubdivisions = card.dataset.projectLocation || '';
-  if (typeof showPage === 'function') {
-    showPage('subdivisions');
-    setTimeout(function() { 
-      _applySubdivisionFilters();
-      _setLocationFilter(_selectedProjectLocationForSubdivisions);
-    }, 100);
-  }
-});
-
 document.addEventListener('click', function(e) {
   var trigger = e.target.closest('.project-card-preview-trigger, .project-preview-btn');
   if (!trigger) return;
   if (e.target.closest('.sub-card-action-delete')) return;
-  
-  // Skip if clicking on card body - that's handled by the navigation handler above
-  if (e.target.closest('.sub-card-body')) return;
 
   var card = trigger.closest('.sub-card');
   if (!card || !card.dataset.projectId) return;
@@ -3261,7 +2588,10 @@ document.addEventListener('click', function(e) {
   var editBtn = document.getElementById('projPreviewEditBtn');
   if (editBtn) {
     editBtn.classList.remove('d-none');
-    editBtn.dataset.projectId = projectId;
+    editBtn.onclick = function() {
+      bootstrap.Modal.getInstance(document.getElementById('projectPreviewModal'))?.hide();
+      _openProjectEditModal(projectId);
+    };
   }
 
   var deleteBtn = document.getElementById('projPreviewDeleteBtn');
@@ -3278,27 +2608,11 @@ document.addEventListener('click', function(e) {
     manageLink.onclick = function(ev) {
       ev.preventDefault();
       bootstrap.Modal.getInstance(document.getElementById('projectPreviewModal'))?.hide();
-      _selectedProjectIdForSubdivisions = projectId;
-      _selectedProjectLocationForSubdivisions = loc || '';
       if (typeof showPage === 'function') showPage('subdivisions');
-      setTimeout(function() { 
-        _applySubdivisionFilters();
-        _setLocationFilter(_selectedProjectLocationForSubdivisions);
-      }, 100);
     };
   }
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById('projectPreviewModal')).show();
-});
-
-document.addEventListener('click', function(e) {
-  var btn = e.target.closest('#projPreviewEditBtn');
-  if (!btn) return;
-  var projectId = btn.dataset.projectId;
-  if (!projectId) return;
-  e.preventDefault();
-  bootstrap.Modal.getInstance(document.getElementById('projectPreviewModal'))?.hide();
-  _openProjectEditModal(projectId);
 });
 
 /* ── Property Approval / Rejection ───────────────────────────── */
@@ -3559,194 +2873,6 @@ function _lemShowSlide(idx) {
   document.querySelectorAll('#lemDots .sub-preview-dot').forEach(function(d, i) {
     d.classList.toggle('active', i === _lemIdx);
   });
-}
-
-// View property details in modal
-function _openPropertyDetailsModal(propId) {
-  if (!propId) return;
-  
-  var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('propertyDetailsModal'));
-  var loadingEl = document.getElementById('pdm-loading');
-  var contentEl = document.getElementById('pdm-content');
-  
-  if (!loadingEl || !contentEl) return;
-  
-  loadingEl.innerHTML = '<div class="spinner-border" style="color:var(--clr-primary);" role="status"></div>';
-  loadingEl.classList.remove('d-none');
-  contentEl.classList.add('d-none');
-  contentEl.innerHTML = '';
-  
-  modal.show();
-  
-  // Fetch property details from API
-  fetch('/api/admin/property/' + encodeURIComponent(propId))
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (!data.ok) throw new Error(data.error || 'Failed to load property');
-      _renderPropertyDetailsModal(data.data);
-      loadingEl.classList.add('d-none');
-      contentEl.classList.remove('d-none');
-    })
-    .catch(function(err) {
-      loadingEl.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Failed to load property details: ' + (err.message || 'Unknown error') + '</p>';
-    });
-}
-
-function _renderPropertyDetailsModal(prop) {
-  var contentEl = document.getElementById('pdm-content');
-  if (!contentEl) return;
-  
-  // Parse numeric values
-  var tcp = parseFloat(prop.price) || 0;
-  var promo = parseFloat(prop.promo_discount_rate) || 0;
-  var vat = parseFloat(prop.vat_rate) || 12;
-  var lmf = parseFloat(prop.lmf_rate) || 2;
-  var downpay = parseFloat(prop.downpayment_rate) || 20;
-  var downpay_months = parseInt(prop.downpayment_terms_months) || 24;
-  var loanable = parseFloat(prop.loanable_percentage) || 80;
-  var resv_fee = parseFloat(prop.reservation_fee) || 0;
-  var interest_rate = parseFloat(prop.interest_rate) || parseFloat(prop.annual_interest_rate) || 8.5;
-  
-  // Calculate pricing
-  var promo_amount = tcp * (promo / 100);
-  var net_price = tcp - promo_amount;
-  var vat_amount = net_price * (vat / 100);
-  var lmf_amount = net_price * (lmf / 100);
-  var total_contract_price = net_price + vat_amount + lmf_amount;
-  var total_downpay = total_contract_price * (downpay / 100);
-  var monthly_downpay = total_downpay / downpay_months;
-  var total_loanable = total_contract_price * (loanable / 100);
-  
-  // Format currency
-  function fmt(n) { return '₱' + (parseFloat(n) || 0).toLocaleString('en-PH', {maximumFractionDigits: 0}); }
-  function fmt2(n) { return '₱' + (parseFloat(n) || 0).toLocaleString('en-PH', {maximumFractionDigits: 2}); }
-  
-  // Calculate monthly payment for different terms (years)
-  function monthlyPayment(principal, annualRate, years) {
-    var monthlyRate = annualRate / 100 / 12;
-    var numPayments = years * 12;
-    if (monthlyRate === 0) return principal / numPayments;
-    return principal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
-  }
-  
-  function requiredIncome(monthlyPayment) {
-    return monthlyPayment / 0.30; // 30% DTI
-  }
-  
-  // Get property metadata
-  var location = prop.location || '—';
-  var bedrooms = prop.bedrooms || '—';
-  var bathrooms = prop.bathrooms || '—';
-  var storeys = prop.storeys || '—';
-  var floor_area = prop.floor_area || '—';
-  var lot_area = prop.lot_area || '—';
-  var street = (prop.street || '').trim() || '—';
-  var block = (prop.block || '').trim() || '—';
-  var lot_no = (prop.lot_no || '').trim() || '—';
-  var unit_type = (prop.unit_type || '').replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-  var project = prop.subdivision || '—';
-  
-  // Get property images
-  var images = (prop.images || '').split(',').filter(function(x) { return x.trim(); });
-  var firstImage = images.length > 0 ? '/uploads/' + images[0].trim() : null;
-  var imageHtml = '<div class="pdm-image-container mb-3">'
-    + (firstImage 
-      ? '<img src="' + firstImage + '" alt="' + (prop.name || 'Property') + '" class="pdm-property-image" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
-      : '')
-    + '<div class="pdm-image-placeholder" style="' + (firstImage ? 'display:none;' : 'display:flex;') + '"><i class="fas fa-image" style="font-size:2rem;"></i></div>'
-    + '</div>';
-  
-  // Build HTML
-  var html = '<div class="pdm-container">'
-    + imageHtml
-    + '<div class="pdm-header mb-2">'
-    + '  <div class="d-flex justify-content-between align-items-start mb-2">'
-    + '    <div><h5 class="m-0">' + (prop.name || 'Property') + '</h5>'
-    + '    <small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>' + location + '</small></div>'
-    + '    <div class="text-end"><span class="badge bg-success text-white me-1">' + (prop.status ? prop.status.toUpperCase() : 'AVAILABLE') + '</span>'
-    + '<span class="badge bg-info text-white">' + unit_type + '</span></div>'
-    + '  </div>'
-    + '</div>'
-    
-    // Key specs row
-    + '<div class="pdm-specs-row mb-3 pb-3 border-bottom">'
-    + '  <div class="pdm-spec-item"><i class="fas fa-bed text-primary me-1"></i><strong>' + bedrooms + '</strong> Beds</div>'
-    + '  <div class="pdm-spec-item"><i class="fas fa-bath text-primary me-1"></i><strong>' + bathrooms + '</strong> Baths</div>'
-    + '  <div class="pdm-spec-item"><i class="fas fa-layer-group text-primary me-1"></i><strong>' + storeys + '</strong> Storeys</div>'
-    + '  <div class="pdm-spec-item"><i class="fas fa-ruler-combined text-primary me-1"></i><strong>' + floor_area + '</strong> sqm floor</div>'
-    + '  <div class="pdm-spec-item"><i class="fas fa-square text-primary me-1"></i><strong>' + lot_area + '</strong> sqm lot</div>'
-    + '</div>'
-    
-    // Property metadata
-    + '<div class="row g-3 mb-4 pdm-metadata">'
-    + '  <div class="col-6"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Model Type</strong><span>' + (prop.prop_type ? prop.prop_type.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }) : 'House And Lot') + '</span></div></div>'
-    + '  <div class="col-6"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Unit Type</strong><span>' + unit_type + '</span></div></div>'
-    + '  <div class="col-6"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">TCP</strong><span>' + fmt(tcp) + '</span></div></div>'
-    + '  <div class="col-6"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Project</strong><span>' + project + '</span></div></div>'
-    + '  <div class="col-4"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Street</strong><span>' + street + '</span></div></div>'
-    + '  <div class="col-4"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Block</strong><span>' + block + '</span></div></div>'
-    + '  <div class="col-4"><div class="pdm-info-box"><strong class="d-block" style="font-size:0.75rem;text-transform:uppercase;color:var(--clr-text-secondary);">Lot No.</strong><span>' + lot_no + '</span></div></div>'
-    + '</div>'
-    
-    // Full Pricing Breakdown
-    + '<h6 class="pdm-section-title"><i class="fas fa-calculator me-1"></i>Full Pricing Breakdown</h6>'
-    
-    // Selling Prices
-    + '<div class="pdm-section mb-3">'
-    + '  <h6 class="pdm-subsection-title">SELLING PRICES</h6>'
-    + '  <div class="row g-2">'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>TOTAL SELLING PRICE</strong><span>' + fmt(tcp) + '</span></div></div>'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>PROMO DISCOUNT</strong><span class="text-success">' + promo.toFixed(2) + '%' + (promo_amount > 0 ? '<br><small>Not Saving ' + fmt(promo_amount) + '</small>' : '') + '</span></div></div>'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>VAT</strong><span class="text-danger">' + fmt(vat_amount) + '</span></div></div>'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>LMF</strong><span class="text-danger">' + fmt(lmf_amount) + '</span></div></div>'
-    + '  </div>'
-    + '</div>'
-    
-    // Miscellaneous
-    + '<div class="pdm-section mb-3">'
-    + '  <h6 class="pdm-subsection-title">MISCELLANEOUS</h6>'
-    + '  <div class="row g-2">'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>TOTAL CONTRACT PRICE</strong><span class="text-primary">' + fmt(total_contract_price) + '</span></div></div>'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>RESERVATION FEE</strong><span>' + fmt(resv_fee) + '</span></div></div>'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>TOTAL DOWNPAYMENT</strong><span>' + fmt(total_downpay) + '</span></div></div>'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>MONTHLY DOWNPAYMENT</strong><span>' + fmt2(monthly_downpay) + '<br><small>(' + downpay_months + ' months)</small></span></div></div>'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>TOTAL LOANABLE AMOUNT</strong><span class="text-primary">' + fmt(total_loanable) + '</span></div></div>'
-    + '    <div class="col-6"><div class="pdm-line-item"><strong>ANNUAL INTEREST</strong><span>' + interest_rate.toFixed(2) + '%</span></div></div>'
-    + '  </div>'
-    + '</div>'
-    
-    // Amortization
-    + '<div class="row g-2 pvm-pb-amort">'
-    + '  <h4>Amortization</h4>';
-  [5, 10, 15, 20].forEach(function(years) {
-    var monthly = monthlyPayment(total_loanable, interest_rate, years);
-    html += '<div class="col-6 col-md-3">'
-      + '<div class="pvm-pb-amort-card">'
-      + '  <div class="pvm-pb-amort-term">' + years + ' YEARS</div>'
-      + '  <div class="pvm-pb-amort-value">' + fmt2(monthly) + '</div>'
-      + '  <div class="pvm-pb-amort-unit">/month</div>'
-      + '</div>'
-      + '</div>';
-  });
-  html += '</div>'
-    
-    // Required Income
-    + '<div class="row g-2 pvm-pb-amort mt-1">'
-    + '  <h4>Required Income</h4>';
-  [5, 10, 15, 20].forEach(function(years) {
-    var monthly = monthlyPayment(total_loanable, interest_rate, years);
-    var income = requiredIncome(monthly);
-    html += '<div class="col-6 col-md-3">'
-      + '<div class="pvm-pb-amort-card">'
-      + '  <div class="pvm-pb-amort-term">' + years + ' YEARS</div>'
-      + '  <div class="pvm-pb-amort-value">' + fmt(income) + '</div>'
-      + '  <div class="pvm-pb-amort-unit">/month</div>'
-      + '</div>'
-      + '</div>';
-  });
-  html += '</div></div>';
-  
-  contentEl.innerHTML = html;
 }
 
 function _openPendingDetailsForProperty(propId, propName) {
@@ -4082,6 +3208,13 @@ function _openPurchaseFormView(tripId) {
   } catch (_err) {
     payload = {};
   }
+  if (payload == null || typeof payload !== 'object') payload = {};
+  if (!String(payload.loanBookingOfficer || '').trim() && String(row.assigned_agent_name || '').trim()) {
+    payload.loanBookingOfficer = String(row.assigned_agent_name || '').trim();
+  }
+  if (!String(payload.pbGrossIncome || '').trim() && row.client_gross_income !== null && row.client_gross_income !== undefined) {
+    payload.pbGrossIncome = String(row.client_gross_income);
+  }
   var modalBody = document.getElementById('purchaseFormViewBody');
   var fallbacks = {
     pbViber: ['social_viber'],
@@ -4092,18 +3225,6 @@ function _openPurchaseFormView(tripId) {
     pbEmployerEmail: ['employer_email'],
     pbTenure: ['tenure_months'],
     loanSellingPrice: ['selling_price']
-  };
-  var loanPlaceholders = {
-    loanUnitId: 'Auto-generated',
-    loanSellingPrice: 'PHP 0.00',
-    loanProcessingFee: 'PHP 0.00',
-    loanAmount: 'PHP 0.00',
-    loanDownpayment: 'PHP 0.00',
-    loanReservationFee: 'PHP 20,000.00',
-    loanPromoDisc: 'PHP 0.00',
-    loanOrPrNo: 'e.g. OR-2026-0001',
-    loanOrPrDate: 'mm/dd/yyyy',
-    loanBookingOfficer: 'Enter booking officer name'
   };
 
   function readPayloadValue(id) {
@@ -4222,6 +3343,38 @@ function _openPurchaseFormView(tripId) {
     setSelectDisplay(prefix + 'BarangaySelect', barangayCode, barangayName);
   }
 
+  function applySpouseSectionStateFromPayload() {
+    var hasSpouseEl = document.getElementById('pbHasSpouse');
+    if (!hasSpouseEl) return;
+    var hasSpouse = String(hasSpouseEl.value || '').toLowerCase() === 'yes';
+
+    ['.buyer-form-employment', '.buyer-form-semployment'].forEach(function (selector) {
+      var section = document.querySelector(selector);
+      if (!section) return;
+
+      section.querySelectorAll('input, select, textarea').forEach(function (el) {
+        if (!el || el.id === 'pbHasSpouse' || String(el.type || '').toLowerCase() === 'hidden') return;
+        if (hasSpouse) return;
+
+        if (el.tagName === 'SELECT') {
+          el.value = '';
+          var firstOpt = el.options && el.options.length ? el.options[0] : null;
+          if (firstOpt && String(firstOpt.value || '') === '') {
+            if (!Object.prototype.hasOwnProperty.call(firstOpt.dataset, 'defaultEmptyLabel')) {
+              firstOpt.dataset.defaultEmptyLabel = firstOpt.textContent || '-- Select --';
+            }
+            firstOpt.textContent = '—';
+          }
+        } else if (String(el.type || '').toLowerCase() === 'checkbox' || String(el.type || '').toLowerCase() === 'radio') {
+          el.checked = false;
+        } else if (String(el.type || '').toLowerCase() !== 'file') {
+          el.value = '';
+          el.placeholder = '—';
+        }
+      });
+    });
+  }
+
   if (modalBody) {
     modalBody.querySelectorAll('input, select, textarea').forEach(function(el) {
       if (!el || !el.id) return;
@@ -4245,20 +3398,29 @@ function _openPurchaseFormView(tripId) {
       if (isEmptyValue) {
         if (el.tagName === 'SELECT') {
           el.value = '';
+          var emptyOpt = el.options && el.options.length ? el.options[0] : null;
+          if (emptyOpt && String(emptyOpt.value || '') === '') {
+            if (!Object.prototype.hasOwnProperty.call(emptyOpt.dataset, 'defaultEmptyLabel')) {
+              emptyOpt.dataset.defaultEmptyLabel = emptyOpt.textContent || '-- Select --';
+            }
+            emptyOpt.textContent = '—';
+          }
         } else if (el.type !== 'file') {
           el.value = '';
           if (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'hidden')) {
-            if (loanPlaceholders[el.id]) {
-              el.placeholder = loanPlaceholders[el.id];
-            } else {
-              el.placeholder = '—';
-            }
+            el.placeholder = '—';
           }
         }
         return;
       }
       if (el.type !== 'file') {
         el.value = String(v);
+        if (el.tagName === 'SELECT') {
+          var firstOpt = el.options && el.options.length ? el.options[0] : null;
+          if (firstOpt && String(firstOpt.value || '') === '' && Object.prototype.hasOwnProperty.call(firstOpt.dataset, 'defaultEmptyLabel')) {
+            firstOpt.textContent = firstOpt.dataset.defaultEmptyLabel || '-- Select --';
+          }
+        }
         if (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'hidden')) {
           el.placeholder = '';
         }
@@ -4270,6 +3432,7 @@ function _openPurchaseFormView(tripId) {
   setAddressSelects('pbEmp');
   setAddressSelects('pbMail');
   setAddressSelects('spEmp');
+  applySpouseSectionStateFromPayload();
 
   var bankVal = readPayloadValue('pbBankName')
     || readPayloadValue('auto_with_which_bank_s_1')
@@ -4504,7 +3667,6 @@ function _openAdminEditPropertyModal(d) {
   document.getElementById('ep_downpayment_rate').value = cleanNumericText(d.propDownpaymentRate, '0');
   document.getElementById('ep_downpayment_terms_months').value = cleanNumericText(d.propDownpaymentTermsMonths, '0');
   document.getElementById('ep_loanable_percentage').value = cleanNumericText(d.propLoanablePercentage, '0');
-  document.getElementById('ep_interest_rate').value = cleanNumericText(d.propInterestRate, '8.5');
   document.getElementById('ep_vat_rate').value = cleanNumericText(d.propVatRate, '0');
   document.getElementById('ep_lmf_rate').value = cleanNumericText(d.propLmfRate, '0');
   document.getElementById('ep_bedrooms').value = d.propBedrooms || '0';
@@ -4515,8 +3677,6 @@ function _openAdminEditPropertyModal(d) {
   document.getElementById('ep_description').value = d.propDescription || '';
   document.getElementById('ep_subdivision').value = d.propSubdivisionId || '';
   document.getElementById('ep_unit_id').value = d.propUnitId || '';
-  _syncPropertyPricingPreview('ep');
-  _updateFullPricingBreakdown('ep');
 
   var listing = (d.propListingStatus || '').toLowerCase();
   var listingBadge = listing === 'sold'
@@ -4649,9 +3809,6 @@ function _openAdminEditPropertyModal(d) {
     barangayName: d.propBarangayName || ''
   });
 
-  // Model PSGC should follow the selected subdivision when one is assigned.
-  _applyAdminEditSubdivisionMeta();
-
   bootstrap.Modal.getOrCreateInstance(document.getElementById('editPropertyModal')).show();
 }
 
@@ -4661,7 +3818,6 @@ _bind('lemNext', 'click', function(e) { e.stopPropagation(); _lemShowSlide(_lemI
 document.addEventListener('click', function(e) {
   if (!document.getElementById('editPropertyModal')) return;
   if (e.target.closest('.pvm-delete-btn') || e.target.closest('.prop-delete-btn')) return;
-  if (e.target.closest('.prop-status-toggle') || e.target.closest('.prop-status-menu')) return;
   var viewBtn = e.target.closest('.prop-view-btn-icon');
   var cardClick = e.target.closest('.prop-card-clickable');
   var pendingBtn = e.target.closest('.pvm-full-details-btn');
@@ -4692,27 +3848,8 @@ document.addEventListener('click', function(e) {
     return;
   }
   if (viewBtn || cardClick) {
-    // Don't open property modal if clicking on editable note
-    if (e.target.closest('.editable-note')) {
-      return;
-    }
     var card = e.target.closest('.prop-card-clickable');
     if (card) _openAdminEditPropertyModal(card.dataset);
-  }
-});
-
-document.addEventListener('keydown', function(e) {
-  var statusToggle = e.target.closest ? e.target.closest('.prop-status-toggle') : null;
-  var editableNote = e.target.closest ? e.target.closest('.editable-note') : null;
-  
-  if (statusToggle) {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    e.preventDefault();
-    statusToggle.click();
-  } else if (editableNote && !editableNote.classList.contains('editing')) {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    e.preventDefault();
-    editableNote.click();
   }
 });
 
@@ -4757,305 +3894,6 @@ function _syncAdminEditPropertyLocation() {
   setVal('ep_citymun_name', cityName);
   setVal('ep_barangay_code', brgySel ? brgySel.value : '');
   setVal('ep_barangay_name', brgyName);
-}
-
-function _applyAdminEditSubdivisionMeta() {
-  var subdivisionSel = document.getElementById('ep_subdivision');
-  var regionSel = document.getElementById('ep_region_select');
-  var provinceSel = document.getElementById('ep_province_select');
-  var citySel = document.getElementById('ep_citymun_select');
-  var brgySel = document.getElementById('ep_barangay_select');
-  if (!subdivisionSel || !subdivisionSel.value || !subdivisionSel.selectedOptions || !subdivisionSel.selectedOptions.length) {
-    return false;
-  }
-
-  var opt = subdivisionSel.selectedOptions[0];
-  var regionCode = String(opt.dataset.subRegionCode || '').trim();
-  var regionName = String(opt.dataset.subRegionName || '').trim();
-  var provinceCode = String(opt.dataset.subProvinceCode || '').trim();
-  var provinceName = String(opt.dataset.subProvinceName || '').trim();
-  var cityCode = String(opt.dataset.subCitymunCode || '').trim();
-  var cityName = String(opt.dataset.subCitymunName || '').trim();
-  var brgyCode = String(opt.dataset.subBarangayCode || '').trim();
-  var brgyName = String(opt.dataset.subBarangayName || '').trim();
-
-  if (regionSel) _subFillSelect(regionSel, regionCode || regionName ? [{ code: regionCode, name: regionName || regionCode }] : [], '-- Select --', regionCode);
-  if (provinceSel) _subFillSelect(provinceSel, provinceCode || provinceName ? [{ code: provinceCode, name: provinceName || provinceCode }] : [], '-- Select --', provinceCode);
-  if (citySel) _subFillSelect(citySel, cityCode || cityName ? [{ code: cityCode, name: cityName || cityCode }] : [], '-- Select --', cityCode);
-  if (brgySel) _subFillSelect(brgySel, brgyCode || brgyName ? [{ code: brgyCode, name: brgyName || brgyCode }] : [], '-- Select --', brgyCode);
-
-  _syncAdminEditPropertyLocation();
-  return true;
-}
-
-function _listingStatusMeta(status) {
-  var s = String(status || 'available').toLowerCase();
-  if (s !== 'sold' && s !== 'reserved' && s !== 'available') s = 'available';
-  if (s === 'sold') {
-    return { value: 'sold', label: 'Sold', badgeClass: 'badge-sold' };
-  }
-  if (s === 'reserved') {
-    return { value: 'reserved', label: 'Reserved', badgeClass: 'badge-conditional' };
-  }
-  return { value: 'available', label: 'Available', badgeClass: 'badge-qualified' };
-}
-
-var _activeListingStatusMenu = null;
-
-function _statusToggleHtml(propId, status) {
-  var meta = _listingStatusMeta(status);
-  return '<span class="sqh-badge ' + meta.badgeClass + ' prop-status-toggle"'
-    + ' role="button" tabindex="0"'
-    + ' data-prop-id="' + _escapeHtml(propId || '') + '"'
-    + ' data-current-status="' + _escapeHtml(meta.value) + '"'
-    + ' title="Change listing status">'
-    + _escapeHtml(meta.label)
-    + ' <i class="fas fa-caret-down ms-1"></i></span>';
-}
-
-function _closeListingStatusMenu() {
-  if (_activeListingStatusMenu && _activeListingStatusMenu.parentNode) {
-    _activeListingStatusMenu.parentNode.removeChild(_activeListingStatusMenu);
-  }
-  _activeListingStatusMenu = null;
-}
-
-function _editAvailabilityNote(noteEl) {
-  if (!noteEl) return;
-  
-  var propId = String(noteEl.dataset.propId || '').trim();
-  if (!propId || !/^\d+$/.test(propId)) {
-    showToast('Invalid property ID for note edit.', 'danger');
-    return;
-  }
-  
-  var displaySpan = noteEl.querySelector('.note-display');
-  if (!displaySpan) return;
-  
-  var currentText = displaySpan.textContent || '';
-  var isEmptyState = !String(noteEl.dataset.customNote || '').trim();
-  
-  // Enter edit mode
-  noteEl.classList.add('editing');
-  
-  // Create input field
-  var input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'edit-input';
-  input.value = currentText === 'Add note' ? '' : currentText;
-  input.maxLength = '255';
-  input.placeholder = isEmptyState ? 'Add availability note' : 'Edit availability note';
-  
-  // Replace display span with input, hide edit icon
-  displaySpan.style.display = 'none';
-  var editIcon = noteEl.querySelector('.edit-icon');
-  if (editIcon) editIcon.style.display = 'none';
-  noteEl.insertBefore(input, displaySpan);
-  input.focus();
-  input.select();
-  
-  // Prevent clicks on input from bubbling (to avoid triggering property view)
-  input.addEventListener('click', function(e) {
-    e.stopPropagation();
-    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-  });
-  
-  var finishEdit = function(save) {
-    if (save) {
-      // Call API to save
-      fetch('/admin/property/' + propId + '/availability-note', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken()
-        },
-        body: JSON.stringify({ note: input.value })
-      })
-      .then(function(r) {
-        if (r.status === 403) {
-          showToast('You do not have permission to edit this note.', 'danger');
-          return Promise.reject();
-        }
-        var ct = String((r.headers && r.headers.get && r.headers.get('content-type')) || '').toLowerCase();
-        if (ct.indexOf('application/json') !== -1) {
-          return r.json().then(function(d) {
-            return { ok: r.ok, status: r.status, data: d };
-          });
-        }
-        return r.text().then(function(t) {
-          showToast('Server error: ' + (t || 'HTTP ' + r.status), 'danger');
-          return Promise.reject();
-        });
-      })
-      .then(function(res) {
-        if (!res || !res.ok || !res.data || !res.data.success) {
-          var msg = (res && res.data && (res.data.error || res.data.message)) || 'Failed to save note.';
-          showToast(msg, 'danger');
-          return;
-        }
-        // Exit edit mode successfully
-        noteEl.classList.remove('editing');
-        var newText = res.data.custom_note || 'Add note';
-        noteEl.dataset.customNote = res.data.custom_note || '';
-        displaySpan.textContent = newText;
-        displaySpan.style.display = '';
-        if (editIcon) editIcon.style.display = '';
-        if (input.parentNode) input.parentNode.removeChild(input);
-        showToast('Availability note saved!', 'success');
-      })
-      .catch(function(err) {
-        // On error, exit edit mode but revert changes
-        noteEl.classList.remove('editing');
-        displaySpan.style.display = '';
-        if (editIcon) editIcon.style.display = '';
-        if (input.parentNode) input.parentNode.removeChild(input);
-        if (err) {
-          var msg = 'Error saving note.';
-          if (err.message) msg = msg + ' ' + err.message;
-          showToast(msg, 'danger');
-        }
-      });
-    } else {
-      // Cancel edit
-      noteEl.classList.remove('editing');
-      displaySpan.style.display = '';
-      if (editIcon) editIcon.style.display = '';
-      if (input.parentNode) input.parentNode.removeChild(input);
-    }
-  };
-  
-  // Save on Enter, cancel on Escape
-  input.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      finishEdit(true);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      finishEdit(false);
-    }
-  });
-  
-  // Save on blur
-  input.addEventListener('blur', function() {
-    finishEdit(true);
-  });
-}
-
-function _openListingStatusMenu(anchorEl, currentStatus, onPick) {
-  _closeListingStatusMenu();
-
-  var curr = _listingStatusMeta(currentStatus).value;
-  var values = ['available', 'reserved', 'sold'];
-  var menu = document.createElement('div');
-  menu.className = 'prop-status-menu';
-  menu.innerHTML = values.map(function (statusVal) {
-    var meta = _listingStatusMeta(statusVal);
-    var active = curr === statusVal ? ' is-active' : '';
-    return '<button type="button" class="prop-status-menu-item' + active + '" data-status="' + _escapeHtml(meta.value) + '">' + _escapeHtml(meta.label) + '</button>';
-  }).join('');
-
-  document.body.appendChild(menu);
-  _activeListingStatusMenu = menu;
-
-  var rect = anchorEl.getBoundingClientRect();
-  var top = rect.bottom + window.scrollY + 6;
-  var left = rect.left + window.scrollX;
-  menu.style.top = top + 'px';
-  menu.style.left = left + 'px';
-
-  var menuRect = menu.getBoundingClientRect();
-  var maxRight = window.scrollX + document.documentElement.clientWidth - 8;
-  if (left + menuRect.width > maxRight) {
-    menu.style.left = Math.max(window.scrollX + 8, maxRight - menuRect.width) + 'px';
-  }
-
-  var maxBottom = window.scrollY + document.documentElement.clientHeight - 8;
-  if (top + menuRect.height > maxBottom) {
-    menu.style.top = Math.max(window.scrollY + 8, (rect.top + window.scrollY) - menuRect.height - 6) + 'px';
-  }
-
-  menu.addEventListener('click', function (evt) {
-    var opt = evt.target.closest('.prop-status-menu-item');
-    if (!opt) return;
-    var picked = String(opt.dataset.status || '').toLowerCase();
-    _closeListingStatusMenu();
-    if (picked) onPick(picked);
-  });
-}
-
-function _propModelKeyFromCard(card) {
-  if (!card) return '';
-  var key = String(card.dataset.propModelKey || '').trim();
-  if (key) return key;
-  var subdivisionId = String(card.dataset.propSubdivisionId || '').trim();
-  var modelName = String(card.dataset.propName || '').toLowerCase().trim().replace(/\s+/g, ' ');
-  return subdivisionId + ':' + modelName;
-}
-
-function _refreshAvailabilityNotes() {
-  var cards = Array.prototype.slice.call(document.querySelectorAll('#page-properties .prop-card-clickable'));
-  if (!cards.length) return;
-
-  cards.forEach(function(card) {
-    var status = String(card.dataset.propListingStatus || 'available').toLowerCase();
-    var customNote = String(card.dataset.propCustomAvailabilityNote || '').trim();
-
-    var body = card.querySelector('.prop-card-body');
-    if (!body) return;
-    var noteEl = body.querySelector('.prop-availability-note');
-
-    if (status === 'available') {
-      if (!noteEl) {
-        var header = body.querySelector('.prop-card-header');
-        if (header) {
-          header.insertAdjacentHTML('afterend', '<div class="prop-availability-note editable-note" role="button" tabindex="0" data-prop-id="' + _escapeHtml(card.dataset.propId || '') + '" data-custom-note=""><span class="note-display">Add note</span><i class="fas fa-edit edit-icon ms-1" style="opacity: 0; transition: opacity 0.2s;"></i></div>');
-          noteEl = body.querySelector('.prop-availability-note');
-        }
-      }
-      if (noteEl) {
-        var displaySpan = noteEl.querySelector('.note-display');
-        if (displaySpan) displaySpan.textContent = customNote || 'Add note';
-        noteEl.dataset.customNote = customNote;
-        noteEl.classList.toggle('empty-note', !customNote);
-        noteEl.title = customNote ? 'Click to edit availability note' : 'Click to add availability note';
-        var editIcon = noteEl.querySelector('.edit-icon');
-        if (editIcon) editIcon.style.display = '';
-      }
-    } else if (noteEl) {
-      noteEl.remove();
-    }
-  });
-}
-
-function _syncListingStatusCard(card, nextStatus) {
-  if (!card) return;
-  var meta = _listingStatusMeta(nextStatus);
-  card.dataset.propListingStatus = meta.value;
-
-  var col = card.closest('.prop-card-col');
-  if (col) col.dataset.status = meta.value;
-
-  var bodyHeader = card.querySelector('.prop-card-body .prop-card-header');
-  if (bodyHeader) {
-    var oldToggle = bodyHeader.querySelector('.prop-status-toggle') || bodyHeader.querySelector('.sqh-badge');
-    if (oldToggle) {
-      oldToggle.outerHTML = _statusToggleHtml(card.dataset.propId || '', meta.value);
-    } else {
-      bodyHeader.insertAdjacentHTML('beforeend', _statusToggleHtml(card.dataset.propId || '', meta.value));
-    }
-  }
-
-  var actionsWrap = card.querySelector('.prop-card-actions');
-  if (actionsWrap) {
-    var propId = card.dataset.propId || '';
-    var html = '<button type="button" class="sub-card-action-btn prop-view-btn-icon" title="View details"><i class="fas fa-eye"></i></button>';
-    if (meta.value !== 'sold') {
-      html += '<button type="button" class="sub-card-action-btn sub-card-action-delete pvm-delete-btn" data-prop-id="' + _escapeHtml(propId) + '" title="Delete"><i class="fas fa-trash"></i></button>';
-    }
-    actionsWrap.innerHTML = html;
-  }
-
-  _refreshAvailabilityNotes();
 }
 
 function initAdminEditPropertyPsgc() {
@@ -5113,9 +3951,6 @@ function initAdminEditPropertyPsgc() {
   _bind('ep_street', 'input', _syncAdminEditPropertyLocation);
   _bind('ep_block', 'input', _syncAdminEditPropertyLocation);
   _bind('ep_lot_no', 'input', _syncAdminEditPropertyLocation);
-  _bind('ep_subdivision', 'change', function () {
-    _applyAdminEditSubdivisionMeta();
-  });
 
   _subGetItems('/api/psgc/regions').then(function (items) {
     _subFillSelect(regionSel, items, '-- Select --');
@@ -5224,15 +4059,14 @@ _bind('editPropBtn', 'click', function() {
   _syncAdminEditPropertyLocation();
 
   var name = (document.getElementById('ep_name').value || '').trim();
-  var unitId = (document.getElementById('ep_unit_id').value || '').trim();
   var siteNotesEl = document.getElementById('ep_site_notes');
   var fallbackLine = siteNotesEl ? (siteNotesEl.value || '').trim() : '';
   var location = (document.getElementById('ep_location').value || '').trim() || fallbackLine;
-  var unitType = (document.getElementById('ep_unit_type').value || '').trim();
+  var propType = (document.getElementById('ep_prop_type').value || '').trim();
   var price = (document.getElementById('ep_price').value || '').trim();
-  if (!name || !unitId || !unitType || !price) {
+  if (!name || !location || !propType || !price) {
     if (errEl) {
-      errEl.textContent = 'Name, unit ID, unit type, and price are required.';
+      errEl.textContent = 'Name, location, property type, and price are required.';
       errEl.classList.remove('d-none');
     }
     return;
@@ -5243,6 +4077,7 @@ _bind('editPropBtn', 'click', function() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
   var fd = new FormData();
   fd.append('name', name);
+  fd.append('location', location);
   fd.append('region', (document.getElementById('ep_region').value || '').trim());
   fd.append('region_code', (document.getElementById('ep_region_code').value || '').trim());
   fd.append('region_name', (document.getElementById('ep_region_name').value || '').trim());
@@ -5252,19 +4087,8 @@ _bind('editPropBtn', 'click', function() {
   fd.append('citymun_name', (document.getElementById('ep_citymun_name').value || '').trim());
   fd.append('barangay_code', (document.getElementById('ep_barangay_code').value || '').trim());
   fd.append('barangay_name', (document.getElementById('ep_barangay_name').value || '').trim());
-  fd.append('street', (document.getElementById('ep_street').value || '').trim());
-  fd.append('block', (document.getElementById('ep_block').value || '').trim());
-  fd.append('lot_no', (document.getElementById('ep_lot_no').value || '').trim());
-  fd.append('unit_type', unitType);
+  fd.append('prop_type', propType);
   fd.append('price', price);
-  fd.append('promo_discount_rate', document.getElementById('ep_promo_discount_rate').value || '0');
-  fd.append('reservation_fee', document.getElementById('ep_reservation_fee').value || '0');
-  fd.append('downpayment_rate', document.getElementById('ep_downpayment_rate').value || '0');
-  fd.append('downpayment_terms_months', document.getElementById('ep_downpayment_terms_months').value || '0');
-  fd.append('loanable_percentage', document.getElementById('ep_loanable_percentage').value || '0');
-  fd.append('interest_rate', document.getElementById('ep_interest_rate').value || '8.5');
-  fd.append('vat_rate', document.getElementById('ep_vat_rate').value || '0');
-  fd.append('lmf_rate', document.getElementById('ep_lmf_rate').value || '0');
   fd.append('bedrooms', document.getElementById('ep_bedrooms').value || '0');
   fd.append('bathrooms', document.getElementById('ep_bathrooms').value || '0');
   fd.append('storeys', document.getElementById('ep_storeys').value || '1');
@@ -5297,167 +4121,9 @@ _bind('editPropBtn', 'click', function() {
         }
         return;
       }
-
-      function _toUnitTypeLabel(v) {
-        return String(v || '').replace(/-/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-      }
-
-      function _toUnitTypeClass(v) {
-        var key = String(v || '').toLowerCase();
-        if (key === 'pre-selling') return 'prop-type-badge-pre-selling';
-        if (key === 'ready-for-occupancy') return 'prop-type-badge-ready-for-occupancy';
-        if (key === 'resale') return 'prop-type-badge-resale';
-        return '';
-      }
-
-      function _applyEditedPropertyCard(apiData) {
-        var card = document.querySelector('.prop-card[data-prop-id="' + _editPropId + '"]');
-        if (!card) return;
-        var col = card.closest('.prop-card-col');
-
-        var nameVal = (document.getElementById('ep_name').value || '').trim();
-        var unitTypeVal = (document.getElementById('ep_unit_type').value || '').trim();
-        var priceVal = parseFloat((document.getElementById('ep_price').value || '0').replace(/,/g, ''));
-        if (!isFinite(priceVal)) priceVal = 0;
-        var unitIdVal = (document.getElementById('ep_unit_id').value || '').trim();
-        var subdivisionIdVal = (document.getElementById('ep_subdivision').value || '').trim();
-        var subdivisionNameVal = (apiData && apiData.subdivision) || '';
-        if (!subdivisionNameVal) {
-          var subSel = document.getElementById('ep_subdivision');
-          if (subSel && subSel.selectedOptions && subSel.selectedOptions.length) {
-            var raw = String(subSel.selectedOptions[0].textContent || '').trim();
-            subdivisionNameVal = raw.indexOf('/') >= 0 ? raw.split('/').pop().trim() : raw;
-          }
-        }
-
-        var locationVal = (apiData && apiData.location) || (document.getElementById('ep_location').value || '').trim();
-        var psgcTail = [
-          (apiData && apiData.psgc_barangay) || (document.getElementById('ep_barangay_name').value || '').trim(),
-          (apiData && apiData.psgc_citymun) || (document.getElementById('ep_citymun_name').value || '').trim(),
-          (apiData && apiData.psgc_province) || (document.getElementById('ep_province_name').value || '').trim(),
-          (apiData && apiData.psgc_region) || (document.getElementById('ep_region_name').value || '').trim()
-        ].filter(Boolean).join(', ');
-        if (psgcTail && locationVal.indexOf(psgcTail) === -1) {
-          locationVal = [locationVal, psgcTail].filter(Boolean).join(', ');
-        }
-
-        var imagesCsv = (apiData && apiData.images) || card.dataset.propImages || '';
-        var imageList = String(imagesCsv || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
-
-        card.dataset.propName = nameVal;
-        card.dataset.propSubdivision = subdivisionNameVal;
-        card.dataset.propSubdivisionId = subdivisionIdVal;
-        card.dataset.propLocation = locationVal;
-        card.dataset.propRegion = (document.getElementById('ep_region').value || '').trim();
-        card.dataset.propRegionCode = (document.getElementById('ep_region_code').value || '').trim();
-        card.dataset.propRegionName = (document.getElementById('ep_region_name').value || '').trim();
-        card.dataset.propProvinceCode = (document.getElementById('ep_province_code').value || '').trim();
-        card.dataset.propProvinceName = (document.getElementById('ep_province_name').value || '').trim();
-        card.dataset.propCitymunCode = (document.getElementById('ep_citymun_code').value || '').trim();
-        card.dataset.propCitymunName = (document.getElementById('ep_citymun_name').value || '').trim();
-        card.dataset.propBarangayCode = (document.getElementById('ep_barangay_code').value || '').trim();
-        card.dataset.propBarangayName = (document.getElementById('ep_barangay_name').value || '').trim();
-        card.dataset.propStreet = (document.getElementById('ep_street').value || '').trim();
-        card.dataset.propBlock = (document.getElementById('ep_block').value || '').trim();
-        card.dataset.propLotNo = (document.getElementById('ep_lot_no').value || '').trim();
-        card.dataset.propUnitId = unitIdVal;
-        card.dataset.propUnitType = unitTypeVal;
-        card.dataset.propPrice = priceVal.toLocaleString('en-PH', { maximumFractionDigits: 0 });
-        card.dataset.propBedrooms = (document.getElementById('ep_bedrooms').value || '').trim();
-        card.dataset.propBathrooms = (document.getElementById('ep_bathrooms').value || '').trim();
-        card.dataset.propStoreys = (document.getElementById('ep_storeys').value || '').trim();
-        card.dataset.propFloorArea = (document.getElementById('ep_floor_area').value || '').trim();
-        card.dataset.propLotArea = (document.getElementById('ep_lot_area').value || '').trim();
-        card.dataset.propDescription = (document.getElementById('ep_description').value || '').trim();
-        card.dataset.propImages = imagesCsv;
-
-        if (col) {
-          col.dataset.propName = nameVal;
-          col.dataset.propLoc = locationVal;
-          col.dataset.propSubdiv = subdivisionNameVal;
-          col.dataset.propSubdivId = subdivisionIdVal;
-        }
-
-        var nameEl = card.querySelector('.prop-card-name');
-        if (nameEl) nameEl.textContent = nameVal;
-        var locEl = card.querySelector('.prop-card-loc');
-        if (locEl) locEl.innerHTML = '<i class="fas fa-map-marker-alt me-1"></i>' + _escapeHtml(locationVal || '—');
-        var typeEl = card.querySelector('.prop-card-type');
-        if (typeEl) {
-          typeEl.className = 'prop-card-type ' + _toUnitTypeClass(unitTypeVal);
-          typeEl.textContent = _toUnitTypeLabel(unitTypeVal || card.dataset.propType || '—') || '—';
-        }
-        var priceEl = card.querySelector('.prop-card-price');
-        if (priceEl) priceEl.textContent = '₱' + priceVal.toLocaleString('en-PH', { maximumFractionDigits: 0 });
-
-        var chipsWrap = card.querySelector('.prop-card-icons');
-        if (chipsWrap) {
-          var bedrooms = (document.getElementById('ep_bedrooms').value || '').trim();
-          var bathrooms = (document.getElementById('ep_bathrooms').value || '').trim();
-          var storeys = (document.getElementById('ep_storeys').value || '').trim();
-          var chipsHtml = '';
-          if (bedrooms) chipsHtml += '<span class="prop-card-icon-chip"><i class="fas fa-bed" style="color: var(--clr-accent-dk);"></i> ' + _escapeHtml(bedrooms) + '</span>';
-          if (bathrooms) chipsHtml += '<span class="prop-card-icon-chip"><i class="fas fa-bath" style="color: var(--clr-blue);"></i> ' + _escapeHtml(bathrooms) + '</span>';
-          if (storeys) chipsHtml += '<span class="prop-card-icon-chip"><i class="fas fa-layer-group" style="color: var(--clr-primary);"></i> ' + _escapeHtml(storeys) + '</span>';
-          chipsWrap.innerHTML = chipsHtml;
-        }
-
-        var metaRow = card.querySelector('.prop-card-meta');
-        if (metaRow) {
-          var spans = metaRow.querySelectorAll('span');
-          if (spans.length > 0) spans[0].innerHTML = '<i class="fas fa-city me-1"></i>' + _escapeHtml(subdivisionNameVal || '—');
-          if (spans.length > 1) spans[1].innerHTML = '<i class="fas fa-hashtag me-1"></i>' + _escapeHtml(unitIdVal || 'No Unit ID');
-        }
-
-        var imgWrap = card.querySelector('.prop-card-img-wrap');
-        if (imgWrap) {
-          var countBadge = imgWrap.querySelector('.prop-card-img-count');
-          if (imageList.length > 1) {
-            if (!countBadge) {
-              countBadge = document.createElement('span');
-              countBadge.className = 'prop-card-img-count';
-              imgWrap.insertBefore(countBadge, imgWrap.querySelector('.prop-card-actions'));
-            }
-            countBadge.innerHTML = '<i class="fas fa-images me-1"></i>' + imageList.length;
-          } else if (countBadge) {
-            countBadge.remove();
-          }
-
-          var img = imgWrap.querySelector('.prop-card-img');
-          var ph = imgWrap.querySelector('.prop-card-img-placeholder');
-          if (imageList.length > 0) {
-            if (!img) {
-              if (ph) ph.remove();
-              img = document.createElement('img');
-              img.className = 'prop-card-img';
-              imgWrap.insertBefore(img, imgWrap.firstChild);
-            }
-            img.src = '/uploads/' + _escapeHtml(imageList[0]);
-            img.alt = nameVal || 'Model';
-          } else {
-            if (img) img.remove();
-            if (!ph) {
-              ph = document.createElement('div');
-              ph.className = 'prop-card-img-placeholder';
-              ph.innerHTML = '<i class="fas fa-home"></i>';
-              imgWrap.insertBefore(ph, imgWrap.firstChild);
-            }
-          }
-        }
-
-        _refreshAvailabilityNotes();
-        if (typeof _applyPropertyFilters === 'function') _applyPropertyFilters();
-      }
-
       bootstrap.Modal.getInstance(document.getElementById('editPropertyModal'))?.hide();
       showToast('Property updated successfully.', 'success');
-      _applyEditedPropertyCard(null);
-      fetch('/api/admin/property/' + encodeURIComponent(_editPropId))
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          if (d && d.ok && d.data) _applyEditedPropertyCard(d.data);
-        })
-        .catch(function () {});
+      setTimeout(function() { window.location.reload(); }, 250);
     })
     .catch(function() {
       btn.disabled = false;
@@ -5885,81 +4551,6 @@ var _activityDeleteBtn = null;
 
 document.addEventListener('click', function (e) {
   var btn = e.target.closest('.activity-delete-btn');
-  var statusToggle = e.target.closest('.prop-status-toggle');
-  var editableNote = e.target.closest('.editable-note');
-  
-  if (!statusToggle && _activeListingStatusMenu && !e.target.closest('.prop-status-menu')) {
-    _closeListingStatusMenu();
-  }
-  
-  // Handle editable availability note click
-  if (editableNote && !editableNote.classList.contains('editing')) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-    _editAvailabilityNote(editableNote);
-    return;
-  }
-  
-  if (statusToggle) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-
-    var cardForStatus = statusToggle.closest('.prop-card-clickable');
-    if (!cardForStatus) return;
-    var propIdForStatus = cardForStatus.dataset.propId || statusToggle.dataset.propId;
-    if (!propIdForStatus || !/^\d+$/.test(String(propIdForStatus))) {
-      showToast('Invalid property id for status update.', 'danger');
-      return;
-    }
-
-    var currentStatus = String(statusToggle.dataset.currentStatus || cardForStatus.dataset.propListingStatus || 'available').toLowerCase();
-    _openListingStatusMenu(statusToggle, currentStatus, function(nextStatus) {
-      if (nextStatus !== 'available' && nextStatus !== 'reserved' && nextStatus !== 'sold') return;
-      if (nextStatus === currentStatus) return;
-
-      fetch('/admin/property/' + propIdForStatus + '/listing-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken()
-        },
-        body: JSON.stringify({ status: nextStatus })
-      })
-      .then(function(r) {
-        var ct = String((r.headers && r.headers.get && r.headers.get('content-type')) || '').toLowerCase();
-        if (ct.indexOf('application/json') !== -1) {
-          return r.json().then(function(d) {
-            return { ok: r.ok, status: r.status, data: d, nonJsonText: '' };
-          });
-        }
-        return r.text().then(function(t) {
-          return { ok: r.ok, status: r.status, data: null, nonJsonText: t || '' };
-        });
-      })
-      .then(function(res) {
-        if (!res.ok || !res.data || !res.data.success) {
-          var err = (res.data && (res.data.error || res.data.message)) || '';
-          if (!err && !res.data) {
-            err = 'Server returned HTTP ' + String(res.status || 0) + ' for listing status update.';
-          }
-          showToast(err || 'Unable to update listing status.', 'danger');
-          return;
-        }
-        _syncListingStatusCard(cardForStatus, res.data.listing_status || nextStatus);
-        var searchEl = document.getElementById('propSearch');
-        if (searchEl) searchEl.dispatchEvent(new Event('input', { bubbles: true }));
-        showToast('Listing status updated to ' + _listingStatusMeta(res.data.listing_status || nextStatus).label + '.', 'success');
-      })
-      .catch(function(err) {
-        var msg = 'Network error while updating listing status.';
-        if (err && err.message) msg = msg + ' ' + err.message;
-        showToast(msg, 'danger');
-      });
-    });
-    return;
-  }
   if (!btn) return;
   e.preventDefault();
   _activityDeleteBtn = btn;
@@ -6067,12 +4658,12 @@ function _doSaveCriteria() {
   if (confirmBtn) { confirmBtn.disabled = true; }
   fetch('/admin/criteria/save', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+    headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(payload)
   })
-  .then(parseApiResponse)
-  .then(function (res) {
-    if (res.ok && res.data && res.data.success) {
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    if (data.success) {
       msg.className = '';
       msg.textContent = '';
       window._criteriaDirty = false;
@@ -6082,7 +4673,7 @@ function _doSaveCriteria() {
       if (notQEl) notQEl.value = payload.dti_conditional_max;
     } else {
       msg.className = 'small text-danger';
-      msg.textContent = getApiErrorMessage(res, 'Save failed.');
+      msg.textContent = data.error || 'Save failed.';
     }
   })
   .catch(function () { msg.className = 'small text-danger'; msg.textContent = 'Network error.'; })
@@ -6109,14 +4700,6 @@ document.getElementById('saveCriteriaBtn') && document.getElementById('saveCrite
 
 document.getElementById('saveCriteriaConfirmBtn') && document.getElementById('saveCriteriaConfirmBtn').addEventListener('click', function () {
   _doSaveCriteria();
-});
-
-// Sync "Not Qualified" derived field when Conditional max changes
-document.getElementById('crit_dti_conditional_max') && document.getElementById('crit_dti_conditional_max').addEventListener('input', function (e) {
-  var nqField = document.getElementById('crit_dti_not_qualified_min');
-  if (nqField) {
-    nqField.value = e.target.value;
-  }
 });
 
 /* ── C5.0 Assessments Page ──────────────────────────────────── */
@@ -6926,14 +5509,10 @@ document.getElementById('adminAvatarFileInput') && document.getElementById('admi
   if (!file) return;
   var fd = new FormData();
   fd.append('avatar', file);
-  fetch('/admin/profile/upload-avatar', {
-    method: 'POST',
-    headers: { 'X-CSRFToken': csrfToken() },
-    body: fd
-  })
-    .then(parseApiResponse)
+  fetch('/admin/profile/upload-avatar', { method: 'POST', body: fd })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
-      if (!res.ok) { showToast(getApiErrorMessage(res, 'Upload failed.'), 'danger'); return; }
+      if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
       var wrap = document.getElementById('adminProfAvatarLg');
       if (!wrap) return;
       var existingIcon = document.getElementById('adminProfAvatarIcon');
@@ -6966,14 +5545,10 @@ document.getElementById('adminBannerFileInput') && document.getElementById('admi
   if (!file) return;
   var fd = new FormData();
   fd.append('banner', file);
-  fetch('/admin/profile/upload-banner', {
-    method: 'POST',
-    headers: { 'X-CSRFToken': csrfToken() },
-    body: fd
-  })
-    .then(parseApiResponse)
+  fetch('/admin/profile/upload-banner', { method: 'POST', body: fd })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
     .then(function (res) {
-      if (!res.ok) { showToast(getApiErrorMessage(res, 'Upload failed.'), 'danger'); return; }
+      if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
       var banner = document.getElementById('adminProfHeroBanner');
       if (banner) {
         var freshBannerUrl = res.data.url + '?t=' + Date.now();
@@ -7263,14 +5838,10 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
       var fd       = new FormData();
       var endpoint = _adminPreviewType === 'avatar' ? '/admin/profile/upload-avatar' : '/admin/profile/upload-banner';
       fd.append(_adminPreviewType === 'avatar' ? 'avatar' : 'banner', file);
-      fetch(endpoint, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrfToken() },
-        body: fd
-      })
-        .then(parseApiResponse)
+      fetch(endpoint, { method: 'POST', body: fd })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
         .then(function (res) {
-          if (!res.ok) { showToast(getApiErrorMessage(res, 'Upload failed.'), 'danger'); return; }
+          if (!res.ok) { showToast(res.data.error || 'Upload failed.', 'danger'); return; }
           var freshUrl = res.data.url + '?t=' + Date.now();
           var modalImg = document.getElementById('adminImgPreviewSrc');
           if (modalImg) modalImg.src = freshUrl;
@@ -7315,10 +5886,10 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
     deleteBtn.addEventListener('click', function () {
       if (!_adminPreviewType) return;
       var url = _adminPreviewType === 'avatar' ? '/admin/profile/delete-avatar' : '/admin/profile/delete-banner';
-      fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() } })
-        .then(parseApiResponse)
-        .then(function (res) {
-          if (!res.ok || !res.data || !res.data.success) { showToast(getApiErrorMessage(res, 'Delete failed.'), 'danger'); return; }
+      fetch(url, { method: 'POST' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.success) { showToast(data.error || 'Delete failed.', 'danger'); return; }
           bootstrap.Modal.getInstance(document.getElementById('adminImgPreviewModal')).hide();
           if (_adminPreviewType === 'avatar') {
             var img = document.getElementById('adminProfAvatarImg');
@@ -7576,9 +6147,6 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
           + '  <button type="button" class="btn btn-sm btn-outline-blue open-client-modal-btn" data-client-id="' + clientId + '" title="View Client Details">'
           + '    <i class="fas fa-user"></i>'
           + '  </button>'
-          + '  <button type="button" class="btn btn-sm btn-outline-blue admin-trip-view-property-btn" data-property-id="' + String(row.getAttribute('data-property-id') || '') + '" title="View Property Details">'
-          + '    <i class="fas fa-home"></i>'
-          + '  </button>'
           + '  <button type="button" class="btn btn-sm btn-outline-lime open-trip-request-btn" data-trip-id="' + String(tripId || '') + '" title="View Trip Request">'
           + '    <i class="fas fa-clipboard-list"></i>'
           + '  </button>'
@@ -7592,9 +6160,6 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
           + '  <button type="button" class="btn btn-sm btn-outline-blue open-client-modal-btn" data-client-id="' + clientId + '" title="View Client Details">'
           + '    <i class="fas fa-user"></i>'
           + '  </button>'
-          + '  <button type="button" class="btn btn-sm btn-outline-blue admin-trip-view-property-btn" data-property-id="' + String(row.getAttribute('data-property-id') || '') + '" title="View Property Details">'
-          + '    <i class="fas fa-home"></i>'
-          + '  </button>'
           + '  <button type="button" class="btn btn-sm btn-outline-lime open-trip-request-btn" data-trip-id="' + String(tripId || '') + '" title="View Trip Request">'
           + '    <i class="fas fa-clipboard-list"></i>'
           + '  </button>'
@@ -7604,9 +6169,6 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
           + '<div class="d-flex gap-1">'
           + '  <button type="button" class="btn btn-sm btn-outline-blue open-client-modal-btn" data-client-id="' + clientId + '" title="View Client Details">'
           + '    <i class="fas fa-user"></i>'
-          + '  </button>'
-          + '  <button type="button" class="btn btn-sm btn-outline-blue admin-trip-view-property-btn" data-property-id="' + String(row.getAttribute('data-property-id') || '') + '" title="View Property Details">'
-          + '    <i class="fas fa-home"></i>'
           + '  </button>'
           + '  <button type="button" class="btn btn-sm btn-outline-lime open-trip-request-btn" data-trip-id="' + String(tripId || '') + '" title="View Trip Request">'
           + '    <i class="fas fa-clipboard-list"></i>'
@@ -7693,11 +6255,7 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
     var titleEl = document.getElementById('adminTripActionTitle');
     var descEl = document.getElementById('adminTripActionDesc');
     var btnEl = document.getElementById('adminTripActionConfirmBtn');
-    var rejectReasonEl = document.getElementById('adminTripRejectReason');
-    var rejectReasonNoteEl = document.getElementById('adminTripRejectReasonNote');
     if (!iconEl || !titleEl || !descEl || !btnEl) return;
-    if (rejectReasonEl) rejectReasonEl.value = '';
-    if (rejectReasonNoteEl) rejectReasonNoteEl.value = '';
 
     if (action === 'approve') {
       iconEl.innerHTML = '<i class="fas fa-check-circle"></i>';
@@ -7720,8 +6278,6 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
       descEl.textContent = 'The request will be marked as rejected and can still be deleted later.';
       btnEl.className = 'btn btn-crimson px-4';
       btnEl.innerHTML = '<i class="fas fa-times me-1"></i>Reject';
-      document.getElementById('adminTripRejectReasonWrap')?.classList.remove('d-none');
-      document.getElementById('adminTripRejectReasonNoteWrap')?.classList.remove('d-none');
     } else if (action === 'sold') {
       iconEl.innerHTML = '<i class="fas fa-handshake"></i>';
       iconEl.style.color = 'var(--clr-blue)';
@@ -7738,26 +6294,8 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
       btnEl.innerHTML = '<i class="fas fa-trash me-1"></i>Delete';
     }
 
-    if (action !== 'reject') {
-      document.getElementById('adminTripRejectReasonWrap')?.classList.add('d-none');
-      document.getElementById('adminTripRejectReasonNoteWrap')?.classList.add('d-none');
-      if (document.getElementById('adminTripRejectReason')) document.getElementById('adminTripRejectReason').value = '';
-      if (document.getElementById('adminTripRejectReasonNote')) document.getElementById('adminTripRejectReasonNote').value = '';
-    }
-    if (action !== 'approve') {
-      document.getElementById('adminTripApproveNoteWrap')?.classList.add('d-none');
-      if (document.getElementById('adminTripApproveNote')) document.getElementById('adminTripApproveNote').value = '';
-    } else {
-      document.getElementById('adminTripApproveNoteWrap')?.classList.remove('d-none');
-    }
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
   }
-
-  _bind('adminTripRejectReason', 'change', function () {
-    var noteWrap = document.getElementById('adminTripRejectReasonNoteWrap');
-    if (!noteWrap) return;
-    noteWrap.classList.remove('d-none');
-  });
 
   _bind('adminTripActionConfirmBtn', 'click', function () {
     var tripId = _tripActionState.tripId;
@@ -7769,17 +6307,8 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processing…';
 
     var payload = {
-      note: ((document.getElementById('adminTripApproveNote') || {}).value || '').trim() || ((document.getElementById('tripNote-' + tripId) || {}).value || '').trim()
+      note: ((document.getElementById('tripNote-' + tripId) || {}).value || '').trim()
     };
-    if (action === 'reject') {
-      var rejectReason = ((document.getElementById('adminTripRejectReason') || {}).value || '').trim();
-      var rejectReasonNote = ((document.getElementById('adminTripRejectReasonNote') || {}).value || '').trim();
-      if (rejectReason) {
-        payload.note = rejectReason + (rejectReasonNote ? ': ' + rejectReasonNote : '');
-      } else if (!payload.note) {
-        payload.note = '';
-      }
-    }
     var url = '';
 
     if (action === 'approve') {
@@ -7880,14 +6409,6 @@ var _adminPreviewType = null; // 'avatar' or 'banner'
     if (openTripBtn) {
       e.preventDefault();
       _openAdminTripRequestModal(openTripBtn.getAttribute('data-trip-id'));
-      return;
-    }
-
-    var openPropertyBtn = e.target.closest('.admin-trip-view-property-btn');
-    if (openPropertyBtn) {
-      e.preventDefault();
-      var propId = parseInt(openPropertyBtn.getAttribute('data-property-id'), 10);
-      if (propId) _openPropertyDetailsModal(propId);
       return;
     }
 
@@ -8072,6 +6593,9 @@ var _pendingAcpFiles = [];
   var btn = document.getElementById('adminCreatePropBtn');
   var modalEl = document.getElementById('adminCreatePropertyModal');
   if (!btn || !modalEl) return;
+  var _acpBlockLotCheckTicket = 0;
+  var _acpBlockLotDebounceTimer = null;
+  var _acpBlockLotIsTaken = false;
 
   function syncAcpFileNames() {
     var fnEl = document.getElementById('acp_images_filenames');
@@ -8082,13 +6606,113 @@ var _pendingAcpFiles = [];
 
   function resetAcpFormState() {
     _pendingAcpFiles = [];
+    _acpBlockLotIsTaken = false;
+    _acpBlockLotCheckTicket += 1;
     var wrap = document.getElementById('acp_images_wrap');
     if (wrap) wrap.innerHTML = '';
     var fInput = document.getElementById('acp_images');
     if (fInput) fInput.value = '';
     var fnEl = document.getElementById('acp_images_filenames');
     if (fnEl) fnEl.value = '';
-    _syncPropertyPricingPreview('acp');
+    var blockEl = document.getElementById('acp_block');
+    var lotEl = document.getElementById('acp_lot_no');
+    var blockErrEl = document.getElementById('acp_block_error');
+    var lotErrEl = document.getElementById('acp_lot_error');
+    if (blockEl) blockEl.classList.remove('is-invalid', 'lv-invalid');
+    if (lotEl) lotEl.classList.remove('is-invalid', 'lv-invalid');
+    if (blockErrEl) {
+      blockErrEl.textContent = '';
+      blockErrEl.classList.remove('sqh-err-visible');
+    }
+    if (lotErrEl) {
+      lotErrEl.textContent = '';
+      lotErrEl.classList.remove('sqh-err-visible');
+    }
+  }
+
+  function _setAcpBlockLotError(msg) {
+    var blockEl = document.getElementById('acp_block');
+    var lotEl = document.getElementById('acp_lot_no');
+    var blockErrEl = document.getElementById('acp_block_error');
+    var lotErrEl = document.getElementById('acp_lot_error');
+    var hasMsg = !!String(msg || '').trim();
+    if (blockEl) {
+      blockEl.classList.toggle('lv-invalid', hasMsg);
+      blockEl.classList.toggle('is-invalid', hasMsg);
+    }
+    if (lotEl) {
+      lotEl.classList.toggle('lv-invalid', hasMsg);
+      lotEl.classList.toggle('is-invalid', hasMsg);
+    }
+    if (hasMsg) {
+      if (blockErrEl) {
+        blockErrEl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + msg;
+        blockErrEl.classList.add('sqh-err-visible');
+      }
+      if (lotErrEl) {
+        lotErrEl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + msg;
+        lotErrEl.classList.add('sqh-err-visible');
+      }
+    } else {
+      if (blockErrEl) {
+        blockErrEl.textContent = '';
+        blockErrEl.classList.remove('sqh-err-visible');
+      }
+      if (lotErrEl) {
+        lotErrEl.textContent = '';
+        lotErrEl.classList.remove('sqh-err-visible');
+      }
+    }
+  }
+
+  function _checkAcpBlockLotAvailability(block, lotNo, subdivisionId) {
+    var blockVal = String(block || '').trim();
+    var lotVal = String(lotNo || '').trim();
+    if (!blockVal || !lotVal) {
+      _acpBlockLotIsTaken = false;
+      _setAcpBlockLotError('');
+      return Promise.resolve({ ok: true, exists: false });
+    }
+
+    var ticket = ++_acpBlockLotCheckTicket;
+    var url = '/admin/property/check-block-lot?block=' + encodeURIComponent(blockVal)
+      + '&lot_no=' + encodeURIComponent(lotVal)
+      + '&subdivision_id=' + encodeURIComponent(subdivisionId || '');
+
+    return fetch(url, {
+      method: 'GET',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      cache: 'no-store'
+    })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (data) {
+        if (ticket !== _acpBlockLotCheckTicket) return { ok: true, stale: true, exists: false };
+        var exists = !!(data && data.ok && data.exists);
+        _acpBlockLotIsTaken = exists;
+        if (exists) {
+          var name = String((data && data.property_name) || 'another model');
+          _setAcpBlockLotError('This Block and Lot No. is already used by ' + name + '.');
+        } else {
+          _setAcpBlockLotError('');
+        }
+        return data || { ok: true, exists: false };
+      })
+      .catch(function () {
+        if (ticket !== _acpBlockLotCheckTicket) return { ok: true, stale: true, exists: false };
+        _acpBlockLotIsTaken = false;
+        return { ok: false, exists: false };
+      });
+  }
+
+  function _debouncedAcpBlockLotCheck() {
+    if (_acpBlockLotDebounceTimer) clearTimeout(_acpBlockLotDebounceTimer);
+    _acpBlockLotDebounceTimer = setTimeout(function () {
+      function val(id) {
+        var el = document.getElementById(id);
+        return el ? String(el.value || '').trim() : '';
+      }
+      _checkAcpBlockLotAvailability(val('acp_block'), val('acp_lot_no'), val('acp_subdivision'));
+    }, 220);
   }
 
   function _escapeHtml(str) {
@@ -8129,11 +6753,7 @@ var _pendingAcpFiles = [];
     var name = String(prop.name || 'Property');
     var status = 'available';
     var listingStatus = String(prop.listing_status || 'available').toLowerCase();
-    if (listingStatus !== 'sold' && listingStatus !== 'reserved' && listingStatus !== 'available') listingStatus = 'available';
-    var modelKey = String(prop.model_key || '').trim();
-    if (!modelKey) {
-      modelKey = String(prop.subdivision_id || '') + ':' + String(name || '').toLowerCase().trim().replace(/\s+/g, ' ');
-    }
+    if (listingStatus !== 'sold') listingStatus = 'available';
     var colStatus = listingStatus;
     var priceNum = Number(prop.price || 0);
     var priceText = priceNum ? ('₱' + priceNum.toLocaleString('en-PH', { maximumFractionDigits: 0 })) : '₱0';
@@ -8144,9 +6764,6 @@ var _pendingAcpFiles = [];
     col.setAttribute('data-prop-name', name);
     col.setAttribute('data-prop-loc', location);
     col.setAttribute('data-prop-subdiv', String(prop.subdivision_name || ''));
-    col.setAttribute('data-prop-street', String(prop.street || ''));
-    col.setAttribute('data-prop-block', String(prop.block || ''));
-    col.setAttribute('data-prop-lot-no', String(prop.lot_no || ''));
 
     col.innerHTML = ''
       + '<div class="prop-card prop-card-clickable"'
@@ -8154,9 +6771,6 @@ var _pendingAcpFiles = [];
       + ' data-prop-name="' + _escapeHtml(name) + '"'
       + ' data-prop-subdivision="' + _escapeHtml(prop.subdivision_name || '') + '"'
       + ' data-prop-location="' + _escapeHtml(location) + '"'
-      + ' data-prop-street="' + _escapeHtml(prop.street || '') + '"'
-      + ' data-prop-block="' + _escapeHtml(prop.block || '') + '"'
-      + ' data-prop-lot-no="' + _escapeHtml(prop.lot_no || '') + '"'
       + ' data-prop-region="' + _escapeHtml(prop.region || '') + '"'
       + ' data-prop-region-code="' + _escapeHtml(prop.region_code || '') + '"'
       + ' data-prop-region-name="' + _escapeHtml(prop.region_name || '') + '"'
@@ -8168,51 +6782,34 @@ var _pendingAcpFiles = [];
       + ' data-prop-barangay-name="' + _escapeHtml(prop.barangay_name || '') + '"'
       + ' data-prop-unit-id="' + _escapeHtml(prop.unit_id || '') + '"'
       + ' data-prop-type="' + _escapeHtml(propType) + '"'
-      + ' data-prop-unit-type="' + _escapeHtml(prop.unit_type || '') + '"'
       + ' data-prop-price="' + _escapeHtml(priceNum ? priceNum.toLocaleString('en-PH', { maximumFractionDigits: 0 }) : '0') + '"'
-      + ' data-prop-promo-discount-rate="' + _escapeHtml(prop.promo_discount_rate || 0) + '"'
-      + ' data-prop-reservation-fee="' + _escapeHtml(prop.reservation_fee || 0) + '"'
-      + ' data-prop-downpayment-rate="' + _escapeHtml(prop.downpayment_rate || 0) + '"'
-      + ' data-prop-downpayment-terms-months="' + _escapeHtml(prop.downpayment_terms_months || 0) + '"'
-      + ' data-prop-loanable-percentage="' + _escapeHtml(prop.loanable_percentage || 0) + '"'
-      + ' data-prop-interest-rate="' + _escapeHtml(prop.interest_rate || 8.5) + '"'
-      + ' data-prop-vat-rate="' + _escapeHtml(prop.vat_rate || 0) + '"'
-      + ' data-prop-lmf-rate="' + _escapeHtml(prop.lmf_rate || 0) + '"'
       + ' data-prop-bedrooms="' + _escapeHtml(prop.bedrooms || '') + '"'
       + ' data-prop-bathrooms="' + _escapeHtml(prop.bathrooms || '') + '"'
       + ' data-prop-storeys="' + _escapeHtml(prop.storeys || '') + '"'
       + ' data-prop-floor-area="' + _escapeHtml(prop.floor_area || '') + '"'
       + ' data-prop-lot-area="' + _escapeHtml(prop.lot_area || '') + '"'
       + ' data-prop-description="' + _escapeHtml(prop.description || '') + '"'
-      + ' data-prop-custom-availability-note="' + _escapeHtml(prop.custom_availability_note || '') + '"'
       + ' data-prop-subdivision-id="' + _escapeHtml(prop.subdivision_id || '') + '"'
       + ' data-prop-agent="' + _escapeHtml(prop.agent_name || '') + '"'
       + ' data-prop-added="' + _escapeHtml(prop.created_at || '') + '"'
       + ' data-prop-status="' + _escapeHtml(status) + '"'
       + ' data-prop-listing-status="' + _escapeHtml(listingStatus) + '"'
-      + ' data-prop-model-key="' + _escapeHtml(modelKey) + '"'
-      + ' data-prop-available-left="0"'
       + ' data-prop-images="' + _escapeHtml(imagesCsv) + '">'
       + '  <div class="prop-card-img-wrap">'
       + (firstImg
           ? '    <img src="/uploads/' + _escapeHtml(firstImg) + '" alt="' + _escapeHtml(name) + '" class="prop-card-img">'
           : '    <div class="prop-card-img-placeholder"><i class="fas fa-home"></i></div>')
       + (imgCount > 1 ? '    <span class="prop-card-img-count"><i class="fas fa-images me-1"></i>' + imgCount + '</span>' : '')
-        + '    <div class="prop-card-actions">'
-        + '      <button type="button" class="sub-card-action-btn prop-view-btn-icon" title="View details"><i class="fas fa-eye"></i></button>'
-        + (listingStatus !== 'sold'
-          ? '      <button type="button" class="sub-card-action-btn sub-card-action-delete pvm-delete-btn" data-prop-id="' + _escapeHtml(prop.id) + '" title="Delete"><i class="fas fa-trash"></i></button>'
-          : '')
-        + '    </div>'
+      + '    <div class="prop-card-actions">'
+      + '      <button type="button" class="sub-card-action-btn prop-view-btn-icon" title="View details"><i class="fas fa-eye"></i></button>'
+      + '      <button type="button" class="sub-card-action-btn sub-card-action-delete pvm-delete-btn" data-prop-id="' + _escapeHtml(prop.id) + '" title="Delete"><i class="fas fa-trash"></i></button>'
+      + '    </div>'
       + '  </div>'
       + '  <div class="prop-card-body">'
       + '    <div class="prop-card-header">'
       + '      <div class="prop-card-name">' + _escapeHtml(name) + '</div>'
-      + '      ' + _statusToggleHtml(prop.id, listingStatus)
+      + '      <span class="sqh-badge ' + (listingStatus === 'sold' ? 'badge-not-qualified' : 'badge-qualified') + '">' + (listingStatus === 'sold' ? 'Sold' : 'Available') + '</span>'
       + '    </div>'
-        + (listingStatus === 'available'
-          ? '    <div class="prop-availability-note editable-note' + (prop.custom_availability_note ? '' : ' empty-note') + '" role="button" tabindex="0" data-prop-id="' + _escapeHtml(prop.id) + '" data-custom-note="' + _escapeHtml(prop.custom_availability_note || '') + '" title="' + _escapeHtml(prop.custom_availability_note ? 'Click to edit availability note' : 'Click to add availability note') + '"><span class="note-display">' + _escapeHtml(prop.custom_availability_note || 'Add note') + '</span><i class="fas fa-edit edit-icon ms-1" style="opacity: 0; transition: opacity 0.2s;"></i></div>'
-          : '')
       + '    <div class="prop-card-header">'
       + '      <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>' + _escapeHtml(location) + '</div>'
       + '      <div class="prop-card-icons">'
@@ -8243,7 +6840,6 @@ var _pendingAcpFiles = [];
       grid.insertBefore(col, grid.firstChild);
     }
 
-    _refreshAvailabilityNotes();
     var searchEl = document.getElementById('propSearch');
     if (searchEl) searchEl.dispatchEvent(new Event('input', { bubbles: true }));
   }
@@ -8284,6 +6880,10 @@ var _pendingAcpFiles = [];
     resetAcpFormState();
   });
 
+  _bind('acp_block', 'input', _debouncedAcpBlockLotCheck);
+  _bind('acp_lot_no', 'input', _debouncedAcpBlockLotCheck);
+  _bind('acp_subdivision', 'change', _debouncedAcpBlockLotCheck);
+
   btn.addEventListener('click', function () {
     var errEl = document.getElementById('adminCreatePropError');
     if (errEl) errEl.classList.add('d-none');
@@ -8300,62 +6900,69 @@ var _pendingAcpFiles = [];
     var block = val('acp_block');
     var lotNo = val('acp_lot_no');
     var propType = val('acp_type');
-    var unitId = val('acp_unit_id');
     var price = val('acp_price');
     var unitType = val('acp_unit_type');
 
-    if (!name || !unitId || !location || !propType || !unitType || !price) {
+    if (!name || !location || !propType || !unitType || !price) {
       if (errEl) {
-        errEl.textContent = 'Name, unit ID, unit type, location details, type, and TCP are required.';
+        errEl.textContent = 'Name, unit type, location details, type, and TCP are required.';
+        errEl.dataset.source = 'required';
         errEl.classList.remove('d-none');
       }
       return;
     }
+    _checkAcpBlockLotAvailability(block, lotNo, val('acp_subdivision')).then(function (checkData) {
+      if (checkData && checkData.ok && checkData.exists) {
+        return;
+      }
+      if (_acpBlockLotIsTaken) {
+        _setAcpBlockLotError('This Block and Lot No. is already used by another model.');
+        return;
+      }
 
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
 
-    var fd = new FormData();
-    fd.append('name', name);
-    fd.append('location', location);
-    fd.append('street', street);
-    fd.append('block', block);
-    fd.append('lot_no', lotNo);
-    fd.append('region', val('acp_region'));
-    fd.append('region_code', val('acp_region_code'));
-    fd.append('region_name', val('acp_region_name'));
-    fd.append('province_code', val('acp_province_code'));
-    fd.append('province_name', val('acp_province_name'));
-    fd.append('citymun_code', val('acp_citymun_code'));
-    fd.append('citymun_name', val('acp_citymun_name'));
-    fd.append('barangay_code', val('acp_barangay_code'));
-    fd.append('barangay_name', val('acp_barangay_name'));
-    fd.append('prop_type', propType);
-    fd.append('unit_type', unitType);
-    fd.append('price', price);
-    fd.append('promo_discount_rate', val('acp_promo_discount_rate') || '0');
-    fd.append('reservation_fee', val('acp_reservation_fee') || '0');
-    fd.append('downpayment_rate', val('acp_downpayment_rate') || '0');
-    fd.append('downpayment_terms_months', val('acp_downpayment_terms_months') || '0');
-    fd.append('loanable_percentage', val('acp_loanable_percentage') || '0');
-    fd.append('interest_rate', val('acp_interest_rate') || '8.5');
-    fd.append('vat_rate', val('acp_vat_rate') || '0');
-    fd.append('lmf_rate', val('acp_lmf_rate') || '0');
-    fd.append('bedrooms', val('acp_bedrooms') || '0');
-    fd.append('bathrooms', val('acp_bathrooms') || '0');
-    fd.append('storeys', val('acp_storeys') || '1');
-    fd.append('floor_area', val('acp_floor_area'));
-    fd.append('lot_area', val('acp_lot_area'));
-    fd.append('subdivision_id', val('acp_subdivision'));
-    fd.append('unit_id', val('acp_unit_id'));
-    fd.append('description', val('acp_description'));
-    _pendingAcpFiles.filter(Boolean).forEach(function (f) { fd.append('images', f); });
-    fd.append('csrf_token', csrfToken());
+      var fd = new FormData();
+      fd.append('name', name);
+      fd.append('location', location);
+      fd.append('street', street);
+      fd.append('block', block);
+      fd.append('lot_no', lotNo);
+      fd.append('region', val('acp_region'));
+      fd.append('region_code', val('acp_region_code'));
+      fd.append('region_name', val('acp_region_name'));
+      fd.append('province_code', val('acp_province_code'));
+      fd.append('province_name', val('acp_province_name'));
+      fd.append('citymun_code', val('acp_citymun_code'));
+      fd.append('citymun_name', val('acp_citymun_name'));
+      fd.append('barangay_code', val('acp_barangay_code'));
+      fd.append('barangay_name', val('acp_barangay_name'));
+      fd.append('prop_type', propType);
+      fd.append('unit_type', unitType);
+      fd.append('price', price);
+      fd.append('promo_discount_rate', val('acp_promo_discount_rate') || '0');
+      fd.append('reservation_fee', val('acp_reservation_fee') || '0');
+      fd.append('downpayment_rate', val('acp_downpayment_rate') || '0');
+      fd.append('downpayment_terms_months', val('acp_downpayment_terms_months') || '0');
+      fd.append('loanable_percentage', val('acp_loanable_percentage') || '0');
+      fd.append('vat_rate', val('acp_vat_rate') || '0');
+      fd.append('lmf_rate', val('acp_lmf_rate') || '0');
+      fd.append('bedrooms', val('acp_bedrooms') || '0');
+      fd.append('bathrooms', val('acp_bathrooms') || '0');
+      fd.append('storeys', val('acp_storeys') || '1');
+      fd.append('floor_area', val('acp_floor_area'));
+      fd.append('lot_area', val('acp_lot_area'));
+      fd.append('subdivision_id', val('acp_subdivision'));
+      fd.append('unit_id', val('acp_unit_id'));
+      fd.append('description', val('acp_description'));
+      _pendingAcpFiles.filter(Boolean).forEach(function (f) { fd.append('images', f); });
+      fd.append('csrf_token', csrfToken());
 
-    fetch('/admin/property/create', {
-      method: 'POST',
-      body: fd,
-    })
+      fetch('/admin/property/create', {
+        method: 'POST',
+        body: fd,
+      })
       .then(function (r) {
         if (r.status === 413) {
           return { ok: false, status: 413, data: { error: 'Upload too large.' } };
@@ -8381,6 +6988,7 @@ var _pendingAcpFiles = [];
             var sizeMsg = 'Image upload is too large. Please use smaller photo files and try again.';
             if (errEl) {
               errEl.textContent = sizeMsg;
+              errEl.dataset.source = 'submit';
               errEl.classList.remove('d-none');
             }
             showToast(sizeMsg, 'danger');
@@ -8388,6 +6996,7 @@ var _pendingAcpFiles = [];
           }
           if (errEl) {
             errEl.textContent = (res.data && res.data.error) || 'Failed to create property.';
+            errEl.dataset.source = 'submit';
             errEl.classList.remove('d-none');
           }
           return;
@@ -8399,21 +7008,9 @@ var _pendingAcpFiles = [];
         _pushNewPropertyCard((res.data && res.data.property) || {
           id: (res.data && res.data.id) || '',
           name: name,
-          street: street,
-          block: block,
-          lot_no: lotNo,
           location: location,
           prop_type: propType,
-          unit_type: unitType,
           price: parseFloat(price || '0') || 0,
-          promo_discount_rate: parseFloat(val('acp_promo_discount_rate') || '0') || 0,
-          reservation_fee: parseFloat(val('acp_reservation_fee') || '0') || 0,
-          downpayment_rate: parseFloat(val('acp_downpayment_rate') || '0') || 0,
-          downpayment_terms_months: parseInt(val('acp_downpayment_terms_months') || '0', 10) || 0,
-          loanable_percentage: parseFloat(val('acp_loanable_percentage') || '0') || 0,
-          interest_rate: parseFloat(val('acp_interest_rate') || '8.5') || 8.5,
-          vat_rate: parseFloat(val('acp_vat_rate') || '0') || 0,
-          lmf_rate: parseFloat(val('acp_lmf_rate') || '0') || 0,
           bedrooms: val('acp_bedrooms') || '',
           bathrooms: val('acp_bathrooms') || '',
           storeys: val('acp_storeys') || '',
@@ -8433,9 +7030,11 @@ var _pendingAcpFiles = [];
         btn.innerHTML = '<i class="fas fa-plus me-1"></i> Add Property';
         if (errEl) {
           errEl.textContent = 'Network error. Please try again.';
+          errEl.dataset.source = 'submit';
           errEl.classList.remove('d-none');
         }
       });
+    });
   });
 }());
 

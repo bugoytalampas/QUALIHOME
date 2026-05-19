@@ -11,6 +11,3 @@ instance/uploads/
 
 # Environment variables
 .env
-venv/
-env/
-__pycache__/

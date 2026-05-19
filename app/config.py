@@ -39,10 +39,7 @@ class Config:
     WTF_CSRF_ENABLED = True
 
     # File uploads
-    UPLOAD_FOLDER = os.environ.get(
-        "UPLOAD_FOLDER",
-        os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "instance", "uploads"),
-    )
+    UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "instance", "uploads")
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
 
     # Session cookie security

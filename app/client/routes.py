@@ -14,7 +14,6 @@ from ..models import db, UserProfile, QualificationResult, ActivityLog, Tripping
 from flask import jsonify
 import datetime as dt
 from ..ml import c50_engine
-from ..financing_utils import regenerate_qualification_matches_for_client, get_qualified_properties_for_client
 
 # --- Session key prefix -------------------------------------------------------
 _SESSION_PREFIX = "qualify_"
@@ -129,9 +128,6 @@ def qualify():
         db.session.add(result)
         log_activity("assessment", f"Assessment submitted — {status} (DTI: {dti:.1f}%)")
         db.session.commit()
-
-        # Regenerate property qualification matches for this client
-        regenerate_qualification_matches_for_client(current_user)
 
         session["last_result_id"] = result.id
         for key in ("step1", "step2", "step3"):
@@ -596,6 +592,14 @@ def save_profile():
     profile.blk = data.get("blk", "").strip() or None
     profile.lot = data.get("lot", "").strip() or None
     profile.country = data.get("country", "").strip() or None
+    umid_raw = data.get("sss_gsis_umid", "").strip()
+    if umid_raw and not re.fullmatch(r"\d{2}-\d{7}-\d", umid_raw):
+        return jsonify(ok=False, error="SSS/GSIS/UMID must follow 00-0000000-0 format."), 400
+    tin_raw = data.get("tin_no", "").strip()
+    if tin_raw and not re.fullmatch(r"\d{3}-\d{3}-\d{3}-\d{3}", tin_raw):
+        return jsonify(ok=False, error="TIN must follow 000-000-000-000 format."), 400
+    profile.sss_gsis_umid = umid_raw or None
+    profile.tin_no = tin_raw or None
     profile.zip_code = data.get("zip_code", "").strip() or None
     profile.subdivision_name = data.get("subdivision_name", "").strip() or None
     profile.social_instagram = data.get("social_instagram", "").strip() or None
@@ -643,33 +647,24 @@ def _normalize_doc_kind(raw_kind: str | None) -> str | None:
 
 
 # ── Client: upload profile avatar ─────────────────────────────────────────────
-@client_bp.route("/profile/upload-avatar", methods=["GET", "POST"])
+@client_bp.route("/profile/upload-avatar", methods=["POST"])
 @login_required
 @client_required
 def upload_client_avatar():
-    if request.method != "POST":
-        return jsonify({"error": "Method not allowed. Use POST to upload avatar."}), 405
-
     file = request.files.get("avatar")
     if not file or not file.filename:
         return jsonify({"error": "No file provided"}), 400
     ext = os.path.splitext(secure_filename(file.filename))[1].lower()
     if ext not in _ALLOWED_IMG_EXTS:
         return jsonify({"error": "Unsupported file type. Use JPG, PNG, WEBP, or GIF."}), 400
-
-    try:
-        profile = current_user.profile
-        if not profile:
-            profile = UserProfile(user_id=current_user.id)
-            db.session.add(profile)
-        profile.avatar_data     = file.read()
-        profile.avatar_mimetype = file.mimetype or "image/jpeg"
-        db.session.commit()
-        return jsonify({"success": True, "url": url_for("main.serve_client_avatar", user_id=current_user.id)})
-    except Exception:
-        db.session.rollback()
-        current_app.logger.exception("Failed to upload client avatar")
-        return jsonify({"error": "Failed to upload profile photo. Please try a smaller JPG/PNG/WEBP file."}), 500
+    profile = current_user.profile
+    if not profile:
+        profile = UserProfile(user_id=current_user.id)
+        db.session.add(profile)
+    profile.avatar_data     = file.read()
+    profile.avatar_mimetype = file.mimetype or "image/jpeg"
+    db.session.commit()
+    return jsonify({"success": True, "url": url_for("main.serve_client_avatar", user_id=current_user.id)})
 
 
 # ── Client: upload profile banner ─────────────────────────────────────────────

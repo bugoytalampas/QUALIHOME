@@ -35,18 +35,10 @@
 
     <span class="sidebar-panel-label mt-3">Manage</span>
     <a href="#" class="sidebar-link" data-page="properties">
-      <i class="fas fa-building"></i>
-      <span>Models</span>
-      {% if model_request_indicator_count and model_request_indicator_count > 0 %}
-      <span class="sidebar-badge-blue ms-auto">{{ model_request_indicator_count }}</span>
-      {% endif %}
+      <i class="fas fa-building"></i> Models
     </a>
     <a href="#" class="sidebar-link" data-page="trips">
-      <i class="fas fa-calendar-check"></i>
-      <span>Tripping Requests</span>
-      {% if pending_trip_count and pending_trip_count > 0 %}
-      <span class="sidebar-badge-blue ms-auto">{{ pending_trip_count }}</span>
-      {% endif %}
+      <i class="fas fa-calendar-check"></i> Tripping Requests
     </a>
     <a href="#" class="sidebar-link" data-page="projects">
       <i class="fas fa-map-marked-alt"></i> Projects
@@ -189,27 +181,6 @@
             <div class="spinner-border" style="color:var(--clr-primary);" role="status"><span class="visually-hidden">Loading…</span></div>
           </div>
           <div id="cdm-body" class="d-none"></div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-sm btn-outline-crimson" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- -- Property Details Modal ---------------------------------------- -->
-  <div class="modal fade" id="propertyDetailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-      <div class="modal-content sqh-modal">
-        <div class="sqh-modal-header">
-          <div class="sqh-modal-title"><i class="fas fa-home me-2"></i>Property Details</div>
-          <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body p-4">
-          <div class="text-center py-4" id="pdm-loading">
-            <div class="spinner-border" style="color:var(--clr-primary);" role="status"><span class="visually-hidden">Loading…</span></div>
-          </div>
-          <div id="pdm-content" class="d-none"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-sm btn-outline-crimson" data-bs-dismiss="modal">Close</button>
@@ -420,6 +391,51 @@
                 <input type="text" id="projectName" class="form-control sqh-form-control" placeholder="e.g. Camella Homes">
               </div>
             </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Region</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-globe-asia"></i></span>
+                <select id="projRegionSelect" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Province</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-map"></i></span>
+                <select id="projProvinceSelect" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">City / Municipality</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-city"></i></span>
+                <select id="projCitymunSelect" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Barangay</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-map-marker-alt"></i></span>
+                <select id="projBarangaySelect" class="form-control sqh-form-control">
+                  <option value="">-- Select --</option>
+                </select>
+              </div>
+              <input type="hidden" id="projLocation">
+              <input type="hidden" id="projRegionCode">
+              <input type="hidden" id="projRegionName">
+              <input type="hidden" id="projProvinceCode">
+              <input type="hidden" id="projProvinceName">
+              <input type="hidden" id="projCitymunCode">
+              <input type="hidden" id="projCitymunName">
+              <input type="hidden" id="projBarangayCode">
+              <input type="hidden" id="projBarangayName">
+            </div>
             <div class="col-12">
               <label class="sqh-form-label">Description</label>
               <div class="input-group sqh-input-group align-items-start">
@@ -494,7 +510,7 @@
               <label class="sqh-form-label">Region</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-globe-asia"></i></span>
-                <select id="subRegionSelect" class="form-control sqh-form-control">
+                <select id="subRegionSelect" class="form-control sqh-form-control sqh-disabled-field" disabled>
                   <option value="">-- Select --</option>
                 </select>
               </div>
@@ -503,7 +519,7 @@
               <label class="sqh-form-label">Province</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-map"></i></span>
-                <select id="subProvinceSelect" class="form-control sqh-form-control">
+                <select id="subProvinceSelect" class="form-control sqh-form-control sqh-disabled-field" disabled>
                   <option value="">-- Select --</option>
                 </select>
               </div>
@@ -512,7 +528,7 @@
               <label class="sqh-form-label">City / Municipality</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-city"></i></span>
-                <select id="subCitymunSelect" class="form-control sqh-form-control">
+                <select id="subCitymunSelect" class="form-control sqh-form-control sqh-disabled-field" disabled>
                   <option value="">-- Select --</option>
                 </select>
               </div>
@@ -521,7 +537,7 @@
               <label class="sqh-form-label">Barangay</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-map-marker-alt"></i></span>
-                <select id="subBarangaySelect" class="form-control sqh-form-control">
+                <select id="subBarangaySelect" class="form-control sqh-form-control sqh-disabled-field" disabled>
                   <option value="">-- Select --</option>
                 </select>
               </div>
@@ -877,21 +893,21 @@
               <input type="hidden" id="ep_barangay_name">
             </div>
             <div class="col-md-4">
-              <label class="sqh-form-label">Street <span class="text-muted small">(optional)</span></label>
+              <label class="sqh-form-label">Street</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-road"></i></span>
                 <input type="text" id="ep_street" class="form-control sqh-form-control" placeholder="e.g. Mahogany St." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
               </div>
             </div>
             <div class="col-md-4">
-              <label class="sqh-form-label">Block <span class="text-muted small">(optional)</span></label>
+              <label class="sqh-form-label">Block</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-th-large"></i></span>
                 <input type="text" id="ep_block" class="form-control sqh-form-control" placeholder="e.g. 5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
               </div>
             </div>
             <div class="col-md-4">
-              <label class="sqh-form-label">Lot No. <span class="text-muted small">(optional)</span></label>
+              <label class="sqh-form-label">Lot No.</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
                 <input type="text" id="ep_lot_no" class="form-control sqh-form-control" placeholder="e.g. 12" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
@@ -943,7 +959,7 @@
               <label class="sqh-form-label">Unit ID</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
-                <input type="text" id="ep_unit_id" class="form-control sqh-form-control" placeholder="e.g. CAMELLA-UNIT-001" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <input type="text" id="ep_unit_id" class="form-control sqh-form-control sqh-disabled-field" disabled placeholder="Auto-generated" readonly>
               </div>
             </div>
             <div class="col-md-6">
@@ -957,81 +973,70 @@
               <label class="sqh-form-label">Promo Discount (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="ep_promo_discount_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
+                <input type="number" id="ep_promo_discount_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
-              <div class="form-text text-muted small mt-1" id="ep_promo_discount_preview"></div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Reservation Fee (&#8369;) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                <input type="number" id="ep_reservation_fee" class="form-control sqh-form-control" min="0" step="0.01" placeholder="0">
+                <input type="number" id="ep_reservation_fee" class="form-control sqh-form-control" min="0" step="0.01" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Downpayment (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="ep_downpayment_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
+                <input type="number" id="ep_downpayment_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
-              <div class="form-text text-muted small mt-1" id="ep_downpayment_preview"></div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Downpayment Terms (months) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-calendar-alt"></i></span>
-                <input type="number" id="ep_downpayment_terms_months" class="form-control sqh-form-control" min="0" step="1" placeholder="0">
+                <input type="number" id="ep_downpayment_terms_months" class="form-control sqh-form-control" min="0" step="1" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Loanable Percentage (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percentage"></i></span>
-                <input type="number" id="ep_loanable_percentage" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label class="sqh-form-label">Annual Interest Rate (%) <span class="text-danger">*</span></label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="ep_interest_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="8.50">
+                <input type="number" id="ep_loanable_percentage" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">VAT Rate (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                <input type="number" id="ep_vat_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
+                <input type="number" id="ep_vat_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
-              <div class="form-text text-muted small mt-1" id="ep_vat_preview"></div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">LMF Rate (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-file-invoice-dollar"></i></span>
-                <input type="number" id="ep_lmf_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
+                <input type="number" id="ep_lmf_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
-              <div class="form-text text-muted small mt-1" id="ep_lmf_preview"></div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Bedrooms</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-bed"></i></span>
-                <input type="number" id="ep_bedrooms" class="form-control sqh-form-control" min="0" step="1" placeholder="0">
+                <input type="number" id="ep_bedrooms" class="form-control sqh-form-control" min="0" step="1" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Bathrooms</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-bath"></i></span>
-                <input type="number" id="ep_bathrooms" class="form-control sqh-form-control" min="0" step="1" placeholder="0">
+                <input type="number" id="ep_bathrooms" class="form-control sqh-form-control" min="0" step="1" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Storeys</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-layer-group"></i></span>
-                <input type="number" id="ep_storeys" class="form-control sqh-form-control" min="1" step="1" placeholder="0">
+                <input type="number" id="ep_storeys" class="form-control sqh-form-control" min="1" step="1" value="0">
               </div>
             </div>
             <div class="col-md-6">
@@ -1069,90 +1074,12 @@
             </div>
           </div>
 
-          <!-- Full Pricing Breakdown Section -->
-          <div class="mb-0 pt-3 border-top">
-            <button type="button" class="btn btn-link p-0 text-start w-100 d-flex align-items-center justify-content-between mb-3" id="epBreakdownToggle" style="text-decoration:none; font-weight:600; color:var(--clr-primary);">
-              <span><i class="fas fa-calculator me-2" style="color:var(--clr-accent-dk);"></i>Full Pricing Breakdown</span>
-              <i class="fas fa-chevron-down" id="epBreakdownToggleIcon" style="transition:transform 0.2s; transform: rotate(0deg);"></i>
-            </button>
-            <div id="epBreakdownContent" class="d-none" style="background:rgba(170,221,42,.08); padding:1rem; border-radius:0.5rem;">
-              <div class="row g-3">
-                <!-- SELLING PRICES -->
-                <div class="col-12">
-                  <div style="font-weight:600; color:var(--clr-primary); font-size:0.85rem; text-transform:uppercase; margin-bottom:0.5rem;">Selling Prices</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Total Selling Price</small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="ep_bd_tsp">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Promo Discount</small>
-                  <div style="font-weight:600; font-size:1.1rem; color:var(--clr-accent-dk);" id="ep_bd_promo">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">VAT <span id="ep_bd_vat_rate">(0%)</span></small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="ep_bd_vat">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">LMF <span id="ep_bd_lmf_rate">(0%)</span></small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="ep_bd_lmf">₱0.00</div>
-                </div>
-
-                <!-- MISCELLANEOUS -->
-                <div class="col-12 mt-2">
-                  <div style="font-weight:600; color:var(--clr-primary); font-size:0.85rem; text-transform:uppercase; margin-bottom:0.5rem;">Miscellaneous</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Total Contract Price</small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="ep_bd_tcp">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Reservation Fee</small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="ep_bd_resv">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Total Downpayment</small>
-                  <div style="font-weight:600; font-size:1.1rem; color:var(--clr-accent-dk);" id="ep_bd_dp_total">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Monthly Downpayment <span id="ep_bd_dp_months">(24 mos)</span></small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="ep_bd_dp_monthly">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Loanable Amount</small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="ep_bd_loanable">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Annual Interest <span id="ep_bd_interest_rate_label">(8.50%)</span></small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="ep_bd_annual_int">8.50%</div>
-                </div>
-
-                <!-- AMORTIZATION -->
-                <div class="col-12 mt-2">
-                  <div style="font-weight:600; color:var(--clr-primary); font-size:0.85rem; text-transform:uppercase; margin-bottom:0.5rem;">Amortization</div>
-                </div>
-                <div class="col-3"><small class="text-muted">5 Years</small><div style="font-weight:600;" id="ep_bd_amort_5">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">/month</div></div>
-                <div class="col-3"><small class="text-muted">10 Years</small><div style="font-weight:600;" id="ep_bd_amort_10">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">/month</div></div>
-                <div class="col-3"><small class="text-muted">15 Years</small><div style="font-weight:600;" id="ep_bd_amort_15">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">/month</div></div>
-                <div class="col-3"><small class="text-muted">20 Years</small><div style="font-weight:600;" id="ep_bd_amort_20">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">/month</div></div>
-
-                <!-- REQUIRED INCOME -->
-                <div class="col-12 mt-2">
-                  <div style="font-weight:600; color:var(--clr-primary); font-size:0.85rem; text-transform:uppercase; margin-bottom:0.5rem;">Required Income</div>
-                </div>
-                <div class="col-3"><small class="text-muted">5 Years</small><div style="font-weight:600;" id="ep_bd_income_5">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">required</div></div>
-                <div class="col-3"><small class="text-muted">10 Years</small><div style="font-weight:600;" id="ep_bd_income_10">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">required</div></div>
-                <div class="col-3"><small class="text-muted">15 Years</small><div style="font-weight:600;" id="ep_bd_income_15">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">required</div></div>
-                <div class="col-3"><small class="text-muted">20 Years</small><div style="font-weight:600;" id="ep_bd_income_20">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">required</div></div>
-              </div>
+          <div class="d-flex gap-2 justify-content-between pt-3 border-top">
+            <button type="button" class="btn btn-outline-crimson prop-delete-btn" id="lemDeleteBtn"><i class="fas fa-trash me-1"></i> Delete</button>
+            <div class="d-flex gap-2" id="editPropFooterActions">
+              <button type="button" class="btn btn-outline-crimson" id="editPropCloseBtn" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-lime" id="editPropBtn"><i class="fas fa-save me-1"></i> Save Changes</button>
             </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-crimson prop-delete-btn" id="lemDeleteBtn"><i class="fas fa-trash me-1"></i> Delete</button>
-          <div class="d-flex gap-2" id="editPropFooterActions">
-            <button type="button" class="btn btn-outline-crimson" id="editPropCloseBtn" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-lime" id="editPropBtn"><i class="fas fa-save me-1"></i> Save Changes</button>
           </div>
         </div>
       </div>
@@ -1524,6 +1451,7 @@
                   </div>
                 </div>
                 <div class="row g-3 mb-4">
+                  <div class="col-12"><label class="form-label">Do You Have a Spouse?</label><select id="pbHasSpouse" class="form-select buyer-icon-input"><option value="">-- Select --</option><option value="yes">Yes</option><option value="no">No</option></select></div>
                   <div class="col-md-4"><label class="form-label">Last Name</label><input id="spLastName" class="form-control buyer-icon-input"></div>
                   <div class="col-md-4"><label class="form-label">First Name</label><input id="spFirstName" class="form-control buyer-icon-input"></div>
                   <div class="col-md-4"><label class="form-label">Middle Name</label><input id="spMiddleName" class="form-control buyer-icon-input"></div>
@@ -2001,42 +1929,6 @@
         <div class="modal-body p-4">
           <div id="adminCreatePropError" class="alert alert-danger small d-none"></div>
           <div class="row g-3 mb-3">
-            <!-- SUBDIVISION & UNIT TYPE - TOP PRIORITY -->
-            <div class="col-md-6">
-              <label class="sqh-form-label">Subdivision</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-building"></i></span>
-                <select id="acp_subdivision" class="form-control sqh-form-control">
-                  <option value="">— None —</option>
-                  {% for sub in all_subdivisions %}
-                  <option value="{{ sub.id }}"
-                          data-sub-location="{{ sub.location or '' }}"
-                          data-sub-region-code="{{ sub.region_code or '' }}"
-                          data-sub-region-name="{{ sub.region_name or '' }}"
-                          data-sub-province-code="{{ sub.province_code or '' }}"
-                          data-sub-province-name="{{ sub.province_name or '' }}"
-                          data-sub-citymun-code="{{ sub.citymun_code or '' }}"
-                          data-sub-citymun-name="{{ sub.citymun_name or '' }}"
-                          data-sub-barangay-code="{{ sub.barangay_code or '' }}"
-                          data-sub-barangay-name="{{ sub.barangay_name or '' }}">{{ (sub.project.name ~ ' / ') if sub.project else '' }}{{ sub.name }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label class="sqh-form-label">Unit Type <span class="text-danger">*</span></label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-tag"></i></span>
-                <select id="acp_unit_type" class="form-control sqh-form-control">
-                  <option value="">— Select Unit Type —</option>
-                  <option value="pre-selling">Pre Selling</option>
-                  <option value="ready-for-occupancy">Ready For Occupancy</option>
-                  <option value="resale">Resale</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- MODEL NAME -->
             <div class="col-12">
               <label class="sqh-form-label">Model Name <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
@@ -2044,19 +1936,6 @@
                 <input type="text" id="acp_name" class="form-control sqh-form-control" placeholder="e.g. Corner Lot Unit – Block 5">
               </div>
             </div>
-
-            <!-- MODEL TYPE -->
-            <div class="col-12">
-              <label class="sqh-form-label">Model Type</label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-home"></i></span>
-                <select id="acp_type" class="form-control sqh-form-control">
-                  <option value="house-and-lot" selected>House and Lot</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- LOCATION HIERARCHY -->
             <div class="col-md-6">
               <label class="sqh-form-label">Region</label>
               <div class="input-group sqh-input-group">
@@ -2103,36 +1982,76 @@
               <input type="hidden" id="acp_barangay_code">
               <input type="hidden" id="acp_barangay_name">
             </div>
-
-            <!-- STREET, BLOCK, LOT -->
             <div class="col-md-4">
-              <label class="sqh-form-label">Street <span class="text-muted small">(optional)</span></label>
+              <label class="sqh-form-label">Street</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-road"></i></span>
                 <input type="text" id="acp_street" class="form-control sqh-form-control" placeholder="e.g. Mahogany St." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
               </div>
             </div>
             <div class="col-md-4">
-              <label class="sqh-form-label">Block <span class="text-muted small">(optional)</span></label>
+              <label class="sqh-form-label">Block</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-th-large"></i></span>
                 <input type="text" id="acp_block" class="form-control sqh-form-control" placeholder="e.g. 5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
               </div>
+              <div id="acp_block_error" class="sqh-live-error" aria-live="polite"></div>
             </div>
             <div class="col-md-4">
-              <label class="sqh-form-label">Lot No. <span class="text-muted small">(optional)</span></label>
+              <label class="sqh-form-label">Lot No.</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
                 <input type="text" id="acp_lot_no" class="form-control sqh-form-control" placeholder="e.g. 12" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
               </div>
+              <div id="acp_lot_error" class="sqh-live-error" aria-live="polite"></div>
             </div>
-
-            <!-- UNIT ID -->
-            <div class="col-12">
+            <div class="col-md-6">
+              <label class="sqh-form-label">Model Type</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-home"></i></span>
+                <select id="acp_type" class="form-control sqh-form-control">
+                  <option value="house-and-lot" selected>House and Lot</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Unit Type <span class="text-danger">*</span></label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-tag"></i></span>
+                <select id="acp_unit_type" class="form-control sqh-form-control">
+                  <option value="">— Select Unit Type —</option>
+                  <option value="pre-selling">Pre Selling</option>
+                  <option value="ready-for-occupancy">Ready For Occupancy</option>
+                  <option value="resale">Resale</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="sqh-form-label">Subdivision</label>
+              <div class="input-group sqh-input-group">
+                <span class="input-group-text sqh-ig-text"><i class="fas fa-building"></i></span>
+                <select id="acp_subdivision" class="form-control sqh-form-control">
+                  <option value="">— None —</option>
+                  {% for sub in all_subdivisions %}
+                  <option value="{{ sub.id }}"
+                          data-sub-location="{{ sub.location or '' }}"
+                          data-sub-region-code="{{ sub.region_code or '' }}"
+                          data-sub-region-name="{{ sub.region_name or '' }}"
+                          data-sub-province-code="{{ sub.province_code or '' }}"
+                          data-sub-province-name="{{ sub.province_name or '' }}"
+                          data-sub-citymun-code="{{ sub.citymun_code or '' }}"
+                          data-sub-citymun-name="{{ sub.citymun_name or '' }}"
+                          data-sub-barangay-code="{{ sub.barangay_code or '' }}"
+                          data-sub-barangay-name="{{ sub.barangay_name or '' }}">{{ (sub.project.name ~ ' / ') if sub.project else '' }}{{ sub.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
               <label class="sqh-form-label">Unit ID</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-hashtag"></i></span>
-                <input type="text" id="acp_unit_id" class="form-control sqh-form-control" placeholder="e.g. CAMELLA-UNIT-001" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <input type="text" id="acp_unit_id" class="form-control sqh-form-control sqh-disabled-field" placeholder="Auto-generated after save" readonly disabled>
               </div>
             </div>
           </div>
@@ -2149,81 +2068,70 @@
               <label class="sqh-form-label">Promo Discount (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="acp_promo_discount_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
+                <input type="number" id="acp_promo_discount_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
-              <div class="form-text text-muted small mt-1" id="acp_promo_discount_preview"></div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Reservation Fee (&#8369;) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                <input type="number" id="acp_reservation_fee" class="form-control sqh-form-control" min="0" step="0.01" placeholder="0">
+                <input type="number" id="acp_reservation_fee" class="form-control sqh-form-control" min="0" step="0.01" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Downpayment (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="acp_downpayment_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
+                <input type="number" id="acp_downpayment_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
-              <div class="form-text text-muted small mt-1" id="acp_downpayment_preview"></div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Downpayment Terms (months) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-calendar-alt"></i></span>
-                <input type="number" id="acp_downpayment_terms_months" class="form-control sqh-form-control" min="0" step="1" placeholder="0">
+                <input type="number" id="acp_downpayment_terms_months" class="form-control sqh-form-control" min="0" step="1" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Loanable Percentage (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-percentage"></i></span>
-                <input type="number" id="acp_loanable_percentage" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label class="sqh-form-label">Annual Interest Rate (%) <span class="text-danger">*</span></label>
-              <div class="input-group sqh-input-group">
-                <span class="input-group-text sqh-ig-text"><i class="fas fa-percent"></i></span>
-                <input type="number" id="acp_interest_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="8.50">
+                <input type="number" id="acp_loanable_percentage" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">VAT Rate (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                <input type="number" id="acp_vat_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
+                <input type="number" id="acp_vat_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
-              <div class="form-text text-muted small mt-1" id="acp_vat_preview"></div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">LMF Rate (%) <span class="text-danger">*</span></label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-file-invoice-dollar"></i></span>
-                <input type="number" id="acp_lmf_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" placeholder="0">
+                <input type="number" id="acp_lmf_rate" class="form-control sqh-form-control" min="0" max="100" step="0.01" value="0">
               </div>
-              <div class="form-text text-muted small mt-1" id="acp_lmf_preview"></div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Bedrooms</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-bed"></i></span>
-                <input type="number" id="acp_bedrooms" class="form-control sqh-form-control" min="0" step="1" placeholder="0">
+                <input type="number" id="acp_bedrooms" class="form-control sqh-form-control" min="0" step="1" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Bathrooms</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-bath"></i></span>
-                <input type="number" id="acp_bathrooms" class="form-control sqh-form-control" min="0" step="1" placeholder="0">
+                <input type="number" id="acp_bathrooms" class="form-control sqh-form-control" min="0" step="1" value="0">
               </div>
             </div>
             <div class="col-md-6">
               <label class="sqh-form-label">Storeys</label>
               <div class="input-group sqh-input-group">
                 <span class="input-group-text sqh-ig-text"><i class="fas fa-layer-group"></i></span>
-                <input type="number" id="acp_storeys" class="form-control sqh-form-control" min="1" step="1" placeholder="0">
+                <input type="number" id="acp_storeys" class="form-control sqh-form-control" min="1" step="1" value="0">
               </div>
             </div>
             <div class="col-md-6">
@@ -2258,85 +2166,6 @@
                 <input type="file" id="acp_images" class="d-none" accept="image/*" multiple>
               </div>
               <div class="form-text text-muted small mt-1">Optional. You can select multiple images. Accepted: JPG, PNG, WEBP (max 10 MB each).</div>
-            </div>
-          </div>
-
-          <!-- Full Pricing Breakdown Section -->
-          <div class="mb-0 pt-3 border-top">
-            <button type="button" class="btn btn-link p-0 text-start w-100 d-flex align-items-center justify-content-between mb-3" id="acpBreakdownToggle" style="text-decoration:none; font-weight:600; color:var(--clr-primary);">
-              <span><i class="fas fa-calculator me-2" style="color:var(--clr-accent-dk);"></i>Full Pricing Breakdown</span>
-              <i class="fas fa-chevron-down" id="acpBreakdownToggleIcon" style="transition:transform 0.2s; transform: rotate(0deg);"></i>
-            </button>
-            <div id="acpBreakdownContent" class="d-none" style="background:rgba(170,221,42,.08); padding:1rem; border-radius:0.5rem;">
-              <div class="row g-3">
-                <!-- SELLING PRICES -->
-                <div class="col-12">
-                  <div style="font-weight:600; color:var(--clr-primary); font-size:0.85rem; text-transform:uppercase; margin-bottom:0.5rem;">Selling Prices</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Total Selling Price</small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="acp_bd_tsp">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Promo Discount</small>
-                  <div style="font-weight:600; font-size:1.1rem; color:var(--clr-accent-dk);" id="acp_bd_promo">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">VAT <span id="acp_bd_vat_rate">(0%)</span></small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="acp_bd_vat">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">LMF <span id="acp_bd_lmf_rate">(0%)</span></small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="acp_bd_lmf">₱0.00</div>
-                </div>
-
-                <!-- MISCELLANEOUS -->
-                <div class="col-12 mt-2">
-                  <div style="font-weight:600; color:var(--clr-primary); font-size:0.85rem; text-transform:uppercase; margin-bottom:0.5rem;">Miscellaneous</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Total Contract Price</small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="acp_bd_tcp">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Reservation Fee</small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="acp_bd_resv">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Total Downpayment</small>
-                  <div style="font-weight:600; font-size:1.1rem; color:var(--clr-accent-dk);" id="acp_bd_dp_total">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Monthly Downpayment <span id="acp_bd_dp_months">(24 mos)</span></small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="acp_bd_dp_monthly">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Loanable Amount</small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="acp_bd_loanable">₱0.00</div>
-                </div>
-                <div class="col-md-6">
-                  <small class="text-muted">Annual Interest <span id="acp_bd_interest_rate_label">(8.50%)</span></small>
-                  <div style="font-weight:600; font-size:1.1rem;" id="acp_bd_annual_int">8.50%</div>
-                </div>
-
-                <!-- AMORTIZATION -->
-                <div class="col-12 mt-2">
-                  <div style="font-weight:600; color:var(--clr-primary); font-size:0.85rem; text-transform:uppercase; margin-bottom:0.5rem;">Amortization</div>
-                </div>
-                <div class="col-3"><small class="text-muted">5 Years</small><div style="font-weight:600;" id="acp_bd_amort_5">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">/month</div></div>
-                <div class="col-3"><small class="text-muted">10 Years</small><div style="font-weight:600;" id="acp_bd_amort_10">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">/month</div></div>
-                <div class="col-3"><small class="text-muted">15 Years</small><div style="font-weight:600;" id="acp_bd_amort_15">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">/month</div></div>
-                <div class="col-3"><small class="text-muted">20 Years</small><div style="font-weight:600;" id="acp_bd_amort_20">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">/month</div></div>
-
-                <!-- REQUIRED INCOME -->
-                <div class="col-12 mt-2">
-                  <div style="font-weight:600; color:var(--clr-primary); font-size:0.85rem; text-transform:uppercase; margin-bottom:0.5rem;">Required Income</div>
-                </div>
-                <div class="col-3"><small class="text-muted">5 Years</small><div style="font-weight:600;" id="acp_bd_income_5">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">required</div></div>
-                <div class="col-3"><small class="text-muted">10 Years</small><div style="font-weight:600;" id="acp_bd_income_10">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">required</div></div>
-                <div class="col-3"><small class="text-muted">15 Years</small><div style="font-weight:600;" id="acp_bd_income_15">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">required</div></div>
-                <div class="col-3"><small class="text-muted">20 Years</small><div style="font-weight:600;" id="acp_bd_income_20">₱0</div><div style="font-size:0.75rem; color:var(--clr-muted);">required</div></div>
-              </div>
             </div>
           </div>
         </div>
@@ -2611,7 +2440,7 @@
                   {% for p in recent_props %}
                   <tr>
                     <td data-label="Property">{{ p.name }}</td><td data-label="Location">{{ p.location }}</td>
-                    <td data-label="Price">&#8369;{{ '{:,.0f}'.format(p.price) }}</td>
+                    <td data-label="Price">?{{ '{:,.0f}'.format(p.price) }}</td>
                     <td data-label="Status"><span class="sqh-badge badge-{{ 'qualified' if p.status == 'available' else 'not-qualified' }}">{{ p.status.title() }}</span></td>
                   </tr>
                   {% else %}
@@ -2630,7 +2459,7 @@
     {# ---------------------- 2. MODELS -------------------------- #}
     <div class="dash-page d-none" id="page-properties"
          data-title="&lt;em&gt;Models&lt;/em&gt;"
-         data-subtitle="Manage model listings by admin.">
+         data-subtitle="Review and manage model listings submitted by agents.">
 
       <!-- Search / Filter bar -->
       <div class="dash-filter-bar mb-4">
@@ -2648,11 +2477,11 @@
           </select>
         </div>
         <div class="dash-fb-group">
-          <label class="dash-fb-label"><i class="fas fa-city me-1"></i>Project / Subdivision</label>
+          <label class="dash-fb-label"><i class="fas fa-city me-1"></i>Subdivision</label>
           <select id="propSubdivisionFilter" class="form-select dash-fb-select">
-            <option value="">All Project / Subdivisions</option>
+            <option value="">All Subdivisions</option>
             {% for sub in all_subdivisions %}
-            <option value="{{ sub.name }}" data-sub-id="{{ sub.id }}">{{ (sub.project.name ~ ' / ') if sub.project else '' }}{{ sub.name }}</option>
+            <option value="{{ sub.name }}">{{ (sub.project.name ~ ' / ') if sub.project else '' }}{{ sub.name }}</option>
             {% endfor %}
             <option value="__none__">— No Subdivision —</option>
           </select>
@@ -2676,8 +2505,7 @@
               data-status="{{ p.status or 'available' }}"
               data-prop-name="{{ p.name }}"
               data-prop-loc="{{ full_loc }}"
-              data-prop-subdiv="{{ p.subdivision.name if p.subdivision else '' }}"
-              data-prop-subdiv-id="{{ p.subdivision_id or '' }}">
+              data-prop-subdiv="{{ p.subdivision.name if p.subdivision else '' }}">
             <div class="prop-card prop-card-clickable"
                  data-prop-id="{{ p.id }}"
                  data-prop-name="{{ p.name }}"
@@ -2704,7 +2532,6 @@
                  data-prop-downpayment-rate="{{ p.downpayment_rate if p.downpayment_rate is not none else 0 }}"
                  data-prop-downpayment-terms-months="{{ p.downpayment_terms_months if p.downpayment_terms_months is not none else 0 }}"
                  data-prop-loanable-percentage="{{ p.loanable_percentage if p.loanable_percentage is not none else 0 }}"
-                 data-prop-interest-rate="{{ p.interest_rate if p.interest_rate is not none else 8.5 }}"
                  data-prop-vat-rate="{{ p.vat_rate if p.vat_rate is not none else 0 }}"
                  data-prop-lmf-rate="{{ p.lmf_rate if p.lmf_rate is not none else 0 }}"
                  data-prop-bedrooms="{{ p.bedrooms or '' }}"
@@ -2713,7 +2540,6 @@
                  data-prop-floor-area="{{ p.floor_area or '' }}"
                  data-prop-lot-area="{{ p.lot_area or '' }}"
                  data-prop-description="{{ p.description or '' }}"
-                 data-prop-custom-availability-note="{{ p.custom_availability_note or '' }}"
                  data-prop-subdivision-id="{{ p.subdivision_id or '' }}"
                  data-prop-project-name="{{ p.subdivision.project.name if p.subdivision and p.subdivision.project else '' }}"
                  data-prop-agent-id="{{ p.agent_id or '' }}"
@@ -2721,8 +2547,6 @@
                  data-prop-added="{{ p.created_at.strftime('%b %d, %Y') }}"
                  data-prop-status="{{ p.approval_status or 'approved' }}"
                  data-prop-listing-status="{{ p.status or 'available' }}"
-                 data-prop-model-key="{{ model_key_by_prop_id.get(p.id, '') }}"
-                 data-prop-available-left="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
                  data-prop-images="{{ p.images or '' }}">
               <div class="prop-card-img-wrap">
                 {% if first_img %}
@@ -2747,24 +2571,13 @@
                 <div class="prop-card-header">
                   <div class="prop-card-name">{{ p.name }}</div>
                   {% if p.status == 'sold' %}
-                    <span class="sqh-badge badge-sold prop-status-toggle" role="button" tabindex="0" data-prop-id="{{ p.id }}" data-current-status="sold" title="Change listing status">Sold <i class="fas fa-caret-down ms-1"></i></span>
+                    <span class="sqh-badge badge-sold">Sold</span>
                   {% elif p.status == 'reserved' %}
-                    <span class="sqh-badge badge-conditional prop-status-toggle" role="button" tabindex="0" data-prop-id="{{ p.id }}" data-current-status="reserved" title="Change listing status">Reserved <i class="fas fa-caret-down ms-1"></i></span>
+                    <span class="sqh-badge badge-conditional">Reserved</span>
                   {% else %}
-                    <span class="sqh-badge badge-qualified prop-status-toggle" role="button" tabindex="0" data-prop-id="{{ p.id }}" data-current-status="available" title="Change listing status">Available <i class="fas fa-caret-down ms-1"></i></span>
+                    <span class="sqh-badge badge-qualified">Available</span>
                   {% endif %}
                 </div>
-                {% if p.status == 'available' %}
-                <div class="prop-availability-note editable-note{% if not p.custom_availability_note %} empty-note{% endif %}" 
-                     role="button" 
-                     tabindex="0"
-                     data-prop-id="{{ p.id }}"
-                     data-custom-note="{{ p.custom_availability_note or '' }}"
-                     title="{% if p.custom_availability_note %}Click to edit availability note{% else %}Click to add availability note{% endif %}">
-                  <span class="note-display">{% if p.custom_availability_note %}{{ p.custom_availability_note }}{% else %}Add note{% endif %}</span>
-                  <i class="fas fa-edit edit-icon ms-1" style="opacity: 0; transition: opacity 0.2s;"></i>
-                </div>
-                {% endif %}
                 <div class="prop-card-header">
                   <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ full_loc }}</div>
                   <div class="prop-card-icons">
@@ -2775,7 +2588,7 @@
                 </div>
                 <div class="prop-card-footer">
                   <span class="prop-card-type {% if p.unit_type == 'pre-selling' %}prop-type-badge-pre-selling{% elif p.unit_type == 'ready-for-occupancy' %}prop-type-badge-ready-for-occupancy{% elif p.unit_type == 'resale' %}prop-type-badge-resale{% endif %}">{{ p.unit_type.replace('-',' ').title() if p.unit_type else (p.prop_type.replace('-',' ').title() if p.prop_type else '—') }}</span>
-                  <span class="prop-card-price">₱{{ '{:,.0f}'.format(p.price) }}</span>
+                  <span class="prop-card-price">?{{ '{:,.0f}'.format(p.price) }}</span>
                 </div>
                 <!-- bedroom / bathroom / storey icon row -->
                 <div class="prop-card-meta">
@@ -2790,14 +2603,8 @@
                 </div>
                 {% endif %}
                 <div class="prop-card-pending-details-wrap mt-2">
-                  {% set detail_count = pending_detail_request_counts.get(p.id, 0) %}
-                  {% set purchase_count = purchase_form_counts.get(p.id, 0) %}
-                  <button type="button" class="btn btn-sm btn-outline-blue px-3 pvm-full-details-btn position-relative"><i class="fas fa-file-lines me-1"></i>View Pending Details
-                    {% if detail_count > 0 %}<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem;padding:0.25rem 0.4rem;">{{ detail_count }}</span>{% endif %}
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-lime px-3 pvm-purchase-list-btn position-relative"><i class="fas fa-list-check me-1"></i>View Purchase List
-                    {% if purchase_count > 0 %}<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size:0.65rem;padding:0.25rem 0.4rem;">{{ purchase_count }}</span>{% endif %}
-                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-blue px-3 pvm-full-details-btn"><i class="fas fa-file-lines me-1"></i>View Pending Details</button>
+                  <button type="button" class="btn btn-sm btn-outline-lime px-3 pvm-purchase-list-btn"><i class="fas fa-list-check me-1"></i>View Purchase List</button>
                 </div>
               </div>
             </div>
@@ -2870,7 +2677,6 @@
                   data-status="{{ row_status }}"
                   data-client-id="{{ t.client.id if t.client else '' }}"
                   data-client-name="{{ t.client.full_name if t.client else 'Client' }}"
-                  data-property-id="{{ t.property_id if t.property_id else '' }}"
                   data-property-name="{{ t.property_item.name if t.property_item else 'Property' }}"
                   data-property-images="{{ t.property_item.images if t.property_item else '' }}"
                   data-preferred-time="{{ (t.preferred_time|ph_time) if t.preferred_time else '—' }}"
@@ -2917,7 +2723,7 @@
                 </td>
                 <td style="min-width:180px;">
                   {% if row_status == 'pending' %}
-                  <input type="text" id="tripNote-{{ t.id }}" class="form-control form-control-sm" maxlength="255" placeholder="Optional note for client">
+                  <input type="text" id="tripNote-{{ t.id }}" class="form-control form-control-sm" maxlength="255" placeholder="Optional note">
                   {% else %}
                   <span class="text-muted small">{{ t.agent_note or '—' }}</span>
                   {% endif %}
@@ -2934,9 +2740,6 @@
                     <button type="button" class="btn btn-sm btn-outline-blue open-client-modal-btn" data-client-id="{{ t.client.id if t.client else '' }}" title="View Client Details">
                       <i class="fas fa-user"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-blue admin-trip-view-property-btn" data-property-id="{{ t.property_id if t.property_id else '' }}" title="View Property Details">
-                      <i class="fas fa-home"></i>
-                    </button>
                   </div>
                   {% elif row_status == 'approved' %}
                   <div class="d-flex gap-1">
@@ -2945,9 +2748,6 @@
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-blue open-client-modal-btn" data-client-id="{{ t.client.id if t.client else '' }}" title="View Client Details">
                       <i class="fas fa-user"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-blue admin-trip-view-property-btn" data-property-id="{{ t.property_id if t.property_id else '' }}" title="View Property Details">
-                      <i class="fas fa-home"></i>
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-lime open-trip-request-btn" data-trip-id="{{ t.id }}" title="View Trip Request">
                       <i class="fas fa-clipboard-list"></i>
@@ -2960,9 +2760,6 @@
                   <div class="d-flex gap-1">
                     <button type="button" class="btn btn-sm btn-outline-blue open-client-modal-btn" data-client-id="{{ t.client.id if t.client else '' }}" title="View Client Details">
                       <i class="fas fa-user"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-blue admin-trip-view-property-btn" data-property-id="{{ t.property_id if t.property_id else '' }}" title="View Property Details">
-                      <i class="fas fa-home"></i>
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-lime open-trip-request-btn" data-trip-id="{{ t.id }}" title="View Trip Request">
                       <i class="fas fa-clipboard-list"></i>
@@ -3066,6 +2863,7 @@
           </div>
         </div>
       </div>
+
       <div class="modal fade" id="adminTripActionConfirmModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">
           <div class="modal-content sqh-modal">
@@ -3080,23 +2878,6 @@
               <div id="adminTripActionIcon" class="mb-3" style="font-size:2.4rem;color:var(--clr-primary);"><i class="fas fa-question-circle"></i></div>
               <p class="fw-bold mb-1" id="adminTripActionTitle">Proceed with this action?</p>
               <p class="text-muted small mb-3" id="adminTripActionDesc">This change will be applied immediately.</p>
-              <div id="adminTripApproveNoteWrap" class="d-none text-start mb-3">
-                <label class="sqh-form-label small">Client note (optional)</label>
-                <textarea id="adminTripApproveNote" class="form-control form-control-sm" rows="2" placeholder="Optional note for client"></textarea>
-              </div>
-              <div id="adminTripRejectReasonWrap" class="d-none text-start mb-3">
-                <label class="sqh-form-label small">Reject reason</label>
-                <select id="adminTripRejectReason" class="form-select form-select-sm">
-                  <option value="">Select a reason (optional)</option>
-                  <option value="Agent not available">Agent not available</option>
-                  <option value="No trip available on requested date">No trip available on requested date</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div id="adminTripRejectReasonNoteWrap" class="d-none text-start mb-3">
-                <label class="sqh-form-label small">Additional note (optional)</label>
-                <textarea id="adminTripRejectReasonNote" class="form-control form-control-sm" rows="2" placeholder="Optional extra message"></textarea>
-              </div>
               <div class="d-flex gap-2 justify-content-center">
                 <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn px-4" id="adminTripActionConfirmBtn">Confirm</button>
@@ -3335,9 +3116,6 @@
           <li class="nav-item">
             <a href="#" class="nav-link" data-goto="subdivisions" data-projmod-tab="subdivisions"><i class="fas fa-city me-1"></i>Subdivisions</a>
           </li>
-          <li class="nav-item">
-            <a href="#" class="nav-link" data-goto="properties" data-projmod-tab="models"><i class="fas fa-home me-1"></i>Models</a>
-          </li>
         </ul>
       </div>
 
@@ -3438,9 +3216,6 @@
           <li class="nav-item">
             <a href="#" class="nav-link active" data-goto="subdivisions" data-projmod-tab="subdivisions"><i class="fas fa-city me-1"></i>Subdivisions</a>
           </li>
-          <li class="nav-item">
-            <a href="#" class="nav-link" data-goto="properties" data-projmod-tab="models"><i class="fas fa-home me-1"></i>Models</a>
-          </li>
         </ul>
       </div>
       <div class="sqh-card p-4">
@@ -3503,7 +3278,7 @@
                 <!-- Action icons overlay -->
                 <div class="sub-card-actions">
                   <button type="button" class="sub-card-action-btn sub-edit-btn" data-sub-id="{{ s.id }}" title="Edit">
-                    <i class="fas fa-pencil-alt"></i>
+                    <i class="fas fa-eye"></i>
                   </button>
                   <button type="button" class="sub-card-action-btn sub-card-action-delete sub-delete-btn"
                           data-sub-id="{{ s.id }}" data-sub-name="{{ s.name }}"
@@ -3523,7 +3298,7 @@
                 {% endif %}
                 <div class="sub-card-footer">
                   <span class="sub-card-badge">{{ s.properties|length }} Model{{ 's' if s.properties|length != 1 else 'y' }}</span>
-                  <a href="#" class="sub-card-manage" data-goto="properties" data-model-subdivision="{{ s.name }}" data-model-subdivision-id="{{ s.id }}">Manage <i class="fas fa-arrow-right ms-1"></i></a>
+                  <a href="#" class="sub-card-manage" data-goto="properties">Manage <i class="fas fa-arrow-right ms-1"></i></a>
                 </div>
               </div>
             </div>
@@ -3622,7 +3397,7 @@
             <div class="table-responsive">
               <table class="table sqh-table mb-0" id="reportsTable">
                 <thead>
-                  <tr><th class="hide-tablet">#</th><th>Client</th><th>Date</th><th>DTI Ratio</th><th>Max Loanable</th><th class="hide-tablet">Similarity Level</th><th>Result</th><th>Actions</th></tr>
+                  <tr><th class="hide-tablet">#</th><th>Client</th><th>Date</th><th>DTI Ratio</th><th>Max Loanable</th><th class="hide-tablet">Similarity</th><th>Result</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {% for r in all_results %}
@@ -3635,8 +3410,8 @@
                         <span class="fw-semibold {% if r.dti_ratio < 35 %}text-success{% elif r.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %}">{{ '%.1f'|format(r.dti_ratio) }}%</span>
                       {% else %}—{% endif %}
                     </td>
-                    <td data-label="Max Loanable">&#8369;{{ '{:,.0f}'.format(r.max_loanable) if r.max_loanable else '—' }}</td>
-                    <td class="hide-tablet" data-label="Similarity Level">{% if r.similarity_score is not none %}{% if r.similarity_score >= 0.75 %}High Similarity{% elif r.similarity_score >= 0.50 %}Moderate Similarity{% else %}Low Similarity{% endif %}{% else %}—{% endif %}</td>
+                    <td data-label="Max Loanable">?{{ '{:,.0f}'.format(r.max_loanable) if r.max_loanable else '—' }}</td>
+                    <td class="hide-tablet" data-label="Similarity">{% if r.similarity_score is not none %}{{ '%.1f'|format(r.similarity_score * 100) }}%{% else %}—{% endif %}</td>
                     <td data-label="Result">
                       {% if r.status == 'Qualified' %}<span class="sqh-badge badge-qualified">Qualified</span>
                       {% elif r.status == 'Conditionally Qualified' %}<span class="sqh-badge badge-conditional">Conditional</span>
@@ -3681,18 +3456,15 @@
               <div class="flex-grow-1">
                 <div class="title-question d-flex align-items-center gap-2">
                   <div class="prof-section-title">DTI Qualification Thresholds</div>
+                  <button type="button" class="btn sqh-info-toggle" data-bs-toggle="collapse" data-bs-target="#infoCollapseDTI" aria-expanded="false" aria-controls="infoCollapseDTI" title="About this section">
+                    <i class="fas fa-question-circle"></i>
+                  </button>
                 </div>
                 <div class="prof-section-sub">Debt-to-Income ratio bands for client eligibility classification</div>
               </div>
             </div>
-            <div class="sqh-info-box mb-3">
-              Debt-to-Income ratio bands are used by the C5.0 classification engine to determine client eligibility.
-              Lower DTI means less debt pressure and a stronger chance of passing the screening.
-              <div class="mt-2 small">
-                <div><strong>Example:</strong> 35% and below = Qualified</div>
-                <div><strong>Example:</strong> 36% to 42% = Conditionally Qualified</div>
-                <div><strong>Example:</strong> above 42% = Not Qualified</div>
-              </div>
+            <div class="collapse mb-3" id="infoCollapseDTI">
+              <div class="sqh-info-box">Debt-to-Income ratio bands used by the C5.0 classification engine to determine client eligibility.</div>
             </div>
             <div class="row g-3">
               {% set q_crit = criteria_config | selectattr('key','equalto','dti_qualified_max')   | list | first | default(none) %}
@@ -3717,7 +3489,7 @@
                 <label class="sqh-form-label fw-semibold">Not Qualified — Above (%)</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-times-circle"></i></span>
-                  <input type="number" id="crit_dti_not_qualified_min" class="form-control sqh-form-control" value="{{ c_crit.value if c_crit else '42' }}" disabled>
+                  <input type="number" class="form-control sqh-form-control" value="{{ c_crit.value if c_crit else '42' }}" disabled>
                 </div>
                 <div class="form-text">DTI &gt; Conditional max &rarr; <span class="fw-semibold" style="color: var(--clr-primary);">Not Qualified</span> (derived)</div>
               </div>
@@ -3733,20 +3505,15 @@
               <div class="flex-grow-1">
                 <div class="title-question d-flex align-items-center gap-2">
                   <div class="prof-section-title">Algorithm &amp; Risk Settings</div>
+                  <button type="button" class="btn sqh-info-toggle" data-bs-toggle="collapse" data-bs-target="#infoCollapseAlgo" aria-expanded="false" aria-controls="infoCollapseAlgo" title="About this section">
+                    <i class="fas fa-question-circle"></i>
+                  </button>
                 </div>
                 <div class="prof-section-sub">C5.0 decision tree and similarity measure interaction controls</div>
               </div>
             </div>
-            <div class="sqh-info-box mb-3">
-              These settings control how strict the qualification engine behaves.
-              The confidence threshold decides when the tree prediction is strong enough to use on its own.
-              If the case is borderline, the similarity measure checks historical buyer patterns to help finalize the result.
-              The minimum tenure and minimum income values act as extra risk filters before the final status is shown.
-              <div class="mt-2 small">
-                <div><strong>Example:</strong> confidence 72% or higher = use the tree result directly</div>
-                <div><strong>Example:</strong> confidence below 72% = treat as borderline and compare historical similarity</div>
-                <div><strong>Example:</strong> 6 months tenure and PHP 15,000 income are the default minimums</div>
-              </div>
+            <div class="collapse mb-3" id="infoCollapseAlgo">
+              <div class="sqh-info-box">Controls how the C5.0 decision tree and the Similarity Measure interact for borderline applicants.</div>
             </div>
             <div class="row g-3">
               {% set conf_crit = criteria_config | selectattr('key','equalto','confidence_threshold') | list | first | default(none) %}
@@ -3767,7 +3534,7 @@
                 </div>
               </div>
               <div class="col-md-4">
-                <label class="sqh-form-label fw-semibold">Min. Monthly Gross Income</label>
+                <label class="sqh-form-label fw-semibold">Min. Monthly Gross Income (?)</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-coins"></i></span>
                   <input type="number" id="crit_min_gross_income" class="form-control sqh-form-control" value="{{ inc_crit.value if inc_crit else '15000' }}" min="1000" step="500">
@@ -3792,22 +3559,15 @@
               <div class="flex-grow-1">
                 <div class="title-question d-flex align-items-center gap-2">
                   <div class="prof-section-title">Employment Stability Scores</div>
+                  <button type="button" class="btn sqh-info-toggle" data-bs-toggle="collapse" data-bs-target="#infoCollapseStability" aria-expanded="false" aria-controls="infoCollapseStability" title="About this section">
+                    <i class="fas fa-question-circle"></i>
+                  </button>
                 </div>
                 <div class="prof-section-sub">Stability weights per employment type used by the C5.0 feature encoder</div>
               </div>
             </div>
-            <div class="sqh-info-box mb-3">
-              These values are stability weights, not approval rules.
-              The C5.0 feature encoder converts employment type into a score so the engine can compare how stable each applicant looks.
-              Higher scores mean the system sees that employment type as more stable for lending purposes.
-              <div class="mt-2 small">
-                <div><strong>Scale:</strong> minimum is 1, maximum is 5</div>
-                <div><strong>Example:</strong> 5 = strongest impact on the model</div>
-                <div><strong>Example:</strong> 4 = high stability, slightly lower than 5</div>
-                <div><strong>Example:</strong> 3 = moderate stability</div>
-                <div><strong>Example:</strong> 2 = low stability</div>
-                <div><strong>Example:</strong> 1 = weakest stability signal</div>
-              </div>
+            <div class="collapse mb-3" id="infoCollapseStability">
+              <div class="sqh-info-box">Relative stability weights assigned to each employment type by the C5.0 feature encoder. Higher score = more stable for lenders.</div>
             </div>
             <div class="row g-3">
               <div class="col-md-4">
@@ -4011,8 +3771,8 @@
                     <td class="hide-tablet" data-label="Civil">{{ (b.civil_status or '—').title() }}</td>
                     <td data-label="Age">{{ b.age or '—' }}</td>
                     <td data-label="Tenure">{{ b.tenure_months or 0 }} mo</td>
-                    <td data-label="Income">&#8369;{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
-                    <td data-label="Loans">&#8369;{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
+                    <td data-label="Income">?{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
+                    <td data-label="Loans">?{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
                     <td data-label="DTI">
                       {% if b.dti_ratio is not none %}
                         <span class="{% if b.dti_ratio < 35 %}text-success{% elif b.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %} fw-semibold">{{ '%.1f'|format(b.dti_ratio) }}%</span>
@@ -4071,8 +3831,8 @@
                     <td data-label="Civil">{{ (b.civil_status or '—').title() }}</td>
                     <td data-label="Age">{{ b.age or '—' }}</td>
                     <td data-label="Tenure">{{ b.tenure_months or 0 }} mo</td>
-                    <td data-label="Income">&#8369;{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
-                    <td data-label="Loans">&#8369;{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
+                    <td data-label="Income">?{{ '{:,.0f}'.format(b.gross_income) if b.gross_income else '—' }}</td>
+                    <td data-label="Loans">?{{ '{:,.0f}'.format(b.monthly_loans) if b.monthly_loans else '0' }}</td>
                     <td data-label="DTI">
                       {% if b.dti_ratio is not none %}
                         <span class="{% if b.dti_ratio < 35 %}text-success{% elif b.dti_ratio <= 42 %}text-warning{% else %}text-danger{% endif %} fw-semibold">{{ '%.1f'|format(b.dti_ratio) }}%</span>

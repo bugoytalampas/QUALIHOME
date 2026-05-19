@@ -12,7 +12,6 @@
 <script id="buyer-banks-config" type="application/json">{{ (buyer_bank_options or [])|tojson }}</script>
 <script id="buyer-countries-config" type="application/json">{{ (country_options or [])|tojson }}</script>
 <script id="qm-live-config" type="application/json">{{ (live_meter_cfg or {})|tojson }}</script>
-<script>window.SQH_UPLOAD_BASE_URL = "{{ url_for('main.serve_upload', filename='') }}";</script>
 <script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
 <script src="{{ url_for('static', filename='js/client_dashboard.js') }}"></script>
 <script>
@@ -620,26 +619,6 @@
           <div id="pvmStatusBadge" class="flex-shrink-0"></div>
         </div>
 
-        <!-- Qualification Status Indicator -->
-        <div id="pvmQualStatusIndicator" class="pvm-qual-indicator pvm-qual-indicator-unavailable mb-3">
-          <div class="pvm-qual-head">
-            <div class="pvm-qual-title-wrap">
-              <span class="pvm-qual-title">Qualification Status</span>
-              <span class="pvm-qual-subtitle">Income fit by loan term</span>
-            </div>
-            <div class="pvm-qual-year-wrap">
-              <small class="pvm-qual-year-label mb-0">Year</small>
-              <select id="pvmQualYearSelect" class="form-select form-select-sm pvm-qual-year-select">
-                <option value="5">5 Years</option>
-                <option value="10">10 Years</option>
-                <option value="15">15 Years</option>
-                <option value="20">20 Years</option>
-              </select>
-            </div>
-          </div>
-          <div id="pvmQualStatusText" class="pvm-qual-status-text">—</div>
-        </div>
-
         <!-- Icon chips (beds / baths / storeys / areas) -->
         <div id="pvmIconChips" class="pvm-icon-chips mb-3"></div>
 
@@ -739,6 +718,36 @@
                 <div class="pvm-pb-value" id="pvmRate">—</div>
               </div>
             </div>
+            <div class="col-12 col-md-6">
+              <div class="pvm-pb-card pvm-pb-card-summary">
+                <div class="pvm-pb-label">Processing Fee</div>
+                <div class="pvm-pb-value" id="pvmProcessingFee">—</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="pvm-pb-card pvm-pb-card-summary">
+                <div class="pvm-pb-label">OR/PR No.</div>
+                <div class="pvm-pb-value" id="pvmOrPrNo">—</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="pvm-pb-card pvm-pb-card-summary">
+                <div class="pvm-pb-label">OR/PR Date</div>
+                <div class="pvm-pb-value" id="pvmOrPrDate">—</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="pvm-pb-card pvm-pb-card-summary">
+                <div class="pvm-pb-label">Downpayment Term</div>
+                <div class="pvm-pb-value" id="pvmDownpaymentTermAdmin">—</div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="pvm-pb-card pvm-pb-card-summary">
+                <div class="pvm-pb-label">Loan Term</div>
+                <div class="pvm-pb-value" id="pvmLoanTermAdmin">—</div>
+              </div>
+            </div>
           </div>
 
           <div class="row g-2 pvm-pb-amort">
@@ -778,90 +787,56 @@
             <div class="col-6 col-md-3">
               <div class="pvm-pb-amort-card">
                 <div class="pvm-pb-amort-term">5 YEARS</div>
-                <div class="pvm-pb-amort-value" id="pvmReqIncome5">—</div>
-                <div class="pvm-pb-amort-unit" id="pvmReqStatus5">—</div>
-                <div class="pvm-pb-amort-unit">/month</div>
+                <div class="pvm-pb-amort-amount-line">
+                  <div class="pvm-pb-amort-value" id="pvmReqIncome5">—</div>
+                  <div class="pvm-pb-amort-unit-inline">/month</div>
+                </div>
+                  <div class="pvm-pb-amort-unit mt-1"><span id="pvmReqIncomeBadge5" class="sqh-badge badge-not-qualified">Not Qualified</span></div>
               </div>
             </div>
             <div class="col-6 col-md-3">
               <div class="pvm-pb-amort-card">
                 <div class="pvm-pb-amort-term">10 YEARS</div>
-                <div class="pvm-pb-amort-value" id="pvmReqIncome10">—</div>
-                <div class="pvm-pb-amort-unit" id="pvmReqStatus10">—</div>
-                <div class="pvm-pb-amort-unit">/month</div>
+                <div class="pvm-pb-amort-amount-line">
+                  <div class="pvm-pb-amort-value" id="pvmReqIncome10">—</div>
+                  <div class="pvm-pb-amort-unit-inline">/month</div>
+                </div>
+                  <div class="pvm-pb-amort-unit mt-1"><span id="pvmReqIncomeBadge10" class="sqh-badge badge-not-qualified">Not Qualified</span></div>
               </div>
             </div>
             <div class="col-6 col-md-3">
               <div class="pvm-pb-amort-card">
                 <div class="pvm-pb-amort-term">15 YEARS</div>
-                <div class="pvm-pb-amort-value" id="pvmReqIncome15">—</div>
-                <div class="pvm-pb-amort-unit" id="pvmReqStatus15">—</div>
-                <div class="pvm-pb-amort-unit">/month</div>
+                <div class="pvm-pb-amort-amount-line">
+                  <div class="pvm-pb-amort-value" id="pvmReqIncome15">—</div>
+                  <div class="pvm-pb-amort-unit-inline">/month</div>
+                </div>
+                  <div class="pvm-pb-amort-unit mt-1"><span id="pvmReqIncomeBadge15" class="sqh-badge badge-not-qualified">Not Qualified</span></div>
               </div>
             </div>
             <div class="col-6 col-md-3">
               <div class="pvm-pb-amort-card">
                 <div class="pvm-pb-amort-term">20 YEARS</div>
-                <div class="pvm-pb-amort-value" id="pvmReqIncome20">—</div>
-                <div class="pvm-pb-amort-unit" id="pvmReqStatus20">—</div>
-                <div class="pvm-pb-amort-unit">/month</div>
+                <div class="pvm-pb-amort-amount-line">
+                  <div class="pvm-pb-amort-value" id="pvmReqIncome20">—</div>
+                  <div class="pvm-pb-amort-unit-inline">/month</div>
+                </div>
+                  <div class="pvm-pb-amort-unit mt-1"><span id="pvmReqIncomeBadge20" class="sqh-badge badge-not-qualified">Not Qualified</span></div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Actions -->
-        <div class="d-flex gap-2 justify-content-end pt-3 border-top flex-wrap">
+        <div class="d-flex gap-2 justify-content-end pt-3 border-top">
           <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-warning px-4 d-none" id="pvmConditionalReqsBtn" title="View conditional qualification requirements">
-            <i class="fas fa-exclamation-triangle me-1"></i> Conditional Requirements
-          </button>
           <button type="button" class="btn btn-outline-blue px-4" id="pvmRequestDetailsBtn">
-            <i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown
+            <i class="fas fa-file-signature me-1"></i> Request Full Details
           </button>
           <button type="button" class="btn btn-lime px-4" id="pvmRequestTripBtn">
             <i class="fas fa-calendar-plus me-1"></i> Request Visit
           </button>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-{# Conditional Requirements Modal #}
-<div class="modal fade" id="conditionalReqsModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content sqh-modal">
-      <div class="sqh-modal-header">
-        <div class="d-flex align-items-center gap-2">
-          <i class="fas fa-exclamation-triangle text-white"></i>
-          <span class="sqh-modal-title">Conditional Qualification Requirements</span>
-        </div>
-        <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal-body p-4">
-        <div class="mb-3 p-3 alert alert-warning" style="background:rgba(255,193,7,.1);border-color:rgba(255,193,7,.3);">
-          <div style="font-weight:700;color:var(--clr-warning);margin-bottom:.5rem;">
-            <i class="fas fa-info-circle me-2"></i>You are Conditionally Qualified for this property
-          </div>
-          <div style="font-size:0.9rem;color:var(--clr-text);">
-            To upgrade to fully qualified, you'll need to meet one or more of the following requirements:
-          </div>
-        </div>
-
-        <div id="condReqsList" class="list-group list-group-flush">
-          <!-- Requirements appended by JavaScript -->
-        </div>
-
-        <div class="mt-4 p-3" style="background:rgba(100,130,215,.08);border-radius:.5rem;border-left:3px solid var(--clr-blue);">
-          <div style="font-size:0.85rem;color:var(--clr-text-muted);">
-            <i class="fas fa-lightbulb me-2" style="color:var(--clr-blue);"></i>
-            <strong>Tip:</strong> You can still proceed with this property. Have you considered bringing a co-borrower to strengthen your application?
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-crimson" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -1067,7 +1042,7 @@
 
 {# Buyer Information Modal #}
 {% set pb = current_user.profile %}
-<div class="modal fade" id="buyerInfoModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="buyerInfoModal" tabindex="-1" aria-hidden="true" data-profile-gross-income="{{ pb.gross_income if pb and pb.gross_income is not none else '' }}">
   <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
     <div class="modal-content sqh-modal">
       <div class="sqh-modal-header">
@@ -1132,7 +1107,7 @@
               </div>
               <div class="col-md-4"><label class="form-label">Birth Place</label><input id="pbBirthPlace" class="form-control buyer-icon-input" value="{{ pb.birthplace if pb and pb.birthplace else '' }}"></div>
               <div class="col-md-4"><label class="form-label">Tax Identification No (TIN)</label><input id="pbTin" class="form-control buyer-icon-input" value="{{ pb.tin_no if pb and pb.tin_no else '' }}" inputmode="numeric" maxlength="15" placeholder="000-000-000-000"></div>
-              <div class="col-md-4"><label class="form-label">Gross Monthly Income</label><input id="pbGrossIncome" type="number" min="0" step="0.01" class="form-control buyer-icon-input" value="{{ '{:,.2f}'.format(pb.gross_income|float) if pb and pb.gross_income is not none else '' }}"></div>
+              <div class="col-md-4"><label class="form-label">Gross Monthly Income</label><input id="pbGrossIncome" type="number" min="0" step="0.01" class="form-control buyer-icon-input" value="{{ pb.gross_income if pb and pb.gross_income is not none else '' }}"></div>
 
               <div class="col-md-4">
                 <label class="form-label">With Dependents</label>
@@ -1200,7 +1175,7 @@
               <div class="col-md-3"><label class="form-label">Province</label><select id="pbHomeProvinceSelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-3"><label class="form-label">Municipality</label><select id="pbHomeCitySelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-3"><label class="form-label">Brgy.</label><select id="pbHomeBarangaySelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
-              <div class="col-md-6"><label class="form-label">Country</label><input id="pbHomeCountry" class="form-control buyer-icon-input" value="{{ pb.country if pb and pb.country else '' }}"></div>
+              <div class="col-md-6"><label class="form-label">Country</label><select id="pbHomeCountry" class="form-select buyer-icon-input"><option value="">-- Select --</option>{% for c in country_options or [] %}<option value="{{ c.name }}" {% if pb and pb.country == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
               <div class="col-md-6"><label class="form-label">Zip Code</label><input id="pbHomeZip" class="form-control buyer-icon-input" value="{{ pb.zip_code if pb and pb.zip_code else '' }}" inputmode="numeric" maxlength="5" placeholder="e.g. 4100"></div>
               <input type="hidden" id="pbHomeLocation" value="{{ pb.address if pb and pb.address else '' }}">
               <input type="hidden" id="pbHomeRegionCode" value="{{ pb.home_region_code if pb else '' }}">
@@ -1249,7 +1224,7 @@
               <div class="col-md-4"><label class="form-label">Province</label><select id="pbEmpProvinceSelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-4"><label class="form-label">Municipality</label><select id="pbEmpCitySelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-4"><label class="form-label">Brgy.</label><select id="pbEmpBarangaySelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
-              <div class="col-md-4"><label class="form-label">Country</label><input id="pbEmpCountry" class="form-control buyer-icon-input" value="{{ pb.country if pb and pb.country else '' }}"></div>
+              <div class="col-md-4"><label class="form-label">Country</label><select id="pbEmpCountry" class="form-select buyer-icon-input"><option value="">-- Select --</option>{% for c in country_options or [] %}<option value="{{ c.name }}" {% if pb and pb.country == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div>
               <div class="col-md-4"><label class="form-label">Zip Code</label><input class="form-control buyer-icon-input" value="{{ pb.zip_code if pb and pb.zip_code else '' }}"></div>
               <div class="col-md-4"><label class="form-label">Occupation/Profession</label><input id="pbOccupationProfession" class="form-control buyer-icon-input"></div>
               <div class="col-md-4"><label class="form-label">Occupational Position</label><input id="pbOccupationalPosition" class="form-control buyer-icon-input"></div>
@@ -1294,7 +1269,7 @@
               <div class="col-md-6"><label class="form-label">Province</label><select id="pbMailProvinceSelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-6"><label class="form-label">Municipality</label><select id="pbMailCitySelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-6"><label class="form-label">Brgy.</label><select id="pbMailBarangaySelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
-              <div class="col-md-6"><label class="form-label">Country</label><input id="pbMailCountry" class="form-control buyer-icon-input"></div>
+              <div class="col-md-6"><label class="form-label">Country</label><select id="pbMailCountry" class="form-select buyer-icon-input"><option value="">-- Select --</option>{% for c in country_options or [] %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}</select></div>
               <div class="col-md-6"><label class="form-label">Zip Code</label><input id="pbMailZip" class="form-control buyer-icon-input" inputmode="numeric" maxlength="5" placeholder="e.g. 4100"></div>
               <input type="hidden" id="pbMailLocation" value="">
               <input type="hidden" id="pbMailRegionCode" value="">
@@ -1314,19 +1289,20 @@
             <div class="prof-section-header buyer-prof-section mb-2">
               <div class="prof-section-icon" style="background:rgba(139,26,26,.12);color:var(--clr-primary);"><i class="fas fa-user-friends"></i></div>
               <div>
-                <div class="prof-section-title">Spouse <span class="badge bg-secondary">Optional</span></div>
-                <div class="prof-section-sub">Personal details of the spouse for co-evaluation and records. You may skip this section if not applicable.</div>
+                <div class="prof-section-title">Spouse</div>
+                <div class="prof-section-sub">Personal details of the spouse for co-evaluation and records.</div>
               </div>
             </div>
             <div class="row g-3 mb-4">
-              <div class="col-md-4"><label class="form-label">Last Name</label><input class="form-control buyer-icon-input"></div>
-              <div class="col-md-4"><label class="form-label">First Name</label><input class="form-control buyer-icon-input"></div>
-              <div class="col-md-4"><label class="form-label">Middle Name</label><input class="form-control buyer-icon-input"></div>
-              <div class="col-md-4"><label class="form-label">Date of Birth (mm/dd/yyyy)</label><input type="date" class="form-control buyer-icon-input"></div>
-              <div class="col-md-4"><label class="form-label">Birth Place</label><input class="form-control buyer-icon-input"></div>
+              <div class="col-12"><label class="form-label">Do You Have a Spouse?</label><select id="pbHasSpouse" class="form-select buyer-icon-input"><option value="">-- Select --</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+              <div class="col-md-4"><label class="form-label">Last Name</label><input id="spLastName" class="form-control buyer-icon-input"></div>
+              <div class="col-md-4"><label class="form-label">First Name</label><input id="spFirstName" class="form-control buyer-icon-input"></div>
+              <div class="col-md-4"><label class="form-label">Middle Name</label><input id="spMiddleName" class="form-control buyer-icon-input"></div>
+              <div class="col-md-4"><label class="form-label">Date of Birth (mm/dd/yyyy)</label><input id="spBirthDate" type="date" class="form-control buyer-icon-input"></div>
+              <div class="col-md-4"><label class="form-label">Birth Place</label><input id="spBirthPlace" class="form-control buyer-icon-input"></div>
               <div class="col-md-4">
                 <label class="form-label">Citizenship</label>
-                <select class="form-select buyer-icon-input">
+                <select id="spCitizenship" class="form-select buyer-icon-input">
                   <option value="">-- Select --</option>
                   <option value="filipino">Filipino</option>
                   <option value="dual-citizen">Dual Citizen</option>
@@ -1335,7 +1311,7 @@
               </div>
               <div class="col-md-4"><label class="form-label">Mobile No.</label><input id="spMobile" class="form-control buyer-icon-input" inputmode="numeric" maxlength="11" placeholder="09171234567"></div>
               <div class="col-md-4"><label class="form-label">Tel No.</label><input id="spTelephone" class="form-control buyer-icon-input" inputmode="numeric" maxlength="12" placeholder="0212345678"></div>
-              <div class="col-md-4"><label class="form-label">E-mail Address</label><input class="form-control buyer-icon-input" type="email"></div>
+              <div class="col-md-4"><label class="form-label">E-mail Address</label><input id="spEmail" class="form-control buyer-icon-input" type="email"></div>
               <div class="col-md-4"><label class="form-label">TIN</label><input id="spTin" class="form-control buyer-icon-input" inputmode="numeric" maxlength="15" placeholder="000-000-000-000"></div>
               <div class="col-md-4"><label class="form-label">SSS/GSIS/UMID #</label><input id="spUmid" class="form-control buyer-icon-input" inputmode="numeric" maxlength="13" placeholder="00-0000000-0"></div>
               <div class="col-md-4"><label class="form-label">Gross Monthly Income</label><input id="spGrossIncome" class="form-control buyer-icon-input" inputmode="decimal" placeholder="e.g. 25000.00"></div>
@@ -1348,8 +1324,8 @@
             <div class="prof-section-header buyer-prof-section mb-2">
               <div class="prof-section-icon" style="background:rgba(139,26,26,.12);color:var(--clr-primary);"><i class="fas fa-user-tie"></i></div>
               <div>
-                <div class="prof-section-title">Spouse Employment <span class="badge bg-secondary">Optional</span></div>
-                <div class="prof-section-sub">Spouse employment and company address with PSGC-linked location. You may skip this section if not applicable.</div>
+                <div class="prof-section-title">Spouse Employment</div>
+                <div class="prof-section-sub">Spouse employment and company address with PSGC-linked location.</div>
               </div>
             </div>
             <div class="row g-3 mb-4">
@@ -1365,16 +1341,16 @@
                   <option value="with-financial-support">With Financial Support</option>
                 </select>
               </div>
-              <div class="col-md-4"><label class="form-label">Employer/Business Name</label><input class="form-control buyer-icon-input"></div>
+              <div class="col-md-4"><label class="form-label">Employer/Business Name</label><input id="spEmpBusinessName" class="form-control buyer-icon-input"></div>
               <div class="col-md-4"><label class="form-label">Telephone No.</label><input id="spEmpTelephone" class="form-control buyer-icon-input" inputmode="numeric" maxlength="12" placeholder="0212345678"></div>
-              <div class="col-md-4"><label class="form-label">E-mail Address</label><input class="form-control buyer-icon-input" type="email"></div>
+              <div class="col-md-4"><label class="form-label">E-mail Address</label><input id="spEmpEmail" class="form-control buyer-icon-input" type="email"></div>
               <div class="col-md-4"><label class="form-label">Employer/Business Address - No.</label><input id="spEmpAddressNo" class="form-control buyer-icon-input" inputmode="numeric" maxlength="6" placeholder="e.g. 123"></div>
               <div class="col-md-4"><label class="form-label">Employer/Business Address - Street</label><input id="spEmpStreet" class="form-control buyer-icon-input"></div>
               <div class="col-md-4"><label class="form-label">Region</label><select id="spEmpRegionSelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-4"><label class="form-label">Province</label><select id="spEmpProvinceSelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-4"><label class="form-label">Municipality</label><select id="spEmpCitySelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
               <div class="col-md-4"><label class="form-label">Brgy.</label><select id="spEmpBarangaySelect" class="form-select buyer-icon-input"><option value="">-- Select --</option></select></div>
-              <div class="col-md-4"><label class="form-label">Country</label><input id="spEmpCountry" class="form-control buyer-icon-input"></div>
+              <div class="col-md-4"><label class="form-label">Country</label><select id="spEmpCountry" class="form-select buyer-icon-input"><option value="">-- Select --</option>{% for c in country_options or [] %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}</select></div>
               <div class="col-md-4"><label class="form-label">Zip Code</label><input id="spEmpZip" class="form-control buyer-icon-input" inputmode="numeric" maxlength="5" placeholder="e.g. 4100"></div>
               <div class="col-md-4"><label class="form-label">Occupation/Profession</label><input id="spEmpOccupationProfession" class="form-control buyer-icon-input"></div>
               <div class="col-md-4"><label class="form-label">Occupational Position</label><input id="spEmpOccupationalPosition" class="form-control buyer-icon-input"></div>
@@ -1947,22 +1923,6 @@
                     <div class="sqh-live-error" id="qm-debt-err"></div>
                   </div>
                 </div>
-                <div class="dti-meter-wrap mb-2 p-3" id="qm-dtiWrap" style="display:none;">
-                  <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="sqh-form-label mb-0">Estimated DTI Ratio</span>
-                    <span id="qm-dtiLbl" class="fw-bold fs-5">0%</span>
-                  </div>
-                  <div class="dti-meter-track">
-                    <div class="dti-meter-fill dti-safe" id="qm-dtiBar" style="width:0%"></div>
-                  </div>
-                  <div class="dti-zones">
-                    <span>0%</span>
-                    <span style="color:var(--clr-accent-dk);font-weight:600;">35% &mdash; Safe</span>
-                    <span style="color:var(--clr-amber-dk);font-weight:600;">42% &mdash; Caution</span>
-                    <span>100%</span>
-                  </div>
-                  <p class="small text-muted mt-2 mb-0" id="qm-dtiNote"></p>
-                </div>
               </div>
 
               {# STEP 2 — EMPLOYMENT #}
@@ -1972,21 +1932,30 @@
                   Employment stability and tenure are key factors in determining your repayment capacity.
                 </div>
                 <div class="form-section-title">Employment Details</div>
-                <div class="row g-3">
-                  <div class="col-sm-6">
+                <div class="row g-3 mb-4">
+                  <div class="col-12">
                     {{ qualify_form.employment_status.label(class="sqh-form-label") }}
-                    {{ qualify_form.employment_status(class="form-select sqh-form-control", id="qm-status") }}
+                    <div class="input-group sqh-input-group">
+                      <span class="input-group-text sqh-ig-text"><i class="fas fa-briefcase"></i></span>
+                      {{ qualify_form.employment_status(class="form-select sqh-form-control", id="qm-status") }}
+                    </div>
                     <div class="sqh-live-error" id="qm-status-err"></div>
                   </div>
                   <div class="col-sm-6">
                     {{ qualify_form.tenure_months.label(class="sqh-form-label") }}
-                    {{ qualify_form.tenure_months(class="form-control sqh-form-control", id="qm-tenure") }}
+                    <div class="input-group sqh-input-group">
+                      <span class="input-group-text sqh-ig-text"><i class="fas fa-hourglass-half"></i></span>
+                      {{ qualify_form.tenure_months(class="form-control sqh-form-control", id="qm-tenure") }}
+                    </div>
                     <div class="form-text small text-muted" id="qm-tenure-hint">Enter total months (e.g. 24 = 2 years)</div>
                     <div class="sqh-live-error" id="qm-tenure-err"></div>
                   </div>
                   <div class="col-sm-6">
                     {{ qualify_form.age.label(class="sqh-form-label") }}
-                    {{ qualify_form.age(class="form-control sqh-form-control", id="qm-age") }}
+                    <div class="input-group sqh-input-group">
+                      <span class="input-group-text sqh-ig-text"><i class="fas fa-user-clock"></i></span>
+                      {{ qualify_form.age(class="form-control sqh-form-control", id="qm-age") }}
+                    </div>
                     <div class="form-text small text-muted" id="qm-age-hint">Must be 18&ndash;80 years old</div>
                     <div class="sqh-live-error" id="qm-age-err"></div>
                   </div>
@@ -1994,7 +1963,7 @@
               </div>
 
               {# STEP 3 — HOUSING PREFERENCES #}
-              <div id="qm-step-3" class="q-step d-none">
+              <div id="qm-step-3" class="q-step d-none mb-4">
                 <div class="info-box mb-4">
                   <i class="fas fa-home me-2"></i>
                   Optionally pick a preferred model name and set your budget to improve listing recommendations.
@@ -2005,7 +1974,10 @@
                 <div class="row g-3 mb-4">
                   <div class="col-12">
                     {{ qualify_form.preferred_type.label(class="sqh-form-label") }}
-                    {{ qualify_form.preferred_type(class="form-select sqh-form-control", id="qm-type") }}
+                    <div class="input-group sqh-input-group">
+                      <span class="input-group-text sqh-ig-text"><i class="fas fa-home"></i></span>
+                      {{ qualify_form.preferred_type(class="form-select sqh-form-control", id="qm-type") }}
+                    </div>
                     <div class="sqh-live-error" id="qm-type-err"></div>
                   </div>
                   <div class="col-sm-6">
@@ -2029,6 +2001,23 @@
                   <p class="mb-1 fw-semibold" style="color:var(--clr-blue);"><i class="fas fa-info-circle me-2"></i>Almost done!</p>
                   <p class="mb-0 small text-muted">After submitting, your results will be computed instantly. An Annregar Realty agent will be in touch to discuss your options.</p>
                 </div>
+              </div>
+
+              <div class="dti-meter-wrap mb-2 p-3" id="qm-dtiWrap" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="sqh-form-label mb-0">Estimated DTI Ratio</span>
+                  <span id="qm-dtiLbl" class="fw-bold fs-5">0%</span>
+                </div>
+                <div class="dti-meter-track">
+                  <div class="dti-meter-fill dti-safe" id="qm-dtiBar" style="width:0%"></div>
+                </div>
+                <div class="dti-zones">
+                  <span>0%</span>
+                  <span style="color:var(--clr-accent-dk);font-weight:600;">35% &mdash; Safe</span>
+                  <span style="color:var(--clr-amber-dk);font-weight:600;">42% &mdash; Caution</span>
+                  <span>100%</span>
+                </div>
+                <p class="small text-muted mt-2 mb-0" id="qm-dtiNote"></p>
               </div>
 
             </form>
@@ -2293,9 +2282,9 @@
         <div class="cp-welcome-left">
           <p class="cp-welcome-greeting">Good day, <strong>{{ current_user.first_name }}</strong> </p>
           {% if qual_result %}
+          <h1 class="cp-welcome-headline">You're <em>{{ qual_result.status }}</em></h1>
           <p class="cp-welcome-sub">
-            Monthly Income: <strong>&#8369;{{ '{:,.0f}'.format(profile.gross_income|float) if profile and profile.gross_income else '0' }}</strong>
-            &nbsp;&bull;&nbsp; Max loanable: <strong>&#8369;{{ '{:,.0f}'.format(qual_result.max_loanable|float) if qual_result.max_loanable else '' }}</strong>
+            Max loanable: <strong>&#8369;{{ '{:,.0f}'.format(qual_result.max_loanable|float) if qual_result.max_loanable else '' }}</strong>
             &nbsp;&bull;&nbsp; DTI: <strong>{{ '%.1f%%'|format(qual_result.dti_ratio) if qual_result.dti_ratio is not none else '' }}</strong>
           </p>
           <div class="d-flex flex-wrap gap-2 mt-3">
@@ -2357,20 +2346,20 @@
       <div class="cp-section-header mb-3">
         <div>
           <h2 class="cp-section-title"><i class="fas fa-check-circle me-2" style="color:var(--clr-accent-dk);"></i>Qualified Models for You</h2>
-        {# Confirm Full Pricing Breakdown Request Modal #}
+        {# Confirm Full Details Request Modal #}
         <div class="modal fade" id="requestFullDetailsConfirmModal" tabindex="-1" aria-hidden="true">
           <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content sqh-modal">
               <div class="sqh-modal-header">
                 <div class="d-flex align-items-center gap-2">
                   <i class="fas fa-file-signature text-white"></i>
-                  <span class="sqh-modal-title">Request Full Pricing Breakdown</span>
+                  <span class="sqh-modal-title">Request Full Details</span>
                 </div>
                 <button type="button" class="sqh-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fas fa-times"></i></button>
               </div>
               <div class="modal-body p-4 text-center">
                 <div class="mb-3" style="font-size:2.4rem;color:var(--clr-blue);"><i class="fas fa-file-circle-question"></i></div>
-                <p class="fw-bold mb-1">Send full pricing breakdown request?</p>
+                <p class="fw-bold mb-1">Send full details request?</p>
                 <p class="text-muted small mb-4" id="fullDetailsConfirmPropName">The assigned agent will review your request.</p>
                 <div class="d-flex gap-2 justify-content-center">
                   <button type="button" class="btn btn-outline-crimson px-4" data-bs-dismiss="modal">Cancel</button>
@@ -2399,18 +2388,7 @@
         {% set has_request = p.id in requested_prop_ids %}
         {% set detail_status = detail_request_status_by_property.get(p.id, 'none') %}
         {% set pricing = property_pricing_map.get(p.id, {}) %}
-        {% set client_income = profile.gross_income|float if profile and profile.gross_income else 0 %}
-        {% set required_income_map = pricing.get('required_monthly_income', {}) if pricing else {} %}
-        {% set req_income_5 = (required_income_map.get('5') or 0)|float %}
-        {% set req_income_10 = (required_income_map.get('10') or 0)|float %}
-        {% set req_income_15 = (required_income_map.get('15') or 0)|float %}
-        {% set req_income_20 = (required_income_map.get('20') or 0)|float %}
-        {# Property is eligible only if client is QUALIFIED for ALL loan terms #}
-        {% set is_eligible_5 = (client_income|float) > 0 and req_income_5 > 0 and (client_income|float) >= req_income_5 %}
-        {% set is_eligible_10 = (client_income|float) > 0 and req_income_10 > 0 and (client_income|float) >= req_income_10 %}
-        {% set is_eligible_15 = (client_income|float) > 0 and req_income_15 > 0 and (client_income|float) >= req_income_15 %}
-        {% set is_eligible_20 = (client_income|float) > 0 and req_income_20 > 0 and (client_income|float) >= req_income_20 %}
-        {% set is_eligible = qual_result and is_eligible_5 and is_eligible_10 and is_eligible_15 and is_eligible_20 %}
+        {% set is_eligible = qual_result and qual_result.max_loanable and (p.price|float <= qual_result.max_loanable|float) %}
         {% if is_eligible %}
         <div class="col-12 col-sm-6 col-xl-4">
           <div class="prop-card prop-card-clickable"
@@ -2429,19 +2407,12 @@
                data-prop-images="{{ p.images or '' }}"
                data-prop-subdivision="{{ p.subdivision.name if p.subdivision else '' }}"
                data-prop-listing-status="{{ p.status or '' }}"
-               data-prop-model-key="{{ model_key_by_prop_id.get(p.id, '') }}"
-               data-prop-available-left="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
                data-prop-added="{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '' }}"
                data-has-request="{{ '1' if has_request else '0' }}"
                data-detail-request-status="{{ detail_status }}"
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
-               data-qual-status="{{ qual_result.status if qual_result else '' }}"
-               data-prop-qualified-5="{{ '1' if is_eligible_5 else '0' }}"
-               data-prop-qualified-10="{{ '1' if is_eligible_10 else '0' }}"
-               data-prop-qualified-15="{{ '1' if is_eligible_15 else '0' }}"
-               data-prop-qualified-20="{{ '1' if is_eligible_20 else '0' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
@@ -2459,7 +2430,7 @@
                 {% if has_request %}
                 <span class="sqh-badge badge-conditional">Requested</span>
                 {% endif %}
-                <span class="sqh-badge badge-qualified prop-qual-badge" data-prop-id="{{ p.id }}">Qualified</span>
+                <span class="sqh-badge badge-qualified">Qualified</span>
               </div>
               <div class="prop-card-header">
                 <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ full_loc }}</div>
@@ -2477,18 +2448,15 @@
                 <span><i class="fas fa-city me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
-              {% if (p.status or '').lower() == 'available' and p.custom_availability_note %}
-              <div class="prop-availability-note">{{ p.custom_availability_note }}</div>
-              {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-lime' if detail_status == 'approved' else ('btn-outline-crimson' if detail_status == 'pending' else 'btn-outline-blue') }} w-100 mt-2 prop-card-details-btn"
                       data-detail-status="{{ detail_status }}">
                 {% if detail_status == 'approved' %}
-                  <i class="fas fa-file-invoice-dollar me-1"></i> View Price Breakdown
+                <i class="fas fa-file-invoice-dollar me-1"></i> View Full Details
                 {% elif detail_status == 'pending' %}
-                  <i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested
+                <i class="fas fa-hourglass-half me-1"></i> Details Requested
                 {% else %}
-                <i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown
+                <i class="fas fa-file-signature me-1"></i> Request Full Details
                 {% endif %}
               </button>
             </div>
@@ -2521,24 +2489,6 @@
         {% set has_request = p.id in requested_prop_ids %}
         {% set detail_status = detail_request_status_by_property.get(p.id, 'none') %}
         {% set pricing = property_pricing_map.get(p.id, {}) %}
-        {% set client_income = profile.gross_income|float if profile and profile.gross_income else 0 %}
-        {% set required_income_map = pricing.get('required_monthly_income', {}) if pricing else {} %}
-        {% set req_income_5 = (required_income_map.get('5') or 0)|float %}
-        {% set req_income_10 = (required_income_map.get('10') or 0)|float %}
-        {% set req_income_15 = (required_income_map.get('15') or 0)|float %}
-        {% set req_income_20 = (required_income_map.get('20') or 0)|float %}
-        {% set is_eligible_5 = (client_income|float) > 0 and req_income_5 > 0 and (client_income|float) >= req_income_5 %}
-        {% set is_eligible_10 = (client_income|float) > 0 and req_income_10 > 0 and (client_income|float) >= req_income_10 %}
-        {% set is_eligible_15 = (client_income|float) > 0 and req_income_15 > 0 and (client_income|float) >= req_income_15 %}
-        {% set is_eligible_20 = (client_income|float) > 0 and req_income_20 > 0 and (client_income|float) >= req_income_20 %}
-        {# Build qualification range string: e.g., "5-20", "10-20", "15-20" #}
-        {% set qual_terms = [] %}
-        {% if is_eligible_5 %}{% set _ = qual_terms.append('5') %}{% endif %}
-        {% if is_eligible_10 %}{% set _ = qual_terms.append('10') %}{% endif %}
-        {% if is_eligible_15 %}{% set _ = qual_terms.append('15') %}{% endif %}
-        {% if is_eligible_20 %}{% set _ = qual_terms.append('20') %}{% endif %}
-        {% set qual_range = (qual_terms|first ~ '-' ~ qual_terms|last) if qual_terms else '' %}
-        {% set qual_badge_text = ('Qualified ' ~ qual_range ~ ' Years') if qual_range else 'Qualified' %}
         {% set is_eligible = qual_result and qual_result.max_loanable and (p.price|float <= qual_result.max_loanable|float) %}
         <div class="col-12 col-sm-6 col-xl-4">
           <div class="prop-card prop-card-clickable"
@@ -2557,19 +2507,12 @@
                data-prop-images="{{ p.images or '' }}"
                data-prop-subdivision="{{ p.subdivision.name if p.subdivision else '' }}"
                data-prop-listing-status="{{ p.status or '' }}"
-               data-prop-model-key="{{ model_key_by_prop_id.get(p.id, '') }}"
-               data-prop-available-left="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
                data-prop-added="{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '' }}"
                data-has-request="{{ '1' if has_request else '0' }}"
                data-detail-request-status="{{ detail_status }}"
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
-               data-qual-status="{{ qual_result.status if qual_result else '' }}"
-               data-prop-qualified-5="{{ '1' if is_eligible_5 else '0' }}"
-               data-prop-qualified-10="{{ '1' if is_eligible_10 else '0' }}"
-               data-prop-qualified-15="{{ '1' if is_eligible_15 else '0' }}"
-               data-prop-qualified-20="{{ '1' if is_eligible_20 else '0' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
@@ -2589,7 +2532,9 @@
                 {% else %}
                 <span class="sqh-badge badge-recommended">Recommended</span>
                 {% endif %}
-                <span class="sqh-badge badge-qualified prop-qual-badge" data-prop-id="{{ p.id }}">{{ qual_badge_text }}</span>
+                {% if is_eligible %}
+                <span class="sqh-badge badge-qualified">Qualified</span>
+                {% endif %}
               </div>
               <div class="prop-card-header">
                 <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ full_loc }}</div>
@@ -2607,18 +2552,15 @@
                 <span><i class="fas fa-city me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
-              {% if (p.status or '').lower() == 'available' and p.custom_availability_note %}
-              <div class="prop-availability-note">{{ p.custom_availability_note }}</div>
-              {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-lime' if detail_status == 'approved' else ('btn-outline-crimson' if detail_status == 'pending' else 'btn-outline-blue') }} w-100 mt-2 prop-card-details-btn"
                       data-detail-status="{{ detail_status }}">
                 {% if detail_status == 'approved' %}
-                  <i class="fas fa-file-invoice-dollar me-1"></i> View Price Breakdown
+                <i class="fas fa-file-invoice-dollar me-1"></i> View Full Details
                 {% elif detail_status == 'pending' %}
-                  <i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested
+                <i class="fas fa-hourglass-half me-1"></i> Details Requested
                 {% else %}
-                <i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown
+                <i class="fas fa-file-signature me-1"></i> Request Full Details
                 {% endif %}
               </button>
             </div>
@@ -2753,8 +2695,7 @@
        PAGE: BROWSE MODELS
         #}
     <div class="cp-page dash-page d-none" id="page-browse"
-         data-title="Browse Models" data-subtitle="Find your perfect home"
-         data-user-gross-income="{{ profile.gross_income|float(0) if profile and profile.gross_income else 0 }}">
+         data-title="Browse Models" data-subtitle="Find your perfect home">
 
     {% set visited_prop_ids = my_trips | selectattr('status','equalto','visited') | map(attribute='property_id') | list %}
 
@@ -2794,28 +2735,12 @@
         <label class="dash-fb-label"><i class="fas fa-check-circle me-1"></i>Qualification</label>
           <select id="browseQualifiedFilter" class="form-select dash-fb-select">
           <option value="">All</option>
-          <option value="qualified_5">5 Years</option>
-          <option value="qualified_10">10 Years</option>
-          <option value="qualified_15">15 Years</option>
-          <option value="qualified_20">20 Years</option>
+          <option value="qualified">Qualified Only</option>
+          <option value="qualified_5">Qualified at 5 Years</option>
+          <option value="qualified_10">Qualified at 10 Years</option>
+          <option value="qualified_15">Qualified at 15 Years</option>
+          <option value="qualified_20">Qualified at 20 Years</option>
         </select>
-      </div>
-      <div class="dash-fb-group">
-        <label class="dash-fb-label"><i class="fas fa-location-dot me-1"></i>Location</label>
-        <div class="location-filter-wrapper position-relative">
-          <button type="button" class="form-control dash-fb-select text-start" id="browseLocationBtn">
-            <span id="browseLocationText">All Locations</span>
-            <i class="fas fa-chevron-down float-end ms-2"></i>
-          </button>
-          <div class="location-filter-dropdown d-none" id="browseLocationDropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #dee2e6; border-radius: 0.25rem; max-height: 300px; overflow-y: auto; z-index: 1000;">
-            <div class="location-filter-item p-2">
-              <button type="button" class="btn btn-sm text-start w-100" data-project-id="" data-subdivision-id="">
-                <i class="fas fa-check me-1" style="visibility: hidden;"></i> All Locations
-              </button>
-            </div>
-            <div id="browseLocationHierarchy"></div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -2833,36 +2758,32 @@
         {% set detail_status = detail_request_status_by_property.get(p.id, 'none') %}
         {% set pricing = property_pricing_map.get(p.id, {}) %}
         {% set is_eligible = qual_result and qual_result.max_loanable and (p.price|float <= qual_result.max_loanable|float) %}
-        {% set client_income = profile.gross_income|float if profile and profile.gross_income else 0 %}
-        {% set client_income = client_income if client_income > 0 else 0 %}
-        {% set required_income_map = pricing.get('required_monthly_income', {}) if pricing else {} %}
-        {% set req_income_5 = (required_income_map.get('5') or 0)|float %}
-        {% set req_income_10 = (required_income_map.get('10') or 0)|float %}
-        {% set req_income_15 = (required_income_map.get('15') or 0)|float %}
-        {% set req_income_20 = (required_income_map.get('20') or 0)|float %}
-        {% set is_eligible_5 = (client_income|float) > 0 and req_income_5 > 0 and (client_income|float) >= req_income_5 %}
-        {% set is_eligible_10 = (client_income|float) > 0 and req_income_10 > 0 and (client_income|float) >= req_income_10 %}
-        {% set is_eligible_15 = (client_income|float) > 0 and req_income_15 > 0 and (client_income|float) >= req_income_15 %}
-        {% set is_eligible_20 = (client_income|float) > 0 and req_income_20 > 0 and (client_income|float) >= req_income_20 %}
+           {% set client_income = profile.gross_income|float if profile and profile.gross_income else 0 %}
+           {% set required_income_map = pricing.required_monthly_income if pricing and pricing.required_monthly_income else {} %}
+           {% set req_income_5 = required_income_map.get('5', 0)|float %}
+           {% set req_income_10 = required_income_map.get('10', 0)|float %}
+           {% set req_income_15 = required_income_map.get('15', 0)|float %}
+           {% set req_income_20 = required_income_map.get('20', 0)|float %}
+           {% set is_eligible_5 = client_income > 0 and req_income_5 > 0 and client_income >= req_income_5 %}
+           {% set is_eligible_10 = client_income > 0 and req_income_10 > 0 and client_income >= req_income_10 %}
+           {% set is_eligible_15 = client_income > 0 and req_income_15 > 0 and client_income >= req_income_15 %}
+           {% set is_eligible_20 = client_income > 0 and req_income_20 > 0 and client_income >= req_income_20 %}
         <div class="col-12 col-sm-6 col-xl-4 browse-card-col"
-             data-prop-id="{{ p.id }}"
              data-prop-name="{{ p.name|lower }}"
            data-prop-loc="{{ full_loc|lower }}"
-             data-prop-location="{{ full_loc|lower }}"
              data-prop-type="{{ p.prop_type }}"
              data-prop-unit-type="{{ p.unit_type or '' }}"
              data-prop-price="{{ p.price|float|int }}"
              data-prop-beds="{{ p.bedrooms or 0 }}"
-             data-prop-subdiv-id="{{ p.subdivision_id or 0 }}"
              data-prop-qualified="{{ '1' if is_eligible else '0' }}"
-             data-prop-qualified-5="{{ '1' if is_eligible_5 else '0' }}"
-             data-prop-qualified-10="{{ '1' if is_eligible_10 else '0' }}"
-             data-prop-qualified-15="{{ '1' if is_eligible_15 else '0' }}"
-             data-prop-qualified-20="{{ '1' if is_eligible_20 else '0' }}"
-             data-req-income-5="{{ req_income_5|int }}"
-             data-req-income-10="{{ req_income_10|int }}"
-             data-req-income-15="{{ req_income_15|int }}"
-             data-req-income-20="{{ req_income_20|int }}">
+             data-prop-qualified5="{{ '1' if is_eligible_5 else '0' }}"
+             data-prop-qualified10="{{ '1' if is_eligible_10 else '0' }}"
+             data-prop-qualified15="{{ '1' if is_eligible_15 else '0' }}"
+             data-prop-qualified20="{{ '1' if is_eligible_20 else '0' }}"
+             data-prop-req-income5="{{ req_income_5 }}"
+             data-prop-req-income10="{{ req_income_10 }}"
+             data-prop-req-income15="{{ req_income_15 }}"
+             data-prop-req-income20="{{ req_income_20 }}">
           <div class="prop-card prop-card-clickable"
                data-prop-id="{{ p.id }}"
                data-prop-name="{{ p.name }}"
@@ -2879,20 +2800,13 @@
                data-prop-images="{{ p.images or '' }}"
                data-prop-subdivision="{{ p.subdivision.name if p.subdivision else '' }}"
                data-prop-listing-status="{{ p.status or '' }}"
-               data-prop-model-key="{{ model_key_by_prop_id.get(p.id, '') }}"
-               data-prop-available-left="{{ available_units_left_by_prop_id.get(p.id, 0) }}"
                data-prop-added="{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '' }}"
                data-has-request="{{ '1' if has_request else '0' }}"
                data-visited="{{ '1' if p.id in visited_prop_ids else '0' }}"
                data-detail-request-status="{{ detail_status }}"
                data-pricing-json="{{ pricing|tojson|forceescape }}"
                data-pricing-approved="{{ '1' if detail_status == 'approved' else '0' }}"
-               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}"
-               data-qual-status="{{ qual_result.status if qual_result else '' }}"
-               data-prop-qualified-5="{{ '1' if is_eligible_5 else '0' }}"
-               data-prop-qualified-10="{{ '1' if is_eligible_10 else '0' }}"
-               data-prop-qualified-15="{{ '1' if is_eligible_15 else '0' }}"
-               data-prop-qualified-20="{{ '1' if is_eligible_20 else '0' }}">
+               data-prop-agent="{{ p.agent.full_name if p.agent else '' }}">
             <div class="prop-card-img-wrap">
               {% if first_img %}
               <img src="{{ url_for('main.serve_upload', filename=first_img) }}" alt="{{ p.name }}" class="prop-card-img" loading="lazy">
@@ -2908,16 +2822,7 @@
               <div class="prop-card-header">
                 <div class="prop-card-name">{{ p.name }}</div>
                 <span class="sqh-badge badge-{{ 'available' if p.status == 'available' else 'conditional' }}">{{ p.status|title }}</span>
-                <span class="sqh-badge badge-qualified prop-qual-badge d-none" 
-                      data-prop-id="{{ p.id }}" 
-                      data-qualified-5="{{ '1' if is_eligible_5 else '0' }}" 
-                      data-qualified-10="{{ '1' if is_eligible_10 else '0' }}" 
-                      data-qualified-15="{{ '1' if is_eligible_15 else '0' }}" 
-                      data-qualified-20="{{ '1' if is_eligible_20 else '0' }}"
-                      data-req-income-5="{{ req_income_5|int }}"
-                      data-req-income-10="{{ req_income_10|int }}"
-                      data-req-income-15="{{ req_income_15|int }}"
-                      data-req-income-20="{{ req_income_20|int }}">Qualified</span>
+                <span class="sqh-badge js-browse-qual-badge {{ 'badge-qualified' if is_eligible else 'badge-not-qualified' }}">{{ 'Qualified' if is_eligible else 'Not Qualified' }}</span>
               </div>
               <div class="prop-card-header d-flex align-items-center justify-content-between">
                 <div class="prop-card-loc"><i class="fas fa-map-marker-alt me-1"></i>{{ full_loc }}</div>
@@ -2935,9 +2840,6 @@
                 <span><i class="fas fa-map-pin me-1"></i>{{ p.subdivision.name if p.subdivision else '—' }}</span>
                 <span><i class="fas fa-clock me-1"></i>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</span>
               </div>
-              {% if (p.status or '').lower() == 'available' and p.custom_availability_note %}
-              <div class="prop-availability-note">{{ p.custom_availability_note }}</div>
-              {% endif %}
               <button type="button"
                       class="btn {{ 'btn-outline-blue' if p.id in visited_prop_ids else ('btn-outline-crimson' if has_request else 'btn-lime') }} w-100 mt-2 prop-card-request-btn"
                       data-requested="{{ '1' if has_request else '0' }}"
@@ -2954,11 +2856,11 @@
                       class="btn {{ 'btn-outline-lime' if detail_status == 'approved' else ('btn-outline-crimson' if detail_status == 'pending' else 'btn-outline-blue') }} w-100 mt-2 prop-card-details-btn"
                       data-detail-status="{{ detail_status }}">
                 {% if detail_status == 'approved' %}
-                  <i class="fas fa-file-invoice-dollar me-1"></i> View Price Breakdown
+                <i class="fas fa-file-invoice-dollar me-1"></i> View Full Details
                 {% elif detail_status == 'pending' %}
-                  <i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested
+                <i class="fas fa-hourglass-half me-1"></i> Details Requested
                 {% else %}
-                <i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown
+                <i class="fas fa-file-signature me-1"></i> Request Full Details
                 {% endif %}
               </button>
             </div>
@@ -3151,7 +3053,7 @@
       <div class="row g-3 mb-4" id="boughtCardsGrid">
         {% for sale in bought_sales %}
         {% set bp = sale.property_item %}
-         {% set pricing = property_pricing_map.get(bp.id, {}) if bp else {} %}
+         {% set pricing = bought_pricing_map.get(sale.id, property_pricing_map.get(bp.id, {})) if bp else {} %}
          {% set bp_psgc_tail = [bp.barangay_name, bp.citymun_name, bp.province_name, bp.region_name]|select|join(', ') if bp else '' %}
          {% set bp_full_loc = bp.location if bp else '' %}
          {% if bp and bp_psgc_tail and bp_psgc_tail not in bp_full_loc %}
@@ -3253,12 +3155,13 @@
          data-title="My Qualification" data-subtitle="Your pre-qualification result &amp; history">
 
       {% if qual_result %}
-      <div class="cd-result-hero mb-4">
+      <div class="cd-result-hero {{ qs_class }} mb-4">
         <div class="cd-result-hero-inner">
+          <div class="cd-result-icon"><i class="fas {{ qs_icon }}"></i></div>
           <div class="cd-result-info">
-            <div class="cd-result-label">Your Financial Profile</div>
-            <div class="cd-result-date">Last updated {{ qual_result.created_at|ph_datetime('%B %d, %Y at %I:%M %p') }}</div>
-            <p class="text-muted small mt-1">Qualification status varies by property and financing term. View properties to see your eligibility.</p>
+            <div class="cd-result-label">Latest Assessment Result</div>
+            <div class="cd-result-status">{{ qual_result.status }}</div>
+            <div class="cd-result-date">{{ qual_result.created_at|ph_datetime('%B %d, %Y at %I:%M %p') }}</div>
           </div>
           <button type="button" class="btn btn-sm qs-hero-btn-primary ms-auto"
               data-assessment-mode="reassess"
@@ -3280,8 +3183,8 @@
           </div>
           <div class="cd-result-metric-divider"></div>
           <div class="cd-result-metric">
-            <div class="cd-result-metric-lbl">Similarity Level</div>
-            <div class="cd-result-metric-val">{% if qual_result.similarity_score is not none %}{% if qual_result.similarity_score >= 0.75 %}High Similarity{% elif qual_result.similarity_score >= 0.50 %}Moderate Similarity{% else %}Low Similarity{% endif %}{% endif %}</div>
+            <div class="cd-result-metric-lbl">Similarity Score</div>
+            <div class="cd-result-metric-val">{{ '%.1f%%'|format(qual_result.similarity_score * 100) if qual_result.similarity_score is not none else '' }}</div>
           </div>
         </div>
       </div>
@@ -3297,7 +3200,7 @@
         </div>
         <div class="dti-zones">
           <span class="dti-label-safe"><i class="fas fa-check me-1"></i>&le;30% Safe</span>
-          <span class="dti-label-caution"><i class="fas fa-exclamation me-1"></i>31–40% Caution</span>
+          <span class="dti-label-caution"><i class="fas fa-exclamation me-1"></i>3140% Caution</span>
           <span class="dti-label-danger"><i class="fas fa-times me-1"></i>&gt;40% High Risk</span>
         </div>
         <p class="text-muted small mt-2 mb-0">
@@ -3335,7 +3238,7 @@
         <div class="table-responsive">
           <table class="table sqh-table mb-0 cp-mobile-card-table" id="assessmentHistoryTable">
             <thead>
-              <tr><th class="hide-mobile">#</th><th>Date</th><th>Assessment Type</th><th>DTI</th><th>Max Loanable</th><th>Similarity Level</th></tr>
+              <tr><th class="hide-mobile">#</th><th>Date</th><th>Assessment Type</th><th>Result</th><th>DTI</th><th>Max Loanable</th><th>Score</th></tr>
             </thead>
             <tbody>
               {% for r in all_results %}
@@ -3351,9 +3254,10 @@
                   <span class="sqh-badge" style="background:rgba(26,38,153,.12);color:var(--clr-blue);">Re-Assess</span>
                   {% endif %}
                 </td>
+                <td data-label="Result"><span class="sqh-badge {{ rbc }}">{{ r.status }}</span></td>
                 <td data-label="DTI">{{ '%.1f%%'|format(r.dti_ratio) if r.dti_ratio is not none else '' }}</td>
                 <td data-label="Max Loanable">&#8369;{{ '{:,.0f}'.format(r.max_loanable|float) if r.max_loanable else '' }}</td>
-                <td data-label="Similarity Level">{% if r.similarity_score is not none %}{% if r.similarity_score >= 0.75 %}High Similarity{% elif r.similarity_score >= 0.50 %}Moderate Similarity{% else %}Low Similarity{% endif %}{% endif %}</td>
+                <td data-label="Score">{{ '%.1f%%'|format(r.similarity_score * 100) if r.similarity_score is not none else '' }}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -3823,8 +3727,12 @@
                 <label class="sqh-form-label">Country</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-flag"></i></span>
-                  <input type="text" class="form-control sqh-form-control" id="prof_country"
-                         value="{{ profile.country if profile and profile.country else '' }}" placeholder="Country">
+                  <select class="form-select sqh-form-control" id="prof_country">
+                    <option value="">-- Select --</option>
+                    {% for c in country_options or [] %}
+                    <option value="{{ c.name }}" {% if profile and profile.country == c.name %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                  </select>
                 </div>
               </div>
               <div class="col-md-4">
@@ -4031,14 +3939,18 @@
                 <label class="sqh-form-label">SSS/GSIS/UMID</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-id-card"></i></span>
-                  <div class="form-control sqh-form-control" style="background:#f8f9fb;">{{ profile.sss_gsis_umid if profile and profile.sss_gsis_umid else '—' }}</div>
+                  <input type="text" class="form-control sqh-form-control" id="prof_umid"
+                         value="{{ profile.sss_gsis_umid if profile and profile.sss_gsis_umid else '' }}"
+                         inputmode="numeric" maxlength="13" placeholder="00-0000000-0">
                 </div>
               </div>
               <div class="col-md-6">
                 <label class="sqh-form-label">Tax Identification No (TIN)</label>
                 <div class="input-group sqh-input-group">
                   <span class="input-group-text sqh-ig-text"><i class="fas fa-receipt"></i></span>
-                  <div class="form-control sqh-form-control" style="background:#f8f9fb;">{{ profile.tin_no if profile and profile.tin_no else '—' }}</div>
+                  <input type="text" class="form-control sqh-form-control" id="prof_tin"
+                         value="{{ profile.tin_no if profile and profile.tin_no else '' }}"
+                         inputmode="numeric" maxlength="15" placeholder="000-000-000-000">
                 </div>
               </div>
             </div>

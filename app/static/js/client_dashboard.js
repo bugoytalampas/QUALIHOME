@@ -30,18 +30,6 @@
     return fd;
   }
 
-  const _uploadBase = (function () {
-    var base = (window.SQH_UPLOAD_BASE_URL || '/uploads/').trim();
-    if (!base) base = '/uploads/';
-    if (!base.endsWith('/')) base += '/';
-    return base;
-  })();
-
-  function uploadUrl(filename) {
-    var clean = String(filename || '').trim();
-    return clean ? (_uploadBase + encodeURIComponent(clean)) : '';
-  }
-
   function psgcLog(level, message, meta) {
     if (!window || !window.console) return;
     var payload = meta || {};
@@ -95,10 +83,10 @@
     if (res.ok && data && data.ok) {
       var proxyItems = Array.isArray(data.items) ? data.items : [];
       psgcLog('info', 'Proxy PSGC response received', { path: path, count: proxyItems.length });
-      if (proxyItems.length > 0) {
+      if (proxyItems.length > 0 || path.indexOf('/api/psgc/regions') !== 0) {
         return proxyItems;
       }
-      psgcLog('warn', 'Proxy returned empty PSGC items; attempting direct PSGC fallback', { path: path });
+      psgcLog('warn', 'Proxy returned empty regions; attempting direct PSGC fallback', { path: path });
     }
 
     var apiBase = 'https://psgc.gitlab.io/api';
@@ -138,6 +126,87 @@
   function _psgcComposeLocation(names) {
     var ordered = [names.barangay, names.citymun, names.province, names.region].filter(Boolean);
     return ordered.join(', ');
+  }
+
+  var _qualThresholdCache = null;
+
+  function _getQualificationThresholds() {
+    if (_qualThresholdCache) return _qualThresholdCache;
+    var defaults = { qualifiedMax: 35, conditionalMax: 42 };
+    var cfgEl = document.getElementById('qm-live-config');
+    if (!cfgEl || !cfgEl.textContent) {
+      _qualThresholdCache = defaults;
+      return defaults;
+    }
+    try {
+      var cfg = JSON.parse(cfgEl.textContent);
+      var qMax = Number(cfg && cfg.dti_qualified_max);
+      var cMax = Number(cfg && cfg.dti_conditional_max);
+      if (!(qMax > 0)) qMax = defaults.qualifiedMax;
+      if (!(cMax > qMax)) cMax = defaults.conditionalMax;
+      _qualThresholdCache = { qualifiedMax: qMax, conditionalMax: cMax };
+      return _qualThresholdCache;
+    } catch (_) {
+      _qualThresholdCache = defaults;
+      return defaults;
+    }
+  }
+
+  function _getClientMonthlyIncome() {
+    var inputEl = document.getElementById('pbGrossIncome');
+    if (inputEl && String(inputEl.value || '').trim()) {
+      return Number(inputEl.value) || 0;
+    }
+    var buyerModal = document.getElementById('buyerInfoModal');
+    return Number((buyerModal && buyerModal.dataset.profileGrossIncome) || 0) || 0;
+  }
+
+  function _computeQualificationStatus(requiredIncome, clientIncome, fallbackQualified) {
+    var req = Number(requiredIncome || 0);
+    var income = Number(clientIncome || 0);
+
+    if (req > 0 && income > 0) {
+      var limits = _getQualificationThresholds();
+      var qualifiedRatio = limits.qualifiedMax / limits.conditionalMax;
+      var conditionalThreshold = req * qualifiedRatio;
+
+      if (income >= req) {
+        return { label: 'Qualified', badgeClass: 'badge-qualified' };
+      }
+      if (income >= conditionalThreshold) {
+        return { label: 'Conditionally Qualified', badgeClass: 'badge-conditional' };
+      }
+      return { label: 'Not Qualified', badgeClass: 'badge-not-qualified' };
+    }
+
+    return fallbackQualified
+      ? { label: 'Qualified', badgeClass: 'badge-qualified' }
+      : { label: 'Not Qualified', badgeClass: 'badge-not-qualified' };
+  }
+
+  function _setBadgeStatus(el, status) {
+    if (!el || !status) return;
+    el.classList.remove('badge-qualified', 'badge-conditional', 'badge-not-qualified');
+    el.classList.add(status.badgeClass);
+    el.textContent = status.label;
+  }
+
+  function _selectedBrowseYear(filterValue) {
+    if (filterValue === 'qualified_5') return '5';
+    if (filterValue === 'qualified_10') return '10';
+    if (filterValue === 'qualified_15') return '15';
+    if (filterValue === 'qualified_20') return '20';
+    return '';
+  }
+
+  function _datasetYearValue(ds, baseName, year) {
+    if (!ds) return '';
+    var camelKey = baseName + year;
+    if (Object.prototype.hasOwnProperty.call(ds, camelKey)) return ds[camelKey];
+    // Backward compatibility for attributes like data-prop-qualified-5
+    var legacyKey = baseName + '-' + year;
+    if (Object.prototype.hasOwnProperty.call(ds, legacyKey)) return ds[legacyKey];
+    return '';
   }
 
   function _psgcWireCascade(cfg) {
@@ -636,208 +705,44 @@
     const budgetF = document.getElementById("browseBudgetFilter");
     const bedsF   = document.getElementById("browseBedsFilter");
     const qualF   = document.getElementById("browseQualifiedFilter");
-    const locBtn  = document.getElementById("browseLocationBtn");
-    const locDropdown = document.getElementById("browseLocationDropdown");
-    const locText = document.getElementById("browseLocationText");
-    const locHierarchy = document.getElementById("browseLocationHierarchy");
-    const browsePage = document.getElementById("page-browse");
     const grid    = document.getElementById("browseCardsGrid");
     const noRes   = document.getElementById("browseNoResults");
-    
     if (!grid) return;
 
-    // State for location filter
-    let selectedProjectId = null;
-    let selectedSubdivisionId = null;
+    function updateCardQualificationBadge(col, qualFilterValue, clientIncome) {
+      var badgeEl = col.querySelector('.js-browse-qual-badge');
+      if (!badgeEl) return;
 
-    // Get client's gross monthly income from page data attribute
-    function getClientGrossIncome() {
-      if (!browsePage) return 0;
-      let income = parseFloat(browsePage.dataset.userGrossIncome || "0");
-      if (!income || isNaN(income)) {
-        income = parseFloat(browsePage.getAttribute("data-user-gross-income") || "0");
-      }
-      return income > 0 ? income : 0;
-    }
+      var year = _selectedBrowseYear(qualFilterValue);
+      var isQualified = String(col.dataset.propQualified || '0') === '1';
+      var isQualified5 = String(_datasetYearValue(col.dataset, 'propQualified', '5') || '0') === '1';
+      var isQualified10 = String(_datasetYearValue(col.dataset, 'propQualified', '10') || '0') === '1';
+      var isQualified15 = String(_datasetYearValue(col.dataset, 'propQualified', '15') || '0') === '1';
+      var isQualified20 = String(_datasetYearValue(col.dataset, 'propQualified', '20') || '0') === '1';
 
-    // Helper: Extract required income for a specific term from a property element
-    function getRequiredIncomeForTerm(col, term) {
-      if (!col || !term) return 0;
-      // Approach 1: Try camelCase property name (data-req-income-15 -> reqIncome15)
-      const camelKey = `reqIncome${term}`;
-      let value = parseFloat(col.dataset[camelKey] || 0);
-      if (value && value > 0) return value;
-      
-      // Approach 2: Direct getAttribute with hyphenated name
-      value = parseFloat(col.getAttribute(`data-req-income-${term}`) || 0);
-      if (value && value > 0) return value;
-      
-      return 0;
-    }
-
-    // Dynamically calculate if client qualifies for a property at a specific loan term
-    function calculateQualification(col, selectedTerm) {
-      const clientIncome = getClientGrossIncome();
-      if (!clientIncome || clientIncome <= 0 || isNaN(clientIncome)) {
-        return false;
+      if (!year) {
+        _setBadgeStatus(badgeEl, _computeQualificationStatus(0, 0, isQualified));
+        return;
       }
 
-      const requiredIncome = getRequiredIncomeForTerm(col, selectedTerm);
-      if (!requiredIncome || requiredIncome <= 0) {
-        return false;
+      var requiredIncome = 0;
+      var fallbackQualified = false;
+      if (year === '5') {
+        requiredIncome = Number(_datasetYearValue(col.dataset, 'propReqIncome', '5') || 0);
+        fallbackQualified = isQualified5;
+      } else if (year === '10') {
+        requiredIncome = Number(_datasetYearValue(col.dataset, 'propReqIncome', '10') || 0);
+        fallbackQualified = isQualified10;
+      } else if (year === '15') {
+        requiredIncome = Number(_datasetYearValue(col.dataset, 'propReqIncome', '15') || 0);
+        fallbackQualified = isQualified15;
+      } else if (year === '20') {
+        requiredIncome = Number(_datasetYearValue(col.dataset, 'propReqIncome', '20') || 0);
+        fallbackQualified = isQualified20;
       }
-      
-      return clientIncome >= requiredIncome;
-    }
 
-    // Extract loan term (5, 10, 15, or 20) from qualification filter value
-    function getSelectedLoanTerm(qualValue) {
-      const match = String(qualValue).match(/\d+/);
-      return match ? parseInt(match[0]) : null;
+      _setBadgeStatus(badgeEl, _computeQualificationStatus(requiredIncome, clientIncome, fallbackQualified));
     }
-
-    // Determine qualification status based on client income vs required income
-    function getQualificationStatus(clientIncome, requiredIncome) {
-      if (clientIncome <= 0 || requiredIncome <= 0) {
-        return null; // Cannot determine
-      }
-      if (clientIncome >= requiredIncome) {
-        return "Qualified";
-      } else {
-        return "Not Qualified";
-      }
-    }
-
-    // Load location hierarchy via AJAX
-    function loadLocationHierarchy() {
-      fetch('/api/client/location-hierarchy')
-        .then(res => res.json())
-        .then(data => {
-          if (data.ok && data.data) {
-            buildLocationHierarchy(data.data);
-          }
-        })
-        .catch(err => console.error('Error loading location hierarchy:', err));
-    }
-
-    // Build HTML for location hierarchy with projects and subdivisions
-    function buildLocationHierarchy(projects) {
-      if (!locHierarchy) return;
-      
-      let html = '';
-      
-      projects.forEach(project => {
-        html += `
-          <div class="location-filter-project">
-            <button type="button" class="btn btn-sm text-start w-100 px-2 py-1 location-project-toggle" data-project-id="${project.id}">
-              <i class="fas fa-chevron-right me-2" style="width: 12px;"></i>
-              <strong>${project.name}</strong>
-            </button>
-            <div class="location-project-subdivisions d-none">
-        `;
-        
-        project.subdivisions.forEach(subdiv => {
-          const displayName = `${subdiv.name}${subdiv.citymun_name ? ' / ' + subdiv.citymun_name : ''}`;
-          html += `
-              <button type="button" class="btn btn-sm text-start w-100 ps-5 py-1 location-subdivision-btn" data-project-id="${project.id}" data-subdivision-id="${subdiv.id}">
-                <i class="fas fa-check me-1" style="visibility: hidden;"></i>${displayName}
-              </button>
-          `;
-        });
-        
-        html += `
-            </div>
-          </div>
-        `;
-      });
-      
-      locHierarchy.innerHTML = html;
-      
-      // Attach event listeners for project expansion
-      locHierarchy.querySelectorAll('.location-project-toggle').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.preventDefault();
-          const projectId = this.dataset.projectId;
-          const subdiv = this.parentElement.querySelector('.location-project-subdivisions');
-          if (subdiv) {
-            subdiv.classList.toggle('d-none');
-            const icon = this.querySelector('i');
-            if (icon) {
-              icon.classList.toggle('fa-chevron-right');
-              icon.classList.toggle('fa-chevron-down');
-            }
-          }
-        });
-      });
-      
-      // Attach event listeners for subdivision selection
-      locHierarchy.querySelectorAll('.location-subdivision-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.preventDefault();
-          selectLocation(this.dataset.projectId, this.dataset.subdivisionId, this.textContent.trim());
-          locDropdown.classList.add('d-none');
-          applyFilters();
-        });
-      });
-    }
-
-    // Update location filter display and state
-    function selectLocation(projectId, subdivisionId, displayName) {
-      selectedProjectId = projectId ? parseInt(projectId) : null;
-      selectedSubdivisionId = subdivisionId ? parseInt(subdivisionId) : null;
-      locText.textContent = displayName || 'All Locations';
-      
-      // Update checkmarks
-      if (locHierarchy) {
-        locHierarchy.querySelectorAll('.location-subdivision-btn i').forEach(icon => {
-          icon.style.visibility = 'hidden';
-        });
-        if (subdivisionId) {
-          const selected = locHierarchy.querySelector(`[data-subdivision-id="${subdivisionId}"] i`);
-          if (selected) selected.style.visibility = 'visible';
-        }
-      }
-      
-      // Update "All Locations" checkmark
-      const allLocBtn = locDropdown.querySelector('[data-project-id=""][data-subdivision-id=""]');
-      if (allLocBtn) {
-        const icon = allLocBtn.querySelector('i');
-        if (icon) {
-          icon.style.visibility = !subdivisionId && !projectId ? 'visible' : 'hidden';
-        }
-      }
-    }
-
-    // Toggle location dropdown
-    if (locBtn) {
-      locBtn.addEventListener('click', function() {
-        if (locDropdown) {
-          locDropdown.classList.toggle('d-none');
-        }
-      });
-    }
-
-    // Close dropdown when clicking "All Locations"
-    if (locDropdown) {
-      const allLocBtn = locDropdown.querySelector('[data-project-id=""][data-subdivision-id=""]');
-      if (allLocBtn) {
-        allLocBtn.addEventListener('click', function(e) {
-          e.preventDefault();
-          selectLocation(null, null, 'All Locations');
-          locDropdown.classList.add('d-none');
-          applyFilters();
-        });
-      }
-    }
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-      if (locBtn && locDropdown) {
-        if (!locBtn.contains(e.target) && !locDropdown.contains(e.target)) {
-          locDropdown.classList.add('d-none');
-        }
-      }
-    });
 
     function applyFilters() {
       const q      = (search?.value || "").toLowerCase().trim();
@@ -845,151 +750,41 @@
       const budget = parseFloat(budgetF?.value || "") || Infinity;
       const beds   = parseInt(bedsF?.value || "") || 0;
       const qual   = (qualF?.value || "").toLowerCase();
-      
-      const selectedLoanTerm = getSelectedLoanTerm(qual);
-      const clientIncome = getClientGrossIncome();
+      const clientIncome = _getClientMonthlyIncome();
 
       let visible = 0;
-      grid.querySelectorAll(".browse-card-col").forEach(function (col, idx) {
+      grid.querySelectorAll(".browse-card-col").forEach(function (col) {
         const name   = (col.dataset.propName || "").toLowerCase();
-        const colLoc = (col.dataset.propLocation || "").toLowerCase();
+        const loc    = (col.dataset.propLoc  || "").toLowerCase();
         const ptype  = (col.dataset.propType || "").toLowerCase();
         const price  = parseFloat(col.dataset.propPrice || 0);
         const pbeds  = parseInt(col.dataset.propBeds || 0);
-        const propSubdivId = parseInt(col.dataset.propSubdivId || 0);
 
-        let isQualified5 = calculateQualification(col, 5);
-        let isQualified10 = calculateQualification(col, 10);
-        let isQualified15 = calculateQualification(col, 15);
-        let isQualified20 = calculateQualification(col, 20);
-
-        const matchQ    = !q    || name.includes(q) || colLoc.includes(q);
+        const matchQ    = !q    || name.includes(q) || loc.includes(q);
         const matchType = !type || ptype === type;
         const matchBudget = price <= budget;
-        const matchLoc  = !selectedSubdivisionId ? true : propSubdivId === selectedSubdivisionId;
         const matchBeds = beds === 0 ? true : beds === 4 ? pbeds >= 4 : pbeds === beds;
+        updateCardQualificationBadge(col, qual, clientIncome);
 
-        const selectedTerm = getSelectedLoanTerm(qual);
-        const clientIncome = getClientGrossIncome();
-
-        const termQualified = selectedTerm === 5 ? isQualified5
-          : selectedTerm === 10 ? isQualified10
-          : selectedTerm === 15 ? isQualified15
-          : selectedTerm === 20 ? isQualified20
-          : null;
-
-        // Extract required income for a specific term - try multiple approaches
-        function isConditionalForTerm(term) {
-          if (!term || !clientIncome || clientIncome <= 0) return false;
-          
-          const reqIncome = getRequiredIncomeForTerm(col, term);
-          if (!reqIncome || reqIncome <= 0) return false;
-
-          const conditionalThreshold = 0.7; // 70% of requirement is now treated as conditional
-          return clientIncome >= (reqIncome * conditionalThreshold) && clientIncome < reqIncome;
-        }
-
-        const termConditional = isConditionalForTerm(selectedTerm);
-        const termNotQualified = selectedTerm ? (!termQualified && !termConditional) : false;
-
-        const show = matchQ && matchType && matchBudget && matchBeds && matchLoc;
-        if (!show) {
-          col.classList.add("d-none");
-          return;
-        }
-
-        let groupIndex = 2; // Not qualified by default
-        // When a loan term is selected, always assign groupIndex based on qualification status for that term
-        if (selectedTerm) {
-          if (termQualified) {
-            groupIndex = 0;
-          } else if (termConditional) {
-            groupIndex = 1;
-          } else {
-            groupIndex = 2; // Not qualified
-          }
-        } else {
-          // For "All" option we still keep qualified first if any qualified conditions exist
-          if (isQualified5 || isQualified10 || isQualified15 || isQualified20) groupIndex = 0;
-          else if (isConditionalForTerm(5) || isConditionalForTerm(10) || isConditionalForTerm(15) || isConditionalForTerm(20)) groupIndex = 1;
-          else groupIndex = 2;
-        }
-
-        // Setup badge label
-        const qualBadge = col.querySelector(".prop-qual-badge");
-        if (qualBadge) {
-          if (selectedTerm && termQualified) {
-            qualBadge.textContent = `Qualified at ${selectedTerm} Years`;
-            qualBadge.classList.remove("d-none");
-            qualBadge.classList.remove("badge-conditional", "badge-not-qualified");
-            qualBadge.classList.add("badge-qualified");
-          } else if (selectedTerm && termConditional) {
-            qualBadge.textContent = `Conditional at ${selectedTerm} Years`;
-            qualBadge.classList.remove("d-none");
-            qualBadge.classList.remove("badge-qualified", "badge-not-qualified");
-            qualBadge.classList.add("badge-conditional");
-          } else if (selectedTerm && termNotQualified) {
-            qualBadge.textContent = `Not Qualified at ${selectedTerm} Years`;
-            qualBadge.classList.remove("d-none");
-            qualBadge.classList.remove("badge-qualified", "badge-conditional");
-            qualBadge.classList.add("badge-not-qualified");
-          } else {
-            qualBadge.classList.add("d-none");
-            qualBadge.classList.remove("badge-qualified", "badge-conditional", "badge-not-qualified");
-          }
-        }
-
-        col.dataset.groupIndex = String(groupIndex);
-        col.classList.remove("d-none");
-        visible++;
+        const show = matchQ && matchType && matchBudget && matchBeds;
+        col.classList.toggle("d-none", !show);
+        if (show) visible++;
       });
 
-      // Reflow sorted groups
-      const allCols = Array.from(grid.querySelectorAll(".browse-card-col:not(.d-none)"));
-      const qualifiedCols = allCols.filter(c => c.dataset.groupIndex === "0");
-      const conditionalCols = allCols.filter(c => c.dataset.groupIndex === "1");
-      const notQualifiedCols = allCols.filter(c => c.dataset.groupIndex === "2");
-
-      // Remove existing divider blocks first
-      Array.from(grid.querySelectorAll('.browse-group-divider')).forEach(e => e.remove());
-
-      function insertDivider() {
-        const div = document.createElement('div');
-        div.className = 'browse-group-divider';
-        div.style.borderTop = '1px solid #ddd';
-        div.style.margin = '8px 0';
-        grid.appendChild(div);
-      }
-
-      function appendGroup(columns) {
-        columns.forEach(function(col) { grid.appendChild(col); });
-      }
-
-      if (qualifiedCols.length) {
-        appendGroup(qualifiedCols);
-      }
-      if (conditionalCols.length) {
-        if (qualifiedCols.length) insertDivider();
-        appendGroup(conditionalCols);
-      }
-      if (notQualifiedCols.length) {
-        if (qualifiedCols.length || conditionalCols.length) insertDivider();
-        appendGroup(notQualifiedCols);
-      }
-
-      if (noRes) noRes.classList.toggle('d-none', visible > 0);
+      if (noRes) noRes.classList.toggle("d-none", visible > 0);
     }
 
     [search, typeF, budgetF, bedsF, qualF].forEach(function (el) {
-      if (el) {
-        const eventType = el.tagName === 'SELECT' ? 'change' : 'input';
-        el.addEventListener(eventType, applyFilters);
-      }
+      if (el) el.addEventListener("input", applyFilters);
+      if (el) el.addEventListener("change", applyFilters);
     });
-    
-    // Load location hierarchy and initialize
-    loadLocationHierarchy();
-    selectLocation(null, null, 'All Locations');
+
+    var grossIncomeEl = document.getElementById('pbGrossIncome');
+    if (grossIncomeEl) {
+      grossIncomeEl.addEventListener('input', applyFilters);
+      grossIncomeEl.addEventListener('change', applyFilters);
+    }
+
     applyFilters();
   })();
 
@@ -2191,7 +1986,7 @@
     _tripPreviewIdx = (idx + _tripPreviewImages.length) % _tripPreviewImages.length;
     imgEl.style.opacity = '0';
     setTimeout(function() {
-      imgEl.src = uploadUrl(_tripPreviewImages[_tripPreviewIdx]);
+      imgEl.src = '/uploads/' + _tripPreviewImages[_tripPreviewIdx];
       imgEl.style.opacity = '1';
     }, 120);
     document.querySelectorAll('#tripPreviewDots .sub-preview-dot').forEach(function(dot, dotIdx) {
@@ -2300,7 +2095,7 @@
     if (_tripPreviewImages.length) {
       imgWrap.style.display = 'block';
       placeholder.style.display = 'none';
-      imgEl.src = uploadUrl(_tripPreviewImages[0]);
+      imgEl.src = '/uploads/' + _tripPreviewImages[0];
       imgEl.style.opacity = '1';
       _tripPreviewIdx = 0;
       if (_tripPreviewImages.length > 1) {
@@ -2361,7 +2156,7 @@
     _pvmIdx = (idx + _pvmImages.length) % _pvmImages.length;
     imgEl.style.opacity = '0';
     setTimeout(function() {
-      imgEl.src = uploadUrl(_pvmImages[_pvmIdx]);
+      imgEl.src = '/uploads/' + _pvmImages[_pvmIdx];
       imgEl.style.opacity = '1';
     }, 120);
     document.querySelectorAll('#pvmDots .sub-preview-dot').forEach(function(d, i) {
@@ -2395,11 +2190,6 @@
       if (el) el.textContent = val;
     };
 
-    var setHtml = function(id, html) {
-      var el = document.getElementById(id);
-      if (el) el.innerHTML = html;
-    };
-
     var downRate = Number(pricingData.downpayment_rate || pricingData.down_payment_rate || 0);
     var vatRate = Number(pricingData.vat_rate || 0);
     var lmfRate = Number(pricingData.lmf_rate || 0);
@@ -2412,28 +2202,7 @@
     var loanTerm = String(pricingData.loanTerm || pricingData.loan_term || '').trim();
     var amort = pricingData.amortization || {};
     var reqIncome = pricingData.required_monthly_income || {};
-    var browsePage = document.getElementById('page-browse');
-    var clientIncome = 0;
-    if (browsePage) {
-      clientIncome = parseFloat(browsePage.dataset.userGrossIncome || browsePage.getAttribute('data-user-gross-income') || '0');
-    }
-
-    function reqStatusMarkup(requiredIncome) {
-      var req = Number(requiredIncome || 0);
-      var income = Number(clientIncome || 0);
-      var threshold = 0.7;
-
-      if (!(income > 0) || !(req > 0)) {
-        return '<span class="pvm-req-status pvm-req-status-unavailable">Unavailable</span>';
-      }
-      if (income >= req) {
-        return '<span class="pvm-req-status pvm-req-status-qualified">Qualified</span>';
-      }
-      if (income >= (req * threshold) && income < req) {
-        return '<span class="pvm-req-status pvm-req-status-conditional">Conditional</span>';
-      }
-      return '<span class="pvm-req-status pvm-req-status-not-qualified">Not Qualified</span>';
-    }
+    var clientIncome = _getClientMonthlyIncome();
 
     setText('pvmTotalSellingPrice', formatPhp(pricingData.total_selling_price || pricingData.tcp));
     setText('pvmPromoDiscountRate', formatPercent(pricingData.promo_discount_rate || 0, 2));
@@ -2459,10 +2228,22 @@
     setText('pvmReqIncome10', formatPhp(reqIncome['10'] || 0));
     setText('pvmReqIncome15', formatPhp(reqIncome['15'] || 0));
     setText('pvmReqIncome20', formatPhp(reqIncome['20'] || 0));
-    setHtml('pvmReqStatus5', reqStatusMarkup(reqIncome['5'] || 0));
-    setHtml('pvmReqStatus10', reqStatusMarkup(reqIncome['10'] || 0));
-    setHtml('pvmReqStatus15', reqStatusMarkup(reqIncome['15'] || 0));
-    setHtml('pvmReqStatus20', reqStatusMarkup(reqIncome['20'] || 0));
+    _setBadgeStatus(
+      document.getElementById('pvmReqIncomeBadge5'),
+      _computeQualificationStatus(reqIncome['5'] || 0, clientIncome, false)
+    );
+    _setBadgeStatus(
+      document.getElementById('pvmReqIncomeBadge10'),
+      _computeQualificationStatus(reqIncome['10'] || 0, clientIncome, false)
+    );
+    _setBadgeStatus(
+      document.getElementById('pvmReqIncomeBadge15'),
+      _computeQualificationStatus(reqIncome['15'] || 0, clientIncome, false)
+    );
+    _setBadgeStatus(
+      document.getElementById('pvmReqIncomeBadge20'),
+      _computeQualificationStatus(reqIncome['20'] || 0, clientIncome, false)
+    );
     setText('pvmProcessingFee', processingFee || '—');
     setText('pvmOrPrNo', orPrNo || '—');
     setText('pvmOrPrDate', orPrDate || '—');
@@ -2584,7 +2365,7 @@
       imgWrap.style.display   = 'block';
       imgHolder.style.display = 'none';
       imgEl.style.opacity     = '1';
-      imgEl.src = uploadUrl(_pvmImages[0]);
+      imgEl.src = '/uploads/' + _pvmImages[0];
       _pvmIdx = 0;
       if (_pvmImages.length > 1) {
         prevBtn.classList.remove('d-none');
@@ -2673,141 +2454,17 @@
       detailsBtn.classList.remove('d-none');
       detailsBtn.classList.remove('btn-outline-blue', 'btn-outline-crimson', 'btn-outline-lime');
       if (isBoughtModel || effectiveDetailStatus === 'approved') {
-        detailsBtn.classList.add('btn-outline-lime');
-        detailsBtn.innerHTML = '<i class="fas fa-file-invoice-dollar me-1"></i> View Price Breakdown';
+        detailsBtn.classList.add('d-none');
       } else if (effectiveDetailStatus === 'pending') {
         detailsBtn.classList.add('btn-outline-crimson');
-        detailsBtn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested';
+        detailsBtn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Details Requested';
       } else if (effectiveDetailStatus === 'rejected') {
         detailsBtn.classList.add('btn-outline-blue');
-        detailsBtn.innerHTML = '<i class="fas fa-redo me-1"></i> Request Full Pricing Breakdown Again';
+        detailsBtn.innerHTML = '<i class="fas fa-redo me-1"></i> Request Full Details Again';
       } else {
         detailsBtn.classList.add('btn-outline-blue');
-        detailsBtn.innerHTML = '<i class="fas fa-file-signature me-1"></i> Request Full Pricing Breakdown';
+        detailsBtn.innerHTML = '<i class="fas fa-file-signature me-1"></i> Request Full Details';
       }
-    }
-
-    // Handle Conditional Requirements button
-    var condReqBtn = document.getElementById('pvmConditionalReqsBtn');
-    var qualFilterEl = document.getElementById('browseQualifiedFilter');
-    var qualYearEl = document.getElementById('pvmQualYearSelect');
-    var qualStatusEl = document.getElementById('pvmQualStatusText');
-    var qualIndicatorEl = document.getElementById('pvmQualStatusIndicator');
-
-    function getSelectedTermFromBrowseFilter() {
-      var qVal = qualFilterEl ? String(qualFilterEl.value || '') : '';
-      var match = qVal.match(/(5|10|15|20)/);
-      return match ? match[1] : '';
-    }
-
-    function getClientIncomeFromBrowsePage() {
-      var browsePage = document.getElementById('page-browse');
-      if (!browsePage) return 0;
-      var income = parseFloat(browsePage.dataset.userGrossIncome || browsePage.getAttribute('data-user-gross-income') || '0');
-      return isNaN(income) ? 0 : income;
-    }
-
-    function getRequiredIncomeForTerm(term) {
-      var requiredIncome = 0;
-      var sourceCol = card;
-      if (card && typeof card.closest === 'function') {
-        sourceCol = card.closest('.browse-card-col') || card;
-      }
-
-      if (sourceCol) {
-        var camelKey = 'reqIncome' + term;
-        requiredIncome = parseFloat(sourceCol.dataset[camelKey] || 0);
-        if (!requiredIncome || requiredIncome <= 0) {
-          requiredIncome = parseFloat(sourceCol.getAttribute('data-req-income-' + term) || 0);
-        }
-      }
-
-      if ((!requiredIncome || requiredIncome <= 0) && card && card !== sourceCol) {
-        var altCamelKey = 'reqIncome' + term;
-        requiredIncome = parseFloat(card.dataset[altCamelKey] || 0);
-        if (!requiredIncome || requiredIncome <= 0) {
-          requiredIncome = parseFloat(card.getAttribute('data-req-income-' + term) || 0);
-        }
-      }
-
-      if ((!requiredIncome || requiredIncome <= 0) && pricingData && pricingData.required_monthly_income) {
-        var reqMap = pricingData.required_monthly_income;
-        requiredIncome = parseFloat(reqMap[term] || reqMap[String(term)] || 0);
-      }
-
-      return requiredIncome;
-    }
-
-    function renderModalQualificationStatus(selectedTerm) {
-      var term = String(selectedTerm || '').trim();
-      if (!term) term = '5';
-
-      var clientIncome = getClientIncomeFromBrowsePage();
-      var requiredIncome = getRequiredIncomeForTerm(term);
-      var conditionalThreshold = 0.7;
-
-      var isQualifiedForTerm = (clientIncome > 0 && requiredIncome > 0 && clientIncome >= requiredIncome);
-      var isConditionalForTerm = (
-        clientIncome > 0 &&
-        requiredIncome > 0 &&
-        clientIncome >= (requiredIncome * conditionalThreshold) &&
-        clientIncome < requiredIncome
-      );
-      var isNotQualifiedForTerm = !isQualifiedForTerm && !isConditionalForTerm;
-
-      var statusText = '<span class="pvm-req-status pvm-req-status-unavailable"><i class="fas fa-info-circle me-1"></i>Qualification unavailable for ' + term + ' Years</span>';
-      var indicatorStateClass = 'pvm-qual-indicator-unavailable';
-      if (isQualifiedForTerm) {
-        statusText = '<span class="pvm-req-status pvm-req-status-qualified"><i class="fas fa-check-circle me-1"></i>Qualified at ' + term + ' Years</span>';
-        indicatorStateClass = 'pvm-qual-indicator-qualified';
-      } else if (isConditionalForTerm) {
-        statusText = '<span class="pvm-req-status pvm-req-status-conditional"><i class="fas fa-exclamation-circle me-1"></i>Conditional at ' + term + ' Years</span>';
-        indicatorStateClass = 'pvm-qual-indicator-conditional';
-      } else if (isNotQualifiedForTerm) {
-        statusText = '<span class="pvm-req-status pvm-req-status-not-qualified"><i class="fas fa-times-circle me-1"></i>Not Qualified at ' + term + ' Years</span>';
-        indicatorStateClass = 'pvm-qual-indicator-not-qualified';
-      }
-
-      if (qualStatusEl) qualStatusEl.innerHTML = statusText;
-      if (qualIndicatorEl) {
-        qualIndicatorEl.classList.remove(
-          'pvm-qual-indicator-qualified',
-          'pvm-qual-indicator-conditional',
-          'pvm-qual-indicator-not-qualified',
-          'pvm-qual-indicator-unavailable'
-        );
-        qualIndicatorEl.classList.add(indicatorStateClass);
-      }
-
-      if (condReqBtn) {
-        if (isConditionalForTerm && !isBoughtModel) {
-          condReqBtn.classList.remove('d-none');
-          condReqBtn.dataset.propName = name;
-          condReqBtn.dataset.propId = _pdmPropId;
-        } else {
-          condReqBtn.classList.add('d-none');
-        }
-      }
-    }
-
-    var initialTerm = getSelectedTermFromBrowseFilter() || (qualYearEl ? String(qualYearEl.value || '') : '') || '5';
-    if (qualYearEl) qualYearEl.value = initialTerm;
-    renderModalQualificationStatus(initialTerm);
-
-    if (qualYearEl) {
-      qualYearEl.onchange = function () {
-        var pickedTerm = String(this.value || '5');
-        renderModalQualificationStatus(pickedTerm);
-
-        if (qualFilterEl) {
-          var targetFilterValue = 'qualified_' + pickedTerm;
-          if (qualFilterEl.value !== targetFilterValue) {
-            qualFilterEl.value = targetFilterValue;
-            qualFilterEl.dispatchEvent(new Event('change', { bubbles: true }));
-            qualFilterEl.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-        }
-      };
     }
 
     renderPricingBreakdown(effectiveDetailStatus, pricingData);
@@ -2822,7 +2479,7 @@
     _bvmIdx = (idx + _bvmImages.length) % _bvmImages.length;
     imgEl.style.opacity = '0';
     setTimeout(function() {
-      imgEl.src = uploadUrl(_bvmImages[_bvmIdx]);
+      imgEl.src = '/uploads/' + _bvmImages[_bvmIdx];
       imgEl.style.opacity = '1';
     }, 120);
     document.querySelectorAll('#bvmDots .sub-preview-dot').forEach(function(d, i) {
@@ -2891,52 +2548,6 @@
     if (prev) prev.addEventListener('click', function(e) { e.stopPropagation(); _pvmShowSlide(_pvmIdx - 1); });
     if (next) next.addEventListener('click', function(e) { e.stopPropagation(); _pvmShowSlide(_pvmIdx + 1); });
 
-    var condReqBtn = document.getElementById('pvmConditionalReqsBtn');
-    if (condReqBtn) {
-      condReqBtn.addEventListener('click', function() {
-        var propName = this.dataset.propName || 'Property';
-        var requirements = [
-          {
-            icon: 'fa-users',
-            title: 'Add a Co-Borrower',
-            description: 'Bring someone with stable income to strengthen your application and increase your borrowing capacity.'
-          },
-          {
-            icon: 'fa-hourglass-end',
-            title: 'Longer Loan Term',
-            description: 'Extend the repayment period to lower your monthly amortization and improve your debt-to-income ratio.'
-          },
-          {
-            icon: 'fa-piggy-bank',
-            title: 'Larger Down Payment',
-            description: 'Increase your down payment to reduce the loan amount and meet the lender\'s requirements.'
-          },
-          {
-            icon: 'fa-briefcase',
-            title: 'Improve Employment Stability',
-            description: 'Show at least 6 months of consistent employment in your current position to strengthen your application.'
-          }
-        ];
-
-        var reqsList = document.getElementById('condReqsList');
-        if (reqsList) {
-          reqsList.innerHTML = requirements.map(function(req, idx) {
-            return '<div class="list-group-item" style="border-left:3px solid var(--clr-blue);padding-top:1rem;padding-bottom:1rem;">' +
-              '<div style="display:flex;gap:1rem;">' +
-              '<div style="color:var(--clr-warning);font-size:1.3rem;flex-shrink:0;"><i class="fas ' + req.icon + '"></i></div>' +
-              '<div style="flex:1;min-width:0;">' +
-              '<div style="font-weight:600;color:var(--clr-text);margin-bottom:.25rem;">' + req.title + '</div>' +
-              '<div style="font-size:0.9rem;color:var(--clr-text-muted);">' + req.description + '</div>' +
-              '</div>' +
-              '</div>' +
-              '</div>';
-          }).join('');
-        }
-
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('conditionalReqsModal')).show();
-      });
-    }
-
     var reqBtn = document.getElementById('pvmRequestTripBtn');
     if (reqBtn) {
       reqBtn.addEventListener('click', function() {
@@ -2985,29 +2596,9 @@
   });
 
   /* ── Tripping Request Modal ──────────────────────────────── */
-  function _todayIsoDateLocal() {
-    var now = new Date();
-    var y = now.getFullYear();
-    var m = String(now.getMonth() + 1).padStart(2, '0');
-    var d = String(now.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
-  }
-
-  function _enforceTripDateMin() {
-    var dateInput = document.getElementById('tripDate');
-    if (!dateInput) return;
-    var todayIso = _todayIsoDateLocal();
-    dateInput.min = todayIso;
-    if (dateInput.value && dateInput.value < todayIso) {
-      dateInput.value = '';
-    }
-  }
-
   function openTripModal(card) {
     const modal = document.getElementById("requestTripModal");
     if (!modal) return;
-
-    _enforceTripDateMin();
 
     document.getElementById("tripModalPropId").value = card.dataset.propId || "";
     document.getElementById("tripModalPropName").textContent  = card.dataset.propName || "";
@@ -3018,7 +2609,7 @@
     const banner = document.getElementById("tripModalPropBanner");
     if (banner) {
       if (imgs.length > 0) {
-        banner.style.backgroundImage = `url('${uploadUrl(imgs[0])}')`;
+        banner.style.backgroundImage = `url('/uploads/${imgs[0]}')`;
         banner.style.backgroundSize  = 'cover';
         banner.style.backgroundPosition = 'center';
         banner.querySelector('.cd-prop-banner-placeholder').style.display = 'none';
@@ -3035,27 +2626,6 @@
     if (errEl) errEl.classList.add("d-none");
 
     bootstrap.Modal.getOrCreateInstance(modal).show();
-  }
-
-  var tripDateInput = document.getElementById('tripDate');
-  if (tripDateInput) {
-    _enforceTripDateMin();
-    tripDateInput.addEventListener('focus', _enforceTripDateMin);
-    tripDateInput.addEventListener('change', function () {
-      var errEl = document.getElementById('tripModalError');
-      var todayIso = _todayIsoDateLocal();
-      if (tripDateInput.value && tripDateInput.value < todayIso) {
-        tripDateInput.value = '';
-        if (errEl) {
-          errEl.textContent = 'Preferred date cannot be in the past.';
-          errEl.classList.remove('d-none');
-        }
-        return;
-      }
-      if (errEl && !errEl.classList.contains('d-none')) {
-        errEl.classList.add('d-none');
-      }
-    });
   }
 
   // "New Request" / "Request Visit" cards that go directly to trip modal
@@ -3108,7 +2678,7 @@
     if (noteEl) {
       noteEl.textContent = status === 'rejected'
         ? 'Previous request for ' + propName + ' was rejected. Send a new request to the assigned agent?'
-        : 'Send a full pricing breakdown request for ' + propName + '?';
+        : 'Send a full details request for ' + propName + '?';
     }
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
   }
@@ -3125,7 +2695,7 @@
       return;
     }
     if (status === 'pending') {
-      toast('Your pricing breakdown request is pending agent approval.', 'info');
+      toast('Your request is pending agent approval.', 'info');
       return;
     }
     try {
@@ -3136,7 +2706,7 @@
       });
       var data = await res.json();
       if (!res.ok || !data.ok) {
-        toast((data && data.error) || 'Unable to submit full pricing breakdown request.', 'danger');
+        toast((data && data.error) || 'Unable to submit full-details request.', 'danger');
         return;
       }
 
@@ -3147,7 +2717,7 @@
           btn.dataset.detailStatus = data.status || 'pending';
           btn.classList.remove('btn-outline-blue', 'btn-outline-lime');
           btn.classList.add('btn-outline-crimson');
-          btn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested';
+          btn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Details Requested';
         }
       });
       var detailsBtn = document.getElementById('pvmRequestDetailsBtn');
@@ -3155,11 +2725,11 @@
         detailsBtn.dataset.detailStatus = data.status || 'pending';
         detailsBtn.classList.remove('btn-outline-blue', 'btn-outline-lime');
         detailsBtn.classList.add('btn-outline-crimson');
-        detailsBtn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Pricing Breakdown Requested';
+        detailsBtn.innerHTML = '<i class="fas fa-hourglass-half me-1"></i> Details Requested';
       }
-      toast('Full pricing breakdown request sent. An agent will review it.', 'success');
+      toast('Full details request sent. An agent will review it.', 'success');
     } catch (_) {
-      toast('Network error while sending full pricing breakdown request.', 'danger');
+      toast('Network error while sending full-details request.', 'danger');
     }
   }
 
@@ -3180,17 +2750,9 @@
       const date   = document.getElementById("tripDate").value;
       const time   = document.getElementById("tripTime").value;
       const errEl  = document.getElementById("tripModalError");
-      const todayIso = _todayIsoDateLocal();
-
-      _enforceTripDateMin();
 
       if (!propId || !date) {
         if (errEl) { errEl.textContent = "Please select a preferred date."; errEl.classList.remove("d-none"); }
-        return;
-      }
-
-      if (date < todayIso) {
-        if (errEl) { errEl.textContent = "Preferred date cannot be in the past."; errEl.classList.remove("d-none"); }
         return;
       }
 
@@ -3224,14 +2786,6 @@
     reqDetailsBtn.addEventListener('click', function() {
       if (!_pdmPropId) return;
       var card = document.querySelector('.prop-card-clickable[data-prop-id="' + _pdmPropId + '"]');
-      var currentStatus = String(reqDetailsBtn.dataset.detailStatus || (card && card.dataset ? card.dataset.detailRequestStatus : '') || 'none').toLowerCase();
-      if (currentStatus === 'approved') {
-        var pricingPanel = document.getElementById('pvmPricingBreakdown');
-        if (pricingPanel && !pricingPanel.classList.contains('d-none')) {
-          pricingPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        return;
-      }
       openFullDetailsConfirm(card);
     });
   }
@@ -3379,7 +2933,7 @@
       btn.textContent = busyText;
 
       try {
-        const data = await postJSON(`/trip/${_cancelTripId}/cancel`, {});
+        const data = await postJSON(`/qualify/trip/${_cancelTripId}/cancel`, {});
         if (data.ok) {
           bootstrap.Modal.getInstance(document.getElementById(_cancelTripModalId))?.hide();
           toast("Tripping request removed.", "info");
@@ -3464,6 +3018,57 @@
   })();
 
   /* ── Profile — Save button → show confirmation modal ────── */
+  function _digitsOnly(value) {
+    return String(value || '').replace(/\D/g, '');
+  }
+
+  function _formatUmid(value) {
+    var d = _digitsOnly(value).slice(0, 10);
+    var p1 = d.slice(0, 2);
+    var p2 = d.slice(2, 9);
+    var p3 = d.slice(9, 10);
+    return [p1, p2, p3].filter(Boolean).join('-');
+  }
+
+  function _formatTin(value) {
+    var d = _digitsOnly(value).slice(0, 12);
+    var p1 = d.slice(0, 3);
+    var p2 = d.slice(3, 6);
+    var p3 = d.slice(6, 9);
+    var p4 = d.slice(9, 12);
+    return [p1, p2, p3, p4].filter(Boolean).join('-');
+  }
+
+  function _isUmidComplete(value) {
+    return /^\d{2}-\d{7}-\d$/.test(String(value || '').trim());
+  }
+
+  function _isTinComplete(value) {
+    return /^\d{3}-\d{3}-\d{3}-\d{3}$/.test(String(value || '').trim());
+  }
+
+  var _profUmidInput = document.getElementById('prof_umid');
+  if (_profUmidInput) {
+    _profUmidInput.addEventListener('input', function () {
+      this.value = _formatUmid(this.value);
+    });
+    _profUmidInput.addEventListener('blur', function () {
+      this.value = _formatUmid(this.value);
+    });
+    _profUmidInput.value = _formatUmid(_profUmidInput.value);
+  }
+
+  var _profTinInput = document.getElementById('prof_tin');
+  if (_profTinInput) {
+    _profTinInput.addEventListener('input', function () {
+      this.value = _formatTin(this.value);
+    });
+    _profTinInput.addEventListener('blur', function () {
+      this.value = _formatTin(this.value);
+    });
+    _profTinInput.value = _formatTin(_profTinInput.value);
+  }
+
   var _saveProfileBtnEl = document.getElementById('saveProfileBtn');
   if (_saveProfileBtnEl) {
     _saveProfileBtnEl.addEventListener('click', function () {
@@ -3482,6 +3087,20 @@
       }
       if (!/^[\w.]+$/.test(username)) {
         if (errEl) { errEl.textContent = 'Username may contain only letters, numbers, dots, and underscores.'; errEl.classList.remove('d-none'); }
+        return;
+      }
+
+      var umidVal = (document.getElementById('prof_umid') || {}).value || '';
+      umidVal = umidVal.trim();
+      if (umidVal && !_isUmidComplete(umidVal)) {
+        if (errEl) { errEl.textContent = 'SSS/GSIS/UMID must follow 00-0000000-0 format.'; errEl.classList.remove('d-none'); }
+        return;
+      }
+
+      var tinVal = (document.getElementById('prof_tin') || {}).value || '';
+      tinVal = tinVal.trim();
+      if (tinVal && !_isTinComplete(tinVal)) {
+        if (errEl) { errEl.textContent = 'TIN must follow 000-000-000-000 format.'; errEl.classList.remove('d-none'); }
         return;
       }
 
@@ -3528,19 +3147,7 @@
 
   function _fetchJson(url, options) {
     return fetch(url, options || {}).then(function (r) {
-      var ct = String((r.headers && r.headers.get && r.headers.get('content-type')) || '').toLowerCase();
-      if (ct.indexOf('application/json') !== -1) {
-        return r.json().then(function (d) { return { ok: r.ok, status: r.status, data: d || {} }; });
-      }
-      return r.text().then(function (t) {
-        return {
-          ok: r.ok,
-          status: r.status,
-          data: {
-            error: t ? ('Server returned non-JSON response (HTTP ' + r.status + ').') : ('Request failed (HTTP ' + r.status + ').')
-          }
-        };
-      });
+      return r.json().then(function (d) { return { ok: r.ok, data: d || {} }; });
     });
   }
 
@@ -3548,7 +3155,7 @@
     var fd = new FormData();
     fd.append('doc_kind', kind);
     fd.append('document', file);
-    return _fetchJson('/profile/upload-document', {
+    return _fetchJson('/qualify/profile/upload-document', {
       method: 'POST',
       headers: { 'X-CSRFToken': csrfToken() },
       body: fd
@@ -3560,7 +3167,7 @@
   }
 
   function _deleteDocNow(kind) {
-    return _fetchJson('/profile/delete-document/' + encodeURIComponent(kind), {
+    return _fetchJson('/qualify/profile/delete-document/' + encodeURIComponent(kind), {
       method: 'POST',
       headers: csrfHeaders()
     }).then(function (res) {
@@ -3572,7 +3179,7 @@
   function _uploadAvatarNow(file) {
     var fd = new FormData();
     fd.append('avatar', file);
-    return _fetchJson('/profile/upload-avatar', {
+    return _fetchJson('/qualify/profile/upload-avatar', {
       method: 'POST',
       headers: { 'X-CSRFToken': csrfToken() },
       body: fd
@@ -3603,7 +3210,7 @@
   function _uploadBannerNow(file) {
     var fd = new FormData();
     fd.append('banner', file);
-    return _fetchJson('/profile/upload-banner', {
+    return _fetchJson('/qualify/profile/upload-banner', {
       method: 'POST',
       headers: { 'X-CSRFToken': csrfToken() },
       body: fd
@@ -3621,7 +3228,7 @@
   }
 
   function _deleteAvatarNow() {
-    return _fetchJson('/profile/delete-avatar', { method: 'POST', headers: csrfHeaders() }).then(function (res) {
+    return _fetchJson('/qualify/profile/delete-avatar', { method: 'POST', headers: csrfHeaders() }).then(function (res) {
       if (!res.ok || !res.data.success) throw new Error((res.data && res.data.error) || 'Delete failed.');
       var img = document.getElementById('profAvatarImg');
       if (img) img.remove();
@@ -3639,7 +3246,7 @@
   }
 
   function _deleteBannerNow() {
-    return _fetchJson('/profile/delete-banner', { method: 'POST', headers: csrfHeaders() }).then(function (res) {
+    return _fetchJson('/qualify/profile/delete-banner', { method: 'POST', headers: csrfHeaders() }).then(function (res) {
       if (!res.ok || !res.data.success) throw new Error((res.data && res.data.error) || 'Delete failed.');
       var bannerEl = document.getElementById('profHeroBanner');
       if (bannerEl) {
@@ -3748,6 +3355,8 @@
         country:             gv('prof_country'),
         zip_code:            gv('prof_zip_code'),
         subdivision_name:    gv('prof_subdivision_name'),
+        sss_gsis_umid:       gv('prof_umid'),
+        tin_no:              gv('prof_tin'),
         social_instagram:    gv('prof_social_instagram'),
         social_twitter_x:    gv('prof_social_twitter_x'),
         social_viber:        gv('prof_social_viber'),
@@ -3765,7 +3374,7 @@
       };
       if (newPass) payload.new_password = newPass;
 
-      fetch('/profile/save', {
+      fetch('/qualify/profile/save', {
         method: 'POST',
         headers: csrfHeaders(),
         body: JSON.stringify(payload)

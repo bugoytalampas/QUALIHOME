@@ -361,9 +361,6 @@ class Property(db.Model):
     loanable_percentage = db.Column(db.Numeric(5, 2), nullable=True)
     vat_rate = db.Column(db.Numeric(5, 2), nullable=True)
     lmf_rate = db.Column(db.Numeric(5, 2), nullable=True)
-    # Financing parameters for property-specific qualification
-    interest_rate = db.Column(db.Numeric(5, 2), default=7.5)  # annual interest rate %
-    financing_years_json = db.Column(db.String(50), default="[5,10,15,20]")  # JSON-encoded list
     bedrooms    = db.Column(db.Integer)
     bathrooms   = db.Column(db.Integer)
     storeys     = db.Column(db.Integer)          # number of floors/storeys
@@ -376,97 +373,16 @@ class Property(db.Model):
     unit_id     = db.Column(db.String(60), nullable=True, index=True)
     status      = db.Column(db.String(20), default="available")  # available / sold / reserved
     approval_status = db.Column(db.String(20), default="approved")  # pending / approved / rejected
-    custom_availability_note = db.Column(db.String(255), nullable=True)  # custom note (e.g., "5 units left", "Last one!")
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    agent                    = db.relationship("User", foreign_keys=[agent_id])
-    subdivision              = db.relationship("Subdivision", back_populates="properties")
-    tripping_requests        = db.relationship("TrippingRequest", back_populates="property_item")
-    pricing_detail_requests  = db.relationship("PropertyPricingDetailRequest", back_populates="property_item")
-    sale_record              = db.relationship("PropertySale", back_populates="property_item", uselist=False)
-    financing_options        = db.relationship("PropertyFinancingOption", back_populates="property", cascade="all, delete-orphan")
-    qualification_matches    = db.relationship("PropertyQualificationMatch", back_populates="property", cascade="all, delete-orphan")
-
-    def get_financing_years(self) -> list:
-        """Parse financing_years_json and return as list."""
-        try:
-            years = json.loads(self.financing_years_json or "[5,10,15,20]")
-            return years if isinstance(years, list) else [5, 10, 15, 20]
-        except (json.JSONDecodeError, TypeError):
-            return [5, 10, 15, 20]
-    
-    def set_financing_years(self, years: list) -> None:
-        """Set financing years and save as JSON."""
-        self.financing_years_json = json.dumps(years)
+    agent            = db.relationship("User", foreign_keys=[agent_id])
+    subdivision      = db.relationship("Subdivision", back_populates="properties")
+    tripping_requests = db.relationship("TrippingRequest", back_populates="property_item")
+    pricing_detail_requests = db.relationship("PropertyPricingDetailRequest", back_populates="property_item")
+    sale_record      = db.relationship("PropertySale", back_populates="property_item", uselist=False)
 
     def __repr__(self):
         return f"<Property {self.name} @ {self.location}>"
-
-
-# ---------------------------------------------------------------------------
-# PROPERTY FINANCING OPTIONS (pre-calculated payment scenarios per term)
-# ---------------------------------------------------------------------------
-
-class PropertyFinancingOption(db.Model):
-    __tablename__ = "property_financing_options"
-
-    id              = db.Column(db.Integer, primary_key=True)
-    property_id     = db.Column(db.Integer, db.ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
-    financing_years = db.Column(db.Integer, nullable=False)  # 5, 10, 15, etc.
-    loan_amount     = db.Column(db.Numeric(14, 2), nullable=False)  # After downpayment
-    monthly_payment = db.Column(db.Numeric(12, 2), nullable=False)  # Calculated monthly payment
-    total_interest  = db.Column(db.Numeric(14, 2), nullable=False)  # Total interest over life
-    created_at      = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at      = db.Column(db.DateTime,
-                                default=lambda: datetime.now(timezone.utc),
-                                onupdate=lambda: datetime.now(timezone.utc))
-
-    property = db.relationship("Property", back_populates="financing_options")
-
-    __table_args__ = (
-        db.UniqueConstraint("property_id", "financing_years", name="uq_property_financing_term"),
-    )
-
-    def __repr__(self):
-        return f"<PropertyFinancingOption property={self.property_id} years={self.financing_years} pmt=₱{self.monthly_payment}>"
-
-
-# ---------------------------------------------------------------------------
-# PROPERTY QUALIFICATION MATCHES (client eligibility per property/term)
-# ---------------------------------------------------------------------------
-
-class PropertyQualificationMatch(db.Model):
-    __tablename__ = "property_qualification_matches"
-
-    id                  = db.Column(db.Integer, primary_key=True)
-    user_id             = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    property_id         = db.Column(db.Integer, db.ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
-    financing_years     = db.Column(db.Integer, nullable=False)  # 5, 10, 15, etc.
-    # Client's financial metrics at match time
-    client_gross_income = db.Column(db.Numeric(12, 2), nullable=False)
-    client_monthly_debt = db.Column(db.Numeric(12, 2), nullable=False)
-    client_dti_ratio    = db.Column(db.Float, nullable=False)  # Client's actual DTI %
-    # Property requirement
-    required_dti_ratio  = db.Column(db.Float, nullable=False)  # Required DTI for this property/term
-    monthly_payment     = db.Column(db.Numeric(12, 2), nullable=False)  # Monthly payment for this term
-    # Qualification status
-    qualification_status = db.Column(db.String(30), nullable=False)  # Qualified / Conditional / Not Qualified
-    created_at          = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at          = db.Column(db.DateTime,
-                                    default=lambda: datetime.now(timezone.utc),
-                                    onupdate=lambda: datetime.now(timezone.utc))
-
-    user     = db.relationship("User", foreign_keys=[user_id])
-    property = db.relationship("Property", back_populates="qualification_matches")
-
-    __table_args__ = (
-        db.UniqueConstraint("user_id", "property_id", "financing_years", 
-                           name="uq_client_property_term"),
-        db.Index("idx_user_property_status", "user_id", "property_id", "qualification_status"),
-    )
-
-    def __repr__(self):
-        return f"<PropertyQualMatch user={self.user_id} prop={self.property_id} {self.financing_years}yr={self.qualification_status}>"
 
 
 # ---------------------------------------------------------------------------

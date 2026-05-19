@@ -2,14 +2,13 @@
 import uuid
 import re
 import json
-from urllib.parse import unquote
 from threading import Thread, Lock
 from datetime import datetime, timezone, date, time
 from flask import Blueprint, render_template, redirect, url_for, request, jsonify, current_app, send_from_directory, make_response, session
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
-from ..models import db, Property, User, UserProfile, QualificationResult, TrippingRequest, PropertySale, Project, Subdivision, ActivityLog, AgentNotification, HistoricalBuyer, HistoricalBuyerRecord, PropertyPricingDetailRequest, PropertyPricingDetailRequestHistory, PropertyFinancingOption, SystemConfig, AgentAvailability, log_activity
+from ..models import db, Property, User, UserProfile, QualificationResult, TrippingRequest, PropertySale, Project, Subdivision, ActivityLog, AgentNotification, HistoricalBuyer, HistoricalBuyerRecord, PropertyPricingDetailRequest, PropertyPricingDetailRequestHistory, SystemConfig, AgentAvailability, log_activity
 from ..ml import c50_engine
 from .psgc import list_regions, list_provinces, list_cities, list_barangays
 
@@ -18,38 +17,6 @@ main_bp = Blueprint("main", __name__)
 _AUTO_SYNC_NOTE_PREFIX = "AUTO_SYNC_SALE_ID="
 _AUTO_SYNC_NOTE_RE = re.compile(r"AUTO_SYNC_SALE_ID=(\d+)")
 _C50_RETRAIN_LOCK = Lock()
-
-
-def _resolve_upload_filename(raw_name: str | None) -> str:
-    """Normalize stored image keys to a safe filename under UPLOAD_FOLDER.
-
-    Handles legacy values such as JSON list strings, comma-separated values,
-    quoted names, URL-encoded names, and accidental full paths/URLs.
-    """
-    raw = unquote(str(raw_name or "")).strip()
-    if not raw:
-        return ""
-
-    candidates = [raw]
-
-    if raw.startswith("[") and raw.endswith("]"):
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, list) and parsed:
-                candidates.insert(0, str(parsed[0] or ""))
-            elif isinstance(parsed, str):
-                candidates.insert(0, parsed)
-        except Exception:
-            pass
-
-    if "," in raw:
-        candidates.insert(0, raw.split(",", 1)[0])
-
-    for cand in candidates:
-        clean = os.path.basename(str(cand or "").strip().strip("\"'[]()"))
-        if clean:
-            return clean
-    return ""
 
 
 def _normalize_outcome_label(value: str | None) -> str:
@@ -61,21 +28,6 @@ def _normalize_outcome_label(value: str | None) -> str:
     if raw in {"not qualified", "not-qualified", "disqualified"}:
         return "Not Qualified"
     return "Conditionally Qualified"
-
-
-def _similarity_band(score: float | None) -> str:
-    """Map raw similarity score to a user-friendly qualitative label."""
-    if score is None:
-        return "—"
-    try:
-        value = float(score)
-    except (TypeError, ValueError):
-        return "—"
-    if value >= 0.75:
-        return "High Similarity"
-    if value >= 0.50:
-        return "Moderate Similarity"
-    return "Low Similarity"
 
 
 def _build_auto_sync_note(sale_id: int, extra_note: str | None = None) -> str:
@@ -141,40 +93,6 @@ def _get_synced_sale_ids_from_training() -> set[int]:
     return sale_ids
 
 
-def _normalize_model_name(value: str | None) -> str:
-    raw = re.sub(r"\s+", " ", (value or "").strip().lower())
-    return raw
-
-
-def _model_key_for_property(prop: Property) -> str:
-    model_name = _normalize_model_name(prop.name)
-    subdivision_id = int(prop.subdivision_id or 0)
-    if not model_name:
-        return f"{subdivision_id}:prop-{int(prop.id or 0)}"
-    return f"{subdivision_id}:{model_name}"
-
-
-def _build_available_units_left_maps(properties: list[Property]) -> tuple[dict[int, str], dict[int, int]]:
-    model_key_by_prop_id: dict[int, str] = {}
-    available_counts_by_key: dict[str, int] = {}
-
-    for prop in properties:
-        if not prop or not prop.id:
-            continue
-        key = _model_key_for_property(prop)
-        model_key_by_prop_id[int(prop.id)] = key
-        status = (prop.status or "available").strip().lower()
-        approved = (prop.approval_status in (None, "approved"))
-        if status == "available" and approved:
-            available_counts_by_key[key] = int(available_counts_by_key.get(key, 0)) + 1
-
-    available_units_left_by_prop_id: dict[int, int] = {}
-    for prop_id, key in model_key_by_prop_id.items():
-        available_units_left_by_prop_id[prop_id] = int(available_counts_by_key.get(key, 0))
-
-    return model_key_by_prop_id, available_units_left_by_prop_id
-
-
 def _trigger_c50_retrain_async(reason: str) -> bool:
     app_obj = current_app._get_current_object()
     if not _C50_RETRAIN_LOCK.acquire(blocking=False):
@@ -183,8 +101,6 @@ def _trigger_c50_retrain_async(reason: str) -> bool:
     def _worker():
         try:
             with app_obj.app_context():
-                from ..financing_utils import regenerate_qualification_matches_for_all_clients
-                
                 buyers = HistoricalBuyer.query.all()
                 c50_engine.train(buyers)
                 meta = c50_engine.get_meta()
@@ -195,17 +111,6 @@ def _trigger_c50_retrain_async(reason: str) -> bool:
                     meta.get("n_samples", 0),
                     meta.get("train_accuracy", "N/A"),
                 )
-                
-                # Regenerate property matches for all clients after model retrains
-                try:
-                    num_matches = regenerate_qualification_matches_for_all_clients()
-                    app_obj.logger.info(
-                        "Property qualification matches regenerated: %s matches created",
-                        num_matches
-                    )
-                except Exception as e:
-                    app_obj.logger.error("Failed to regenerate property matches: %s", e)
-                    
         except Exception:
             app_obj.logger.exception("C5.0 retrain failed (%s)", reason)
         finally:
@@ -656,87 +561,6 @@ def psgc_barangays():
         return jsonify(ok=False, error=f"PSGC API unavailable: {exc}"), 503
 
 
-# ── Location Hierarchy for Browse Filter ──────────────────────────────────────
-
-@main_bp.route("/api/client/location-hierarchy")
-@login_required
-def location_hierarchy():
-    """Return all projects with their subdivisions for the browse location filter."""
-    if current_user.role != "client":
-        return jsonify(ok=False, error="Unauthorized"), 403
-    
-    try:
-        projects = Project.query.order_by(Project.name).all()
-        
-        data = []
-        for project in projects:
-            # Only include project if it has subdivisions with available properties
-            subdivisions = Subdivision.query.filter_by(project_id=project.id).order_by(Subdivision.name).all()
-            subdiv_data = []
-            
-            for subdiv in subdivisions:
-                # Check if subdivision has any available properties
-                has_properties = Property.query.filter_by(subdivision_id=subdiv.id, status="available").first() is not None
-                if has_properties:
-                    subdiv_data.append({
-                        "id": subdiv.id,
-                        "name": subdiv.name,
-                        "citymun_name": subdiv.citymun_name or ""
-                    })
-            
-            if subdiv_data:
-                data.append({
-                    "id": project.id,
-                    "name": project.name,
-                    "subdivisions": subdiv_data
-                })
-        
-        return jsonify(ok=True, data=data)
-    except Exception as exc:
-        return jsonify(ok=False, error=f"Error fetching location hierarchy: {exc}"), 500
-
-
-@main_bp.route("/api/admin/property/<int:prop_id>")
-@login_required
-def api_admin_property_details(prop_id):
-    """Return property details for admin property view modal."""
-    if current_user.role != "admin":
-        return jsonify(ok=False, error="Unauthorized"), 403
-    
-    try:
-        prop = Property.query.get(prop_id)
-        if not prop:
-            return jsonify(ok=False, error="Property not found"), 404
-        
-        return jsonify(ok=True, data={
-            "id": prop.id,
-            "name": prop.name,
-            "price": float(prop.price or 0),
-            "location": prop.location,
-            "street": prop.street,
-            "block": prop.block,
-            "lot_no": prop.lot_no,
-            "bedrooms": prop.bedrooms,
-            "bathrooms": prop.bathrooms,
-            "storeys": prop.storeys,
-            "floor_area": prop.floor_area,
-            "lot_area": prop.lot_area,
-            "description": prop.description,
-            "images": prop.images,
-            "unit_type": prop.unit_type,
-            "prop_type": prop.prop_type,
-            "status": prop.status,
-            "unit_id": prop.unit_id,
-            "subdivision": prop.subdivision.name if prop.subdivision else None,
-            "psgc_region": prop.region_name,
-            "psgc_province": prop.province_name,
-            "psgc_citymun": prop.citymun_name,
-            "psgc_barangay": prop.barangay_name,
-        })
-    except Exception as exc:
-        return jsonify(ok=False, error=f"Error fetching property details: {exc}"), 500
-
-
 # ── Client Dashboard ──────────────────────────────────────────────────────────
 
 @main_bp.route("/dashboard/client")
@@ -773,9 +597,6 @@ def client_dashboard():
                  .order_by(Property.created_at.desc())
                  .all())
 
-    # All subdivisions for filter dropdown
-    all_subdivisions = Subdivision.query.order_by(Subdivision.name).all()
-
     model_name_choices = [
         ("", "Any model (optional)")
     ] + [
@@ -788,9 +609,11 @@ def client_dashboard():
     qualify_form.preferred_type.choices = model_name_choices
     qualify_form.preferred_type.data = selected_model_name
 
-    # Matched properties — enforce thesis affordability rule first:
-    # monthly amortization must be <= client's NDI.
-    # Preference filters (model/budget) are applied after affordability.
+    # Matched properties — filtered by max loanable + preferred model + budget.
+    # max_loanable can legitimately be Decimal("0.00") (high-debt / not-qualified
+    # clients) which is falsy, so we check > 0 explicitly rather than relying on
+    # bool(max_loanable). Fall back to all available props when the strict filters
+    # return nothing so the Recommended section is never silently empty.
     matched_props = []
     if qual_result:
         q = (Property.query
@@ -799,50 +622,15 @@ def client_dashboard():
                             Property.approval_status.is_(None))))
         if qual_result.max_loanable and float(qual_result.max_loanable) > 0:
             q = q.filter(Property.price <= float(qual_result.max_loanable))
-
-        base_candidates = q.order_by(Property.price.asc()).all()
-
-        gross_income = float(profile.gross_income or 0) if profile else 0.0
-        monthly_debt = float(profile.monthly_loans or 0) if profile else 0.0
-        ndi = max(0.0, gross_income * 0.72 - monthly_debt)
-
-        affordable_props = []
-        if ndi > 0:
-            prop_ids = [int(p.id) for p in base_candidates if p and p.id]
-            financing_rows = []
-            if prop_ids:
-                financing_rows = (PropertyFinancingOption.query
-                                  .filter(PropertyFinancingOption.property_id.in_(prop_ids))
-                                  .all())
-
-            min_monthly_by_prop = {}
-            for row in financing_rows:
-                pid = int(row.property_id)
-                monthly = float(row.monthly_payment or 0)
-                if pid not in min_monthly_by_prop or monthly < min_monthly_by_prop[pid]:
-                    min_monthly_by_prop[pid] = monthly
-
-            for prop in base_candidates:
-                min_monthly = min_monthly_by_prop.get(int(prop.id))
-                if min_monthly is None:
-                    pricing = _compute_property_pricing(prop)
-                    amort_map = pricing.get("amortization") or {}
-                    if amort_map:
-                        min_monthly = min(float(v) for v in amort_map.values())
-                if min_monthly is not None and float(min_monthly) <= ndi:
-                    affordable_props.append(prop)
-
-        preferred_props = list(affordable_props)
         if selected_model_name:
-            preferred_props = [p for p in preferred_props if (p.name or "") == selected_model_name]
+            q = q.filter(Property.name == selected_model_name)
         if profile and profile.budget_min and float(profile.budget_min) > 0:
-            preferred_props = [p for p in preferred_props if float(p.price or 0) >= float(profile.budget_min)]
+            q = q.filter(Property.price >= float(profile.budget_min))
         if profile and profile.budget_max and float(profile.budget_max) > 0:
-            preferred_props = [p for p in preferred_props if float(p.price or 0) <= float(profile.budget_max)]
-
-        # Keep recommendations thesis-compliant: if preferences are too strict,
-        # show other affordable properties instead of non-affordable ones.
-        matched_props = preferred_props if preferred_props else affordable_props
+            q = q.filter(Property.price <= float(profile.budget_max))
+        matched_props = q.order_by(Property.price.asc()).all()
+        if not matched_props:
+            matched_props = all_props  # preferences/budget too restrictive — show all
 
     # Client's tripping requests
     my_trips = (TrippingRequest.query
@@ -936,7 +724,46 @@ def client_dashboard():
         prop_id: _compute_property_pricing(prop)
         for prop_id, prop in pricing_props_by_id.items()
     }
-    model_key_by_prop_id, available_units_left_by_prop_id = _build_available_units_left_maps(all_props)
+    bought_pricing_map = {}
+    for sale in bought_sales:
+        prop = sale.property_item
+        base_pricing = {}
+        if prop and prop.id:
+            try:
+                base_pricing = dict(property_pricing_map.get(int(prop.id), {}) or {})
+            except Exception:
+                base_pricing = {}
+
+        purchase_payload = {}
+        trip = sale.trip_item
+        if trip and (trip.purchase_form_data or "").strip():
+            try:
+                parsed_payload = json.loads(trip.purchase_form_data)
+                if isinstance(parsed_payload, dict):
+                    purchase_payload = parsed_payload
+            except Exception:
+                purchase_payload = {}
+
+        def _first_non_blank(*keys):
+            for key in keys:
+                if key not in purchase_payload:
+                    continue
+                value = purchase_payload.get(key)
+                if value is None:
+                    continue
+                text = str(value).strip()
+                if text:
+                    return text
+            return ""
+
+        base_pricing["loanProcessingFee"] = _first_non_blank("loanProcessingFee", "loan_processing_fee")
+        base_pricing["loanOrPrNo"] = _first_non_blank("loanOrPrNo", "loan_or_pr_no")
+        base_pricing["loanOrPrDate"] = _first_non_blank("loanOrPrDate", "loan_or_pr_date")
+        base_pricing["loanDownpaymentTerm"] = _first_non_blank("loanDownpaymentTerm", "loan_downpayment_term")
+        base_pricing["loanTerm"] = _first_non_blank("loanTerm", "loan_term")
+
+        bought_pricing_map[int(sale.id)] = base_pricing
+
     buyer_bank_options = _load_local_ph_banks()
     country_options = _load_countries()
     live_meter_cfg = _get_live_meter_criteria()
@@ -952,6 +779,7 @@ def client_dashboard():
         my_trips=my_trips,
         sold_trip_ids=sold_trip_ids,
         bought_sales=bought_sales,
+        bought_pricing_map=bought_pricing_map,
         requested_prop_ids=requested_prop_ids,
         assessment_count=len(all_results),
         trips_count=len(my_trips),
@@ -963,13 +791,10 @@ def client_dashboard():
         detail_request_status_by_property=detail_request_status_by_property,
         approved_detail_property_ids=approved_detail_property_ids,
         property_pricing_map=property_pricing_map,
-        model_key_by_prop_id=model_key_by_prop_id,
-        available_units_left_by_prop_id=available_units_left_by_prop_id,
         buyer_bank_options=buyer_bank_options,
         country_options=country_options,
         live_meter_cfg=live_meter_cfg,
         qualify_form=qualify_form,
-        all_subdivisions=all_subdivisions,
         avatar_url=url_for("main.serve_client_avatar", user_id=current_user.id) if profile and profile.avatar_data else None,
         banner_url=url_for("main.serve_client_banner", user_id=current_user.id) if profile and profile.banner_data else None,
     )
@@ -1278,7 +1103,6 @@ def admin_dashboard():
 
     # Full lists for sub-pages
     all_properties = Property.query.order_by(Property.created_at.desc()).all()
-    model_key_by_prop_id, available_units_left_by_prop_id = _build_available_units_left_maps(all_properties)
     all_clients    = User.query.filter_by(role="client").order_by(User.created_at.desc()).all()
     all_agents     = User.query.filter_by(role="agent").order_by(User.created_at.desc()).all()
     agent_availability_summary = _build_agent_availability_summary(all_agents)
@@ -1414,26 +1238,6 @@ def admin_dashboard():
 
     notif_count = sum(1 for n in admin_notifications if not n["read"])
 
-    # Count pending detail requests per property
-    pending_detail_request_counts = {}
-    pending_detail_rows = (db.session.query(PropertyPricingDetailRequest.property_id, db.func.count(PropertyPricingDetailRequest.id))
-                          .filter(PropertyPricingDetailRequest.status == "pending")
-                          .group_by(PropertyPricingDetailRequest.property_id)
-                          .all())
-    for prop_id, count in pending_detail_rows:
-        pending_detail_request_counts[int(prop_id)] = count
-
-    # Count purchase form submissions per property
-    purchase_form_counts = {}
-    purchase_form_rows = (db.session.query(TrippingRequest.property_id, db.func.count(TrippingRequest.id))
-                         .filter(TrippingRequest.purchase_form_submitted == True)
-                         .group_by(TrippingRequest.property_id)
-                         .all())
-    for prop_id, count in purchase_form_rows:
-        purchase_form_counts[int(prop_id)] = count
-
-    model_request_indicator_count = int(sum(pending_detail_request_counts.values()) + sum(purchase_form_counts.values()))
-
     return render_template("dashboard/admin.html", title="Admin Dashboard",
                            total_users=total_users, total_agents=total_agents,
                            total_props=total_props, total_sold=total_sold,
@@ -1465,12 +1269,7 @@ def admin_dashboard():
                            avatar_url=(url_for("main.serve_admin_avatar", user_id=current_user.id)
                                        if current_user.profile and current_user.profile.avatar_data else None),
                            banner_url=(url_for("main.serve_admin_banner", user_id=current_user.id)
-                                       if current_user.profile and current_user.profile.banner_data else None),
-                           pending_detail_request_counts=pending_detail_request_counts,
-                           purchase_form_counts=purchase_form_counts,
-                           model_request_indicator_count=model_request_indicator_count,
-                           model_key_by_prop_id=model_key_by_prop_id,
-                           available_units_left_by_prop_id=available_units_left_by_prop_id)
+                                       if current_user.profile and current_user.profile.banner_data else None))
 
 # ── Admin: toggle user active status ───────────────────────────────────────────────
 
@@ -1577,7 +1376,7 @@ def admin_user_profile(user_id):
             "status": latest_result.status if latest_result else "—",
             "dti": f"{latest_result.dti_ratio:.1f}%" if latest_result and latest_result.dti_ratio is not None else "—",
             "max_loanable": f"₱{float(latest_result.max_loanable):,.0f}" if latest_result and latest_result.max_loanable else "—",
-            "similarity": _similarity_band(latest_result.similarity_score if latest_result else None),
+            "similarity": f"{latest_result.similarity_score * 100:.0f}%" if latest_result and latest_result.similarity_score is not None else "—",
         } if latest_result else None
 
         assessment_rows = sorted(user.qualification_results, key=lambda x: x.created_at, reverse=True)[:5]
@@ -1591,7 +1390,7 @@ def admin_user_profile(user_id):
                 "assessment_mode": _normalize_assessment_mode(r.assessment_mode, fallback_mode),
                 "dti": f"{r.dti_ratio:.1f}%" if r.dti_ratio is not None else "—",
                 "max_loanable": f"₱{float(r.max_loanable):,.0f}" if r.max_loanable else "—",
-                "similarity": _similarity_band(r.similarity_score),
+                "similarity": f"{r.similarity_score * 100:.0f}%" if r.similarity_score is not None else "—",
             })
 
         data["documents"] = {
@@ -1816,65 +1615,6 @@ def admin_reject_property(prop_id):
     log_activity("prop_reject", f"Property rejected: \"{prop.name}\"")
     db.session.commit()
     return jsonify({"success": True, "property_id": prop.id, "approval_status": "rejected"})
-
-
-@main_bp.route("/admin/property/<int:prop_id>/listing-status", methods=["POST"])
-@login_required
-def admin_update_property_listing_status(prop_id):
-    if current_user.role != "admin":
-        return jsonify({"error": "Forbidden"}), 403
-
-    prop = db.session.get(Property, prop_id)
-    if not prop:
-        return jsonify({"error": "Not found"}), 404
-
-    payload = request.get_json(silent=True) or {}
-    next_status = str(payload.get("status") or request.form.get("status") or "").strip().lower()
-    allowed = {"available", "reserved", "sold"}
-    if next_status not in allowed:
-        return jsonify({"error": "Invalid status. Allowed values: available, reserved, sold."}), 400
-
-    prev_status = (prop.status or "available").lower()
-    if prev_status == next_status:
-        return jsonify({"success": True, "property_id": prop.id, "listing_status": prev_status, "changed": False})
-
-    prop.status = next_status
-    log_activity("prop_listing_status_update", f"Property listing status updated: \"{prop.name}\" ({prev_status} -> {next_status})")
-    db.session.commit()
-
-    return jsonify({"success": True, "property_id": prop.id, "listing_status": next_status, "changed": True})
-
-
-@main_bp.route("/admin/property/<int:prop_id>/availability-note", methods=["POST"])
-@login_required
-def admin_update_property_availability_note(prop_id):
-    """Save custom availability note for a property."""
-    if current_user.role != "admin":
-        return jsonify({"error": "Forbidden"}), 403
-
-    prop = db.session.get(Property, prop_id)
-    if not prop:
-        return jsonify({"error": "Not found"}), 404
-
-    payload = request.get_json(silent=True) or {}
-    custom_note = str(payload.get("note") or "").strip()
-    
-    # Allow empty/null to clear the custom note (revert to auto-calculated)
-    if len(custom_note) > 255:
-        return jsonify({"error": "Note too long (max 255 characters)."}), 400
-
-    prev_note = prop.custom_availability_note or "(auto-calculated)"
-    prop.custom_availability_note = custom_note if custom_note else None
-    
-    log_activity("prop_availability_note_update", f"Property availability note updated for \"{prop.name}\": \"{prev_note}\" → \"{prop.custom_availability_note or '(auto-calculated)'}\"")
-    db.session.commit()
-
-    return jsonify({
-        "success": True,
-        "property_id": prop.id,
-        "custom_note": prop.custom_availability_note or "",
-        "message": "Availability note saved successfully."
-    })
 
 
 @main_bp.route("/admin/property/<int:prop_id>/delete", methods=["POST"])
@@ -2232,7 +1972,7 @@ def admin_create_subdivision():
 @main_bp.route("/admin/subdivision-image/<path:image_key>")
 def serve_subdivision_image(image_key):
     upload_dir = current_app.config["UPLOAD_FOLDER"]
-    clean_key = _resolve_upload_filename(image_key)
+    clean_key = os.path.basename((image_key or "").strip())
     if not clean_key:
         return "", 404
     return send_from_directory(upload_dir, clean_key)
@@ -2252,7 +1992,7 @@ def subdivision_image(sub_id):
 def delete_subdivision_image(image_key):
     if current_user.role != "admin":
         return jsonify({"error": "Forbidden"}), 403
-    clean_key = _resolve_upload_filename(image_key)
+    clean_key = os.path.basename((image_key or "").strip())
     if not clean_key:
         return jsonify({"error": "Not found"}), 404
 
@@ -2282,10 +2022,7 @@ def delete_subdivision_image(image_key):
 @main_bp.route("/uploads/<path:filename>")
 def serve_upload(filename):
     upload_dir = current_app.config["UPLOAD_FOLDER"]
-    clean_name = _resolve_upload_filename(filename)
-    if not clean_name:
-        return "", 404
-    return send_from_directory(upload_dir, clean_name)
+    return send_from_directory(upload_dir, filename)
 
 
 @main_bp.route("/admin/subdivision/<int:sub_id>/edit", methods=["POST"])
@@ -2348,26 +2085,6 @@ def admin_edit_subdivision(sub_id):
         if f and f.filename:
             current_images.append(_save_subdivision_image_file(f))
     _set_subdivision_images(sub, current_images)
-
-    # Ensure all models under this subdivision inherit the subdivision PSGC.
-    tail_for_props = _compose_psgc_tail(
-        sub.region_name or "",
-        sub.province_name or "",
-        sub.citymun_name or "",
-        sub.barangay_name or "",
-    )
-    for prop in list(sub.properties or []):
-        prop.region = sub.region_name or None
-        prop.region_code = sub.region_code or None
-        prop.region_name = sub.region_name or None
-        prop.province_code = sub.province_code or None
-        prop.province_name = sub.province_name or None
-        prop.citymun_code = sub.citymun_code or None
-        prop.citymun_name = sub.citymun_name or None
-        prop.barangay_code = sub.barangay_code or None
-        prop.barangay_name = sub.barangay_name or None
-        prop.location = _compose_full_location(prop.street or "", prop.block or "", prop.lot_no or "", tail_for_props)
-
     log_activity("sub_edit", f"Subdivision updated: {name} under {project.name}" + (f" — {location}" if location else ""))
     db.session.commit()
     return jsonify({"success": True, "id": sub.id, "name": sub.name, "project_id": project.id, "project_name": project.name, "image_ids": _subdivision_images_to_list(sub)})
@@ -3085,8 +2802,68 @@ def _compose_full_location(street: str, block: str, lot_no: str, tail: str) -> s
     return prefix or tail
 
 
-def _compose_psgc_tail(region_name: str, province_name: str, citymun_name: str, barangay_name: str) -> str:
-    return ", ".join([p for p in [barangay_name, citymun_name, province_name, region_name] if (p or "").strip()])
+def _find_property_with_same_block_lot(block: str, lot_no: str, subdivision_id: int | None = None, exclude_property_id: int | None = None) -> Property | None:
+    block_norm = (block or "").strip().lower()
+    lot_norm = (lot_no or "").strip().lower()
+    if not block_norm or not lot_norm:
+        return None
+
+    q = Property.query.filter(
+        db.func.lower(db.func.trim(Property.block)) == block_norm,
+        db.func.lower(db.func.trim(Property.lot_no)) == lot_norm,
+    )
+    if subdivision_id is None:
+        q = q.filter(Property.subdivision_id.is_(None))
+    else:
+        q = q.filter(Property.subdivision_id == int(subdivision_id))
+    if exclude_property_id:
+        q = q.filter(Property.id != int(exclude_property_id))
+    return q.first()
+
+
+@main_bp.route("/admin/property/check-block-lot", methods=["GET"])
+@login_required
+def admin_check_property_block_lot():
+    if current_user.role != "admin":
+        return jsonify(ok=False, error="Forbidden"), 403
+
+    block = (request.args.get("block") or "").strip()
+    lot_no = (request.args.get("lot_no") or "").strip()
+    sub_raw = (request.args.get("subdivision_id") or "").strip()
+    exclude_raw = (request.args.get("exclude_property_id") or "").strip()
+
+    subdivision_id = None
+    if sub_raw:
+        try:
+            subdivision_id = int(sub_raw)
+        except (TypeError, ValueError):
+            return jsonify(ok=False, error="Invalid subdivision id."), 400
+
+    exclude_property_id = None
+    if exclude_raw:
+        try:
+            exclude_property_id = int(exclude_raw)
+        except (TypeError, ValueError):
+            return jsonify(ok=False, error="Invalid property id."), 400
+
+    if not block or not lot_no:
+        return jsonify(ok=True, exists=False)
+
+    existing = _find_property_with_same_block_lot(
+        block=block,
+        lot_no=lot_no,
+        subdivision_id=subdivision_id,
+        exclude_property_id=exclude_property_id,
+    )
+    if not existing:
+        return jsonify(ok=True, exists=False)
+
+    return jsonify(
+        ok=True,
+        exists=True,
+        property_id=existing.id,
+        property_name=existing.name or "Property",
+    )
 
 
 @main_bp.route("/admin/property/create", methods=["POST"])
@@ -3110,18 +2887,11 @@ def agent_submit_property():
     barangay_code = (request.form.get("barangay_code") or "").strip()
     barangay_name = (request.form.get("barangay_name") or "").strip()
     prop_type = "house-and-lot"
-    unit_id = (request.form.get("unit_id") or "").strip()
     unit_type = (request.form.get("unit_type") or "").strip()
     price_str = (request.form.get("price") or "").strip()
 
-    if not name or not unit_id or not unit_type or not price_str:
-        return jsonify({"error": "Name, unit ID, unit type, and total selling price are required."}), 400
-
-    existing_unit = (Property.query
-                     .filter(db.func.lower(Property.unit_id) == unit_id.lower())
-                     .first())
-    if existing_unit:
-        return jsonify({"error": f"Unit ID '{unit_id}' is already in use. Please use a unique Unit ID."}), 409
+    if not name or not unit_type or not price_str:
+        return jsonify({"error": "Name, unit type, and total selling price are required."}), 400
 
     sub_id_raw = request.form.get("subdivision_id")
     try:
@@ -3162,15 +2932,21 @@ def agent_submit_property():
         barangay_code = (subdivision.barangay_code or "").strip()
         barangay_name = (subdivision.barangay_name or "").strip()
         region = region_name
-        tail = _compose_psgc_tail(region_name, province_name, citymun_name, barangay_name)
+        tail = (subdivision.location or "").strip()
     else:
-        tail = _compose_psgc_tail(region_name, province_name, citymun_name, barangay_name)
+        tail = ", ".join([p for p in [barangay_name, citymun_name, province_name, region_name] if p])
         if not region:
             region = region_name
 
     location = _compose_full_location(street, block, lot_no, tail)
     if not location:
         return jsonify({"error": "Please provide Street, Block, Lot, or PSGC location details."}), 400
+
+    duplicate_block_lot = _find_property_with_same_block_lot(block, lot_no, subdivision_id)
+    if duplicate_block_lot:
+        return jsonify({
+            "error": f"Block {block} and Lot {lot_no} are already used by {duplicate_block_lot.name or 'another model'}."
+        }), 409
 
     agent_id_raw = (request.form.get("agent_id") or "").strip()
     assigned_agent = None
@@ -3196,7 +2972,6 @@ def agent_submit_property():
         barangay_code=barangay_code or None,
         barangay_name=barangay_name or None,
         prop_type=prop_type, price=price,
-        unit_id=unit_id,
         unit_type=unit_type,
         promo_discount_rate=promo_discount_rate,
         reservation_fee=reservation_fee,
@@ -3216,18 +2991,10 @@ def agent_submit_property():
     )
     db.session.add(prop)
     db.session.flush()
+    if not prop.unit_id:
+        prop.unit_id = _generate_property_unit_id(prop.id)
     log_activity("prop_submit", f"Property created by admin: \"{name}\"")
     db.session.commit()
-    
-    # Generate financing options for the new property
-    try:
-        from ..financing_utils import create_financing_options_for_property, regenerate_qualification_matches_for_all_clients
-        create_financing_options_for_property(prop)
-        # Regenerate matches for all clients so they can see this new property
-        regenerate_qualification_matches_for_all_clients()
-    except Exception as e:
-        current_app.logger.error(f"Error generating financing options: {e}")
-    
     return jsonify({
         "success": True,
         "id": prop.id,
@@ -3302,18 +3069,11 @@ def agent_edit_property(prop_id):
     barangay_code = (request.form.get("barangay_code") or "").strip()
     barangay_name = (request.form.get("barangay_name") or "").strip()
     prop_type = "house-and-lot"
-    unit_id = (request.form.get("unit_id") or "").strip()
     unit_type = (request.form.get("unit_type") or "").strip()
     price_str = (request.form.get("price") or "").strip()
 
-    if not name or not unit_id or not unit_type or not price_str:
-        return jsonify({"error": "Name, unit ID, unit type, and total selling price are required."}), 400
-
-    duplicate_unit = (Property.query
-                      .filter(db.func.lower(Property.unit_id) == unit_id.lower(), Property.id != prop.id)
-                      .first())
-    if duplicate_unit:
-        return jsonify({"error": f"Unit ID '{unit_id}' is already in use. Please use a unique Unit ID."}), 409
+    if not name or not unit_type or not price_str:
+        return jsonify({"error": "Name, unit type, and total selling price are required."}), 400
 
     sub_id_raw = request.form.get("subdivision_id")
     try:
@@ -3351,15 +3111,21 @@ def agent_edit_property(prop_id):
         barangay_code = (subdivision.barangay_code or "").strip()
         barangay_name = (subdivision.barangay_name or "").strip()
         region = region_name
-        tail = _compose_psgc_tail(region_name, province_name, citymun_name, barangay_name)
+        tail = (subdivision.location or "").strip()
     else:
-        tail = _compose_psgc_tail(region_name, province_name, citymun_name, barangay_name)
+        tail = ", ".join([p for p in [barangay_name, citymun_name, province_name, region_name] if p])
         if not region:
             region = region_name
 
     location = _compose_full_location(street, block, lot_no, tail)
     if not location:
         return jsonify({"error": "Please provide Street, Block, Lot, or PSGC location details."}), 400
+
+    duplicate_block_lot = _find_property_with_same_block_lot(block, lot_no, subdivision_id, exclude_property_id=prop.id)
+    if duplicate_block_lot:
+        return jsonify({
+            "error": f"Block {block} and Lot {lot_no} are already used by {duplicate_block_lot.name or 'another model'}."
+        }), 409
 
     prop.name         = name
     prop.street       = street or None
@@ -3377,7 +3143,6 @@ def agent_edit_property(prop_id):
         prop.barangay_code = barangay_code or None
         prop.barangay_name = barangay_name or None
     prop.prop_type    = prop_type
-    prop.unit_id      = unit_id
     prop.unit_type    = unit_type
     prop.price        = price
     prop.promo_discount_rate = promo_discount_rate
@@ -3405,6 +3170,8 @@ def agent_edit_property(prop_id):
             pass
 
     prop.approval_status = "approved"
+    if not prop.unit_id:
+        prop.unit_id = _generate_property_unit_id(prop.id)
 
     # Handle image removals
     upload_dir = current_app.config["UPLOAD_FOLDER"]
@@ -3471,7 +3238,7 @@ def client_request_full_property_details(prop_id):
                      .order_by(QualificationResult.created_at.desc())
                      .first())
     if not latest_result or latest_result.status not in ("Qualified", "Conditionally Qualified"):
-        return jsonify(ok=False, error="You must be Qualified or Conditionally Qualified to request full pricing breakdown."), 403
+        return jsonify(ok=False, error="You must be Qualified or Conditionally Qualified to request full details."), 403
 
     now_utc = datetime.now(timezone.utc)
     existing = PropertyPricingDetailRequest.query.filter_by(
@@ -3935,6 +3702,11 @@ def admin_property_purchase_list(prop_id):
         client = trip_row.client
         profile = client.profile if client else None
         prop_row = trip_row.property_item
+        assigned_agent_name = (
+            prop_row.agent.full_name
+            if prop_row and prop_row.agent and str(prop_row.agent.role or '').lower() == 'agent'
+            else ''
+        )
         selling_price = float(prop_row.price or 0) if prop_row else 0.0
         reservation_fee = float(getattr(prop_row, "reservation_fee", 0) or 0) if prop_row else 0.0
         downpayment_rate = float(getattr(prop_row, "downpayment_rate", 0) or 0) if prop_row else 0.0
@@ -3982,7 +3754,7 @@ def admin_property_purchase_list(prop_id):
             "loanPromoDisc": "",
             "loanOrPrNo": "",
             "loanOrPrDate": "",
-            "loanBookingOfficer": "",
+            "loanBookingOfficer": assigned_agent_name,
             "loanFinancing": "",
             "loanDownpaymentTerm": "",
             "loanTerm": "",
@@ -4037,6 +3809,16 @@ def admin_property_purchase_list(prop_id):
             "trip_id": trip.id,
             "client_id": trip.client_id,
             "client_name": trip.client.full_name if trip.client else "Client",
+            "assigned_agent_name": (
+                trip.property_item.agent.full_name
+                if trip.property_item and trip.property_item.agent and str(trip.property_item.agent.role or '').lower() == 'agent'
+                else ''
+            ),
+            "client_gross_income": (
+                float(trip.client.profile.gross_income)
+                if trip.client and trip.client.profile and trip.client.profile.gross_income is not None
+                else None
+            ),
             "esignature_url": url_for("main.admin_client_esignature", user_id=trip.client_id),
             "preferred_date": trip.preferred_date.strftime("%b %d, %Y") if trip.preferred_date else "—",
             "status": (trip.status or "pending").lower(),
@@ -4668,7 +4450,7 @@ def agent_client_profile(user_id):
             "assessment_mode": _normalize_assessment_mode(result.assessment_mode, "reassess") if result else "reassess",
             "dti":          f"{result.dti_ratio:.1f}%" if result.dti_ratio is not None else "—",
             "max_loanable": f"₱{float(result.max_loanable):,.0f}" if result.max_loanable else "—",
-            "similarity":   _similarity_band(result.similarity_score),
+            "similarity":   f"{result.similarity_score * 100:.0f}%" if result.similarity_score is not None else "—",
         } if result else None,
         "assessments": [
             {
@@ -4680,7 +4462,7 @@ def agent_client_profile(user_id):
                 ),
                 "dti": f"{qr.dti_ratio:.1f}%" if qr.dti_ratio is not None else "—",
                 "max_loanable": f"₱{float(qr.max_loanable):,.0f}" if qr.max_loanable else "—",
-                "similarity": _similarity_band(qr.similarity_score),
+                "similarity": f"{qr.similarity_score * 100:.0f}%" if qr.similarity_score is not None else "—",
             }
             for idx, qr in enumerate(assessment_history)
         ],

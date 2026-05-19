@@ -1416,17 +1416,17 @@ body.page-client-portal {
 /* Full pricing breakdown block */
 .pvm-pb-wrap {
   background: #fff;
-  border: 1px solid #dfe3e8;
+  border: 1px solid var(--clr-border);
   border-radius: 12px;
-  box-shadow: none;
+  box-shadow: var(--shadow-xs);
   overflow: hidden;
 }
 .pvm-pb-header {
   display: flex;
   align-items: center;
   gap: .55rem;
-  background: #f5f7fa;
-  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, rgba(26,38,153,.08), rgba(170,221,42,.12));
+  border-bottom: 1px solid var(--clr-border);
   padding: .75rem .9rem;
 }
 .pvm-pb-header-icon {
@@ -1436,14 +1436,14 @@ body.page-client-portal {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #e9edf2;
-  color: #5b6573;
+  background: rgba(26,38,153,.12);
+  color: var(--clr-blue);
   font-size: var(--fs-sm);
 }
 .pvm-pb-header-title {
   font-size: var(--fs-base);
-  font-weight: 700;
-  color: #1f2937;
+  font-weight: 800;
+  color: var(--clr-navy-dark);
   letter-spacing: .2px;
 }
 .pvm-pb-metrics,
@@ -1480,8 +1480,8 @@ body.page-client-portal {
   width: 100%;
   padding: .4rem .7rem;
   border-radius: 8px;
-  background: #f3f4f6;
-  color: #374151;
+  background: linear-gradient(90deg, rgba(26,38,153,.1), rgba(26,38,153,0));
+  color: var(--clr-text);
   font-size: var(--fs-xs);
   font-weight: 800;
   letter-spacing: .06em;
@@ -1493,8 +1493,8 @@ body.page-client-portal {
   width: 100%;
   padding: .4rem .7rem;
   border-radius: 8px;
-  background: #f3f4f6;
-  color: #374151;
+  background: linear-gradient(90deg, rgba(26,38,153,.1), rgba(26,38,153,0));
+  color: var(--clr-text);
   font-size: var(--fs-xs);
   font-weight: 800;
   letter-spacing: .06em;
@@ -1526,8 +1526,8 @@ body.page-client-portal {
 }
 .pvm-pb-card,
 .pvm-pb-amort-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border: 1px solid var(--clr-border);
   border-radius: 10px;
   padding: .7rem .75rem;
 }
@@ -1536,167 +1536,51 @@ body.page-client-portal {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .6px;
-  color: #4b5563;
+  color: var(--clr-text);
   margin-bottom: .25rem;
 }
 .pvm-pb-value {
   font-size: var(--fs-lg);
   font-weight: 800;
-  color: #111827;
+  color: var(--clr-primary);
   line-height: 1.15;
 }
 .pvm-pb-sub {
   font-size: var(--fs-xs);
-  color: #6b7280;
+  color: var(--clr-muted);
   margin-top: .2rem;
 }
 .pvm-pb-card-summary .pvm-pb-value {
-  color: #111827;
+  color: var(--clr-blue);
 }
 .pvm-pb-amort-term {
   font-size: var(--fs-xs);
   font-weight: 700;
-  color: #4b5563;
+  color: var(--clr-text);
   margin-bottom: .25rem;
 }
 .pvm-pb-amort-value {
   font-size: var(--fs-base);
   font-weight: 800;
-  color: #111827;
+  color: var(--clr-accent-dk);
   line-height: 1.1;
+}
+.pvm-pb-amort-amount-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .32rem;
+  flex-wrap: nowrap;
+}
+.pvm-pb-amort-unit-inline {
+  font-size: var(--fs-2xs);
+  color: var(--clr-muted);
+  line-height: 1;
+  white-space: nowrap;
 }
 .pvm-pb-amort-unit {
   font-size: var(--fs-2xs);
-  color: #6b7280;
+  color: var(--clr-muted);
   margin-top: .15rem;
-}
-
-.pvm-req-status {
-  font-weight: 600;
-}
-
-.pvm-req-status-qualified {
-  color: #2e7d32;
-}
-
-.pvm-req-status-conditional {
-  color: #a16207;
-}
-
-.pvm-req-status-not-qualified {
-  color: #b91c1c;
-}
-
-.pvm-req-status-unavailable {
-  color: #6b7280;
-}
-
-.pvm-qual-indicator {
-  border: 1px solid #e5e7eb;
-  border-left-width: 4px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
-  padding: .72rem .8rem;
-}
-
-.pvm-qual-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem;
-  flex-wrap: wrap;
-}
-
-.pvm-qual-title-wrap {
-  display: flex;
-  align-items: baseline;
-  gap: .55rem;
-  min-width: 0;
-}
-
-.pvm-qual-title {
-  font-size: var(--fs-sm);
-  font-weight: 800;
-  color: #111827;
-  letter-spacing: .01em;
-}
-
-.pvm-qual-subtitle {
-  font-size: var(--fs-2xs);
-  color: #6b7280;
-  white-space: nowrap;
-}
-
-.pvm-qual-year-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-}
-
-.pvm-qual-year-label {
-  font-size: var(--fs-2xs);
-  font-weight: 700;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-}
-
-.pvm-qual-year-select {
-  min-width: 132px;
-  border-color: #d1d5db;
-  color: #1f2937;
-  font-weight: 700;
-  background-color: #fff;
-}
-
-.pvm-qual-year-select:focus {
-  border-color: #94a3b8;
-  box-shadow: 0 0 0 .16rem rgba(148, 163, 184, .22);
-}
-
-.pvm-qual-status-text {
-  margin-top: .55rem;
-  font-size: var(--fs-sm);
-  font-weight: 800;
-  letter-spacing: .01em;
-}
-
-.pvm-qual-indicator-qualified {
-  border-left-color: #2e7d32;
-}
-
-.pvm-qual-indicator-conditional {
-  border-left-color: #a16207;
-}
-
-.pvm-qual-indicator-not-qualified {
-  border-left-color: #b91c1c;
-}
-
-.pvm-qual-indicator-unavailable {
-  border-left-color: #64748b;
-}
-
-@media (max-width: 576px) {
-  .pvm-qual-title-wrap {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .pvm-qual-subtitle {
-    white-space: normal;
-    text-align: right;
-  }
-
-  .pvm-qual-year-wrap {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .pvm-qual-year-select {
-    min-width: 0;
-    width: 58%;
-  }
 }
 
 /* Trip request modal prop banner */
@@ -2863,17 +2747,4 @@ body.page-client-portal {
   #buyerInfoModal .buyer-prof-section .prof-section-sub {
     font-size: var(--fs-xs);
   }
-}
-
-.prop-availability-note {
-  margin-top: .3rem;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  color: #4f7400;
-  background: rgba(170, 221, 42, .16);
-  border: 1px solid rgba(170, 221, 42, .45);
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  padding: .14rem .52rem;
 }

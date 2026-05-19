@@ -167,3 +167,4 @@ def create_app(config_class=Config):
 			return "SMARTQUALIHOME is running."
 
 	return app
+
